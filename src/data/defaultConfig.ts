@@ -2,9 +2,9 @@ import { Config } from "../types";
 
 export const DEFAULT_CONFIG: Config = {
   titulares: [
-    { id: "isabela", nome: "Isabela", tipo: "Principal", final: "1691", cor: "amber" },
-    { id: "claudio", nome: "Claudio", tipo: "Virtual", final: "8252", cor: "blue" },
-    { id: "daniel", nome: "Daniel", tipo: "Adicional", final: "6353", cor: "teal" },
+    { id: "Isabela", nome: "Isabela", tipo: "Principal", final: "1691", cor: "amber" },
+    { id: "Claudio", nome: "Claudio", tipo: "Virtual", final: "8252", cor: "blue" },
+    { id: "Daniel", nome: "Daniel", tipo: "Adicional", final: "6353", cor: "teal" },
   ],
   rules: [
     { keyword: "TAUSTE", unidade: "Araraquara", tipo: "Loja" },
