@@ -208,7 +208,7 @@ const Index = () => {
                         <TableCell className="text-right tabular-nums text-[12px]">{row.Isabela > 0.01 ? formatBRL(row.Isabela).replace("R$", "").trim() : '—'}</TableCell>
                         <TableCell className="text-right tabular-nums text-[12px]">{row.Claudio > 0.01 ? formatBRL(row.Claudio).replace("R$", "").trim() : '—'}</TableCell>
                         <TableCell className="text-right tabular-nums text-[12px]">{row.Daniel > 0.01 ? formatBRL(row.Daniel).replace("R$", "").trim() : '—'}</TableCell>
-                        <TableCell className="text-right font-bold tabular-nums bg-slate-50 text-[12px]">{formatBRL(row.total)}</TableCell>
+                        <TableCell className="text-right font-bold tabular-nums bg-slate-50 text-[12px]">{formatBRL(row.total).replace("R$", "").trim()}</TableCell>
                      </TableRow>
                    ))}
                    <TableRow className="bg-slate-100 font-black text-[11px]">
