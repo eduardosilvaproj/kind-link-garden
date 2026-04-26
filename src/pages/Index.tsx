@@ -193,27 +193,45 @@ const Index = () => {
             </div>
           </Card>
           
-          {/* Summary Bars */}
-          <div className="h-20 shrink-0 flex gap-4">
-             {config.titulares.map(t => {
-                const total = totals[t.id as keyof typeof totals] as number;
-                const percentage = (total / (totals.compras + totals.encargos)) * 100;
-                return (
-                  <Card key={t.id} className="flex-1">
-                    <CardContent className="p-3 flex items-center gap-3">
-                      <Avatar className={cn("h-8 w-8", getTitularColor(t.id))}>
-                        <AvatarFallback className="text-[10px] font-bold">{getTitularInitials(t.id)}</AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <p className="text-[10px] font-bold text-slate-500 uppercase">{t.nome}</p>
-                        <p className="text-sm font-black">{formatBRL(total)}</p>
+          {/* Summary Distribution Bar */}
+          <Card className="shrink-0">
+            <CardContent className="p-4">
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-[10px] font-bold uppercase text-slate-500">Distribuição por Titular</span>
+                <div className="flex gap-4">
+                  {config.titulares.map(t => (
+                    <div key={t.id} className="flex items-center gap-1">
+                      <div className={cn("w-2 h-2 rounded-full", getTitularColor(t.id))} />
+                      <span className="text-[10px] font-bold text-slate-600">{t.nome}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="flex h-4 w-full rounded-full overflow-hidden bg-slate-100">
+                {config.titulares.map(t => {
+                  const total = totals[t.id as keyof typeof totals] as number;
+                  const percentage = (total / (totals.compras + totals.encargos)) * 100;
+                  return (
+                    <div 
+                      key={t.id} 
+                      className={cn("h-full transition-all", getTitularColor(t.id))} 
+                      style={{ width: `${percentage}%` }}
+                    />
+                  );
+                })}
+              </div>
+              <div className="flex justify-between mt-2">
+                 {config.titulares.map(t => {
+                    const total = totals[t.id as keyof typeof totals] as number;
+                    return (
+                      <div key={t.id} className="text-center">
+                        <p className="text-[10px] font-bold text-slate-900">{formatBRL(total)}</p>
                       </div>
-                      <div className="ml-auto text-[10px] font-bold text-slate-400">{percentage.toFixed(0)}%</div>
-                    </CardContent>
-                  </Card>
-                )
-             })}
-          </div>
+                    );
+                 })}
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
         {/* RIGHT COLUMN: Transactions Table */}
