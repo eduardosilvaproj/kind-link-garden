@@ -21,7 +21,7 @@ export const useAppContext = () => {
     localStorage.setItem('c6_transacoes', JSON.stringify(transacoes));
   }, [transacoes]);
 
-  const updateTransacao = (id: string, updates: Partial<Transacao>) => {
+  const updateTransacao = (id: number, updates: Partial<Transacao>) => {
     setTransacoes(prev => prev.map(t => t.id === id ? { ...t, ...updates } : t));
   };
 
