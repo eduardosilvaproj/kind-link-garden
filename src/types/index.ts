@@ -24,6 +24,7 @@ export type Cidade =
     | "Encargo Bancário"
     | "Estorno"
     | "Crédito/Pagamento"
+    | "Pagamento"
     | "Loja"
     | "Fornecedor"
     | "Depósito"
