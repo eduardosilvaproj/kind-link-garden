@@ -66,44 +66,38 @@ const Index = () => {
   const diff = Math.abs(totals.totalCalculado - EXPECTED_TOTAL);
   const isValid = diff < 0.01;
 
-   const crossTable = useMemo(() => {
-     const activeCities = Array.from(new Set(transacoes.map(t => t.cidade))).filter(c => c !== "Encargos");
-     const rowLabels = [
-       "Araraquara", 
-       "Bauru", 
-       "Ribeirão Preto", 
-       "São Carlos", 
-       "Online / Digital", 
-       "Não identificado"
-     ].filter(label => activeCities.includes(label) || label === "Não identificado");
-     
-     const labelsToProcess = [...rowLabels, "Encargos"];
-     
-     return labelsToProcess.map(label => {
-       const row: any = { label };
-       let total = 0;
-       config.titulares.forEach(titular => {
-         let val = 0;
-         if (label === 'Encargos') {
-           val = transacoes
-             .filter(t => t.titular === titular.id && t.tipo === 'Encargo Bancário')
-             .reduce((acc, t) => acc + t.valor, 0);
-         } else {
-           val = transacoes
-             .filter(t => 
-               t.cidade === label && 
-               t.titular === titular.id && 
-               !['Crédito', 'Estorno', 'Pagamento', 'Encargo Bancário'].includes(t.tipo)
-             )
-             .reduce((acc, t) => acc + t.valor, 0);
-         }
-         row[titular.id] = val;
-         total += val;
-       });
-       row.total = total;
-       return row;
-     });
-   }, [transacoes, config]);
+    const crossTable = useMemo(() => {
+      const rowLabels = ["Araraquara", "Online", "Não identificado", "Encargos"];
+      const titularIds = ["Isabela", "Claudio", "Daniel"];
+      
+      return rowLabels.map(label => {
+        const row: any = { label };
+        let total = 0;
+        titularIds.forEach(titularId => {
+          let val = 0;
+          if (label === 'Encargos') {
+            val = transacoes
+              .filter(t => t.titular === titularId && t.tipo === 'Encargo Bancário')
+              .reduce((acc, t) => acc + t.valor, 0);
+          } else {
+            val = transacoes
+              .filter(t => 
+                t.titular === titularId &&
+                (label === "Online" ? (t.cidade === "Online" || t.cidade === "Online / Digital") : t.cidade === label) &&
+                t.tipo !== "Crédito" &&
+                t.tipo !== "Estorno" &&
+                t.tipo !== "Pagamento" &&
+                t.valor > 0
+              )
+              .reduce((acc, t) => acc + t.valor, 0);
+          }
+          row[titularId] = val;
+          total += val;
+        });
+        row.total = total;
+        return row;
+      });
+    }, [transacoes]);
 
   const filteredTransacoes = useMemo(() => {
     return transacoes.filter(t => {
@@ -131,8 +125,9 @@ const Index = () => {
   };
 
    const getRowColor = (t: Transacao) => {
+     const isUnidentified = t.cidade === "Não identificado";
      if (t.tipo === "Encargo Bancário") return "bg-red-50 text-red-700";
-     if (t.cidade === "Não identificado") return "bg-amber-50 text-amber-700";
+     if (isUnidentified) return "bg-amber-50 text-amber-700";
      if (t.tipo === "Crédito") return "bg-blue-50 text-blue-700";
      if (t.tipo === "Estorno") return "bg-green-50 text-green-700";
      return "";
@@ -198,30 +193,30 @@ const Index = () => {
             <div className="flex-1 overflow-auto">
                <Table className="table-fixed w-full">
                  <TableHeader className="sticky top-0 bg-white z-10 shadow-sm">
-                   <TableRow>
-                     <TableHead className="font-bold w-[130px]">Cidade</TableHead>
-                     <TableHead className="text-right font-bold w-[22%]">Isabela</TableHead>
-                     <TableHead className="text-right font-bold w-[22%]">Claudio</TableHead>
-                     <TableHead className="text-right font-bold w-[22%]">Daniel</TableHead>
-                     <TableHead className="text-right font-bold bg-slate-50 w-[22%]">Total</TableHead>
-                   </TableRow>
+                    <TableRow className="bg-slate-50/50">
+                      <TableHead className="font-bold w-[130px] text-[11px] uppercase py-1 h-8">Cidade</TableHead>
+                      <TableHead className="text-right font-bold w-[22%] text-[11px] uppercase py-1 h-8">Isabela</TableHead>
+                      <TableHead className="text-right font-bold w-[22%] text-[11px] uppercase py-1 h-8">Claudio</TableHead>
+                      <TableHead className="text-right font-bold w-[22%] text-[11px] uppercase py-1 h-8">Daniel</TableHead>
+                      <TableHead className="text-right font-bold bg-slate-100/50 w-[22%] text-[11px] uppercase py-1 h-8">Total</TableHead>
+                    </TableRow>
                  </TableHeader>
                  <TableBody>
                    {crossTable.map((row, idx) => (
                      <TableRow key={idx} className={cn(row.label === 'Não identificado' && row.total > 0 ? 'bg-amber-50' : row.label === 'Encargos' ? 'bg-red-50' : '')}>
-                       <TableCell className="font-medium truncate max-w-[130px]">{row.label}</TableCell>
-                       <TableCell className="text-right tabular-nums">{row.isabela > 0.01 ? formatBRL(row.isabela) : '—'}</TableCell>
-                       <TableCell className="text-right tabular-nums">{row.claudio > 0.01 ? formatBRL(row.claudio) : '—'}</TableCell>
-                       <TableCell className="text-right tabular-nums">{row.daniel > 0.01 ? formatBRL(row.daniel) : '—'}</TableCell>
-                       <TableCell className="text-right font-bold tabular-nums bg-slate-50">{formatBRL(row.total)}</TableCell>
+                        <TableCell className="font-medium text-[11px] whitespace-normal leading-tight py-2">{row.label}</TableCell>
+                        <TableCell className="text-right tabular-nums text-[11px] py-1">{row.Isabela > 0.01 ? formatBRL(row.Isabela).replace("R$", "").trim() : '—'}</TableCell>
+                        <TableCell className="text-right tabular-nums text-[11px] py-1">{row.Claudio > 0.01 ? formatBRL(row.Claudio).replace("R$", "").trim() : '—'}</TableCell>
+                        <TableCell className="text-right tabular-nums text-[11px] py-1">{row.Daniel > 0.01 ? formatBRL(row.Daniel).replace("R$", "").trim() : '—'}</TableCell>
+                        <TableCell className="text-right font-bold tabular-nums bg-slate-50 text-[11px] py-1">{formatBRL(row.total).replace("R$", "").trim()}</TableCell>
                      </TableRow>
                    ))}
                    <TableRow className="bg-slate-100 font-black text-[11px]">
-                     <TableCell className="w-[130px]">Total</TableCell>
-                     <TableCell className="text-right tabular-nums w-[22%]">{formatBRL(crossTable.reduce((acc, r) => acc + r.isabela, 0))}</TableCell>
-                     <TableCell className="text-right tabular-nums w-[22%]">{formatBRL(crossTable.reduce((acc, r) => acc + r.claudio, 0))}</TableCell>
-                     <TableCell className="text-right tabular-nums w-[22%]">{formatBRL(crossTable.reduce((acc, r) => acc + r.daniel, 0))}</TableCell>
-                     <TableCell className="text-right tabular-nums bg-slate-200 w-[22%]">{formatBRL(crossTable.reduce((acc, r) => acc + r.total, 0))}</TableCell>
+                       <TableCell className="w-[130px] text-[11px] font-bold">TOTAL</TableCell>
+                       <TableCell className="text-right tabular-nums w-[22%] text-[11px] font-bold py-1">{formatBRL(crossTable.reduce((acc, r) => acc + r.Isabela, 0)).replace("R$", "").trim()}</TableCell>
+                       <TableCell className="text-right tabular-nums w-[22%] text-[11px] font-bold py-1">{formatBRL(crossTable.reduce((acc, r) => acc + r.Claudio, 0)).replace("R$", "").trim()}</TableCell>
+                       <TableCell className="text-right tabular-nums w-[22%] text-[11px] font-bold py-1">{formatBRL(crossTable.reduce((acc, r) => acc + r.Daniel, 0)).replace("R$", "").trim()}</TableCell>
+                       <TableCell className="text-right tabular-nums bg-slate-200 w-[22%] text-[11px] font-bold py-1">{formatBRL(crossTable.reduce((acc, r) => acc + r.total, 0)).replace("R$", "").trim()}</TableCell>
                    </TableRow>
                  </TableBody>
                </Table>
@@ -343,7 +338,7 @@ const Index = () => {
                                  <SelectValue placeholder="Cidade" />
                                </SelectTrigger>
                                <SelectContent>
-                                 {["Araraquara", "Bauru", "Ribeirão Preto", "São Carlos", "Online / Digital", "Não identificado"].map(c => (
+                                 {["Araraquara", "Online", "Não identificado", "—"].map(c => (
                                    <SelectItem key={c} value={c} className="text-[11px]">{c}</SelectItem>
                                  ))}
                                </SelectContent>
