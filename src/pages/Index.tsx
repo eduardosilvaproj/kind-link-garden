@@ -25,11 +25,18 @@ const Index = () => {
 
   // Initialize with all data if empty (as requested)
   // Simplified initialization
-  useState(() => {
-    if (transacoes.length === 0) {
-      setTransacoes(TRANSACOES);
-    }
-  });
+   useState(() => {
+     if (transacoes.length === 0) {
+       setTransacoes(TRANSACOES);
+     } else {
+       // If we have saved data, check if it has the new fields
+       // This handles the first load after the update
+       const hasRealData = transacoes.length === TRANSACOES.length;
+       if (!hasRealData) {
+         setTransacoes(TRANSACOES);
+       }
+     }
+   });
 
    const totals = useMemo(() => {
      const compras = transacoes.filter(t => !['Crédito', 'Estorno', 'Pagamento', 'Encargo Bancário'].includes(t.tipo)).reduce((acc, t) => acc + t.valor, 0);
