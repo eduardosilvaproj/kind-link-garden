@@ -193,13 +193,13 @@ const Index = () => {
             <div className="flex-1 overflow-auto">
                <Table className="table-fixed w-full">
                  <TableHeader className="sticky top-0 bg-white z-10 shadow-sm">
-                   <TableRow>
-                     <TableHead className="font-bold w-[130px]">Cidade</TableHead>
-                     <TableHead className="text-right font-bold w-[22%]">Isabela</TableHead>
-                     <TableHead className="text-right font-bold w-[22%]">Claudio</TableHead>
-                     <TableHead className="text-right font-bold w-[22%]">Daniel</TableHead>
-                     <TableHead className="text-right font-bold bg-slate-50 w-[22%]">Total</TableHead>
-                   </TableRow>
+                    <TableRow className="bg-slate-50/50">
+                      <TableHead className="font-bold w-[130px] text-[11px] uppercase py-1 h-8">Cidade</TableHead>
+                      <TableHead className="text-right font-bold w-[22%] text-[11px] uppercase py-1 h-8">Isabela</TableHead>
+                      <TableHead className="text-right font-bold w-[22%] text-[11px] uppercase py-1 h-8">Claudio</TableHead>
+                      <TableHead className="text-right font-bold w-[22%] text-[11px] uppercase py-1 h-8">Daniel</TableHead>
+                      <TableHead className="text-right font-bold bg-slate-100/50 w-[22%] text-[11px] uppercase py-1 h-8">Total</TableHead>
+                    </TableRow>
                  </TableHeader>
                  <TableBody>
                    {crossTable.map((row, idx) => (
