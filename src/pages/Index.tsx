@@ -195,7 +195,7 @@ const Index = () => {
           <div className="h-20 shrink-0 flex gap-4">
              {config.titulares.map(t => {
                 const total = totals[t.id as keyof typeof totals] as number;
-                const percentage = (total / (totals.totalCompras + totals.totalEncargos)) * 100;
+                const percentage = (total / (totals.compras + totals.encargos)) * 100;
                 return (
                   <Card key={t.id} className="flex-1">
                     <CardContent className="p-3 flex items-center gap-3">
