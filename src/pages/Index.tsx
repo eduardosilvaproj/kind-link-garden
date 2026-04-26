@@ -85,6 +85,7 @@ const Index = () => {
             <TabsTrigger value="classificacao" className="flex gap-2"><List className="w-4 h-4" /> Classificar</TabsTrigger>
             <TabsTrigger value="resumo" className="flex gap-2"><BarChart3 className="w-4 h-4" /> Resumo</TabsTrigger>
             <TabsTrigger value="exportar" className="flex gap-2"><Download className="w-4 h-4" /> Exportar</TabsTrigger>
+            <TabsTrigger value="config" className="flex gap-2"><Settings className="w-4 h-4" /> Config</TabsTrigger>
           </TabsList>
 
           <TabsContent value="upload">
