@@ -41,7 +41,7 @@ export type Transacao = {
 
 export type AutoRule = {
   keyword: string;
-  unidade: Cidade;
+  cidade: Cidade;
   tipo: TipoDestino;
 };
 
