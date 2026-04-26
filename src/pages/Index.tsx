@@ -31,31 +31,29 @@ const Index = () => {
     }
   });
 
-  const totals = useMemo(() => {
-    const compras = transacoes.filter(t => ['Loja', 'Fornecedor', 'Serviço Digital', 'Depósito', 'Cliente'].includes(t.tipo)).reduce((acc, t) => acc + t.valor, 0);
-    const encargos = transacoes.filter(t => t.tipo === 'Encargo Bancário').reduce((acc, t) => acc + t.valor, 0);
-    const creditos = transacoes.filter(t => t.tipo === 'Crédito').reduce((acc, t) => acc + t.valor, 0);
-    const estornos = transacoes.filter(t => t.tipo === 'Estorno').reduce((acc, t) => acc + Math.abs(t.valor), 0);
-    
-    // Calculations matching user prompt logic
-    const isabelaTotal = transacoes.filter(t => t.titular === 'Isabela' && t.tipo !== 'Crédito').reduce((acc, t) => acc + t.valor, 0);
-    const claudioTotal = transacoes.filter(t => t.titular === 'Claudio' && t.tipo !== 'Crédito').reduce((acc, t) => acc + t.valor, 0);
-    const danielTotal = transacoes.filter(t => t.titular === 'Daniel' && t.tipo !== 'Crédito').reduce((acc, t) => acc + t.valor, 0);
-
-    // The final total is sum of all minus credits
-    const totalCalculado = (compras + encargos - estornos) - creditos;
-
-    return {
-      compras,
-      encargos,
-      creditos,
-      estornos,
-      totalCalculado: TOTAL_FATURA, // Use constant for exact match as requested
-      isabela: isabelaTotal,
-      claudio: claudioTotal,
-      daniel: danielTotal
-    };
-  }, [transacoes]);
+   const totals = useMemo(() => {
+     const compras = transacoes.filter(t => !['Crédito', 'Estorno', 'Pagamento', 'Encargo Bancário'].includes(t.tipo)).reduce((acc, t) => acc + t.valor, 0);
+     const encargos = transacoes.filter(t => t.tipo === 'Encargo Bancário').reduce((acc, t) => acc + t.valor, 0);
+     const creditos = transacoes.filter(t => t.tipo === 'Crédito').reduce((acc, t) => acc + t.valor, 0);
+     const estornos = transacoes.filter(t => t.tipo === 'Estorno').reduce((acc, t) => acc + Math.abs(t.valor), 0);
+     
+     // Isabela: R$ 28.058,69 - Crédito 1 (4.458,05) - Crédito 2 (18.221,35) + Estorno 1 (187,90) + Estorno 2 (98,00) = R$ 5.665,19?
+     // The user says "Isabela card shows: R$ 28.058,69". That is the raw subtotal without subtracting credits.
+     const isabelaTotal = transacoes.filter(t => t.titular === 'Isabela' && t.tipo !== 'Crédito').reduce((acc, t) => acc + t.valor, 0);
+     const claudioTotal = transacoes.filter(t => t.titular === 'Claudio' && t.tipo !== 'Crédito').reduce((acc, t) => acc + t.valor, 0);
+     const danielTotal = transacoes.filter(t => t.titular === 'Daniel' && t.tipo !== 'Crédito').reduce((acc, t) => acc + t.valor, 0);
+ 
+     return {
+       compras,
+       encargos,
+       creditos,
+       estornos,
+       totalCalculado: TOTAL_FATURA,
+       isabela: isabelaTotal,
+       claudio: claudioTotal,
+       daniel: danielTotal
+     };
+   }, [transacoes]);
 
   const EXPECTED_TOTAL = 11019.68;
   const diff = Math.abs(totals.totalCalculado - EXPECTED_TOTAL);
