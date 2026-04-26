@@ -87,30 +87,32 @@ const Index = () => {
 
   const filteredTransacoes = useMemo(() => {
     return transacoes.filter(t => {
-      if (filterTitular !== "Todos" && t.titularId !== filterTitular) return false;
-      if (showOnlyUnidentified && t.unidade !== "Não identificado") return false;
+      if (filterTitular !== "Todos" && t.titular !== filterTitular) return false;
+      if (showOnlyUnidentified && t.cidade !== "Não identificado") return false;
       if (!showPayments && (t.tipo === "Pagamento" || t.tipo === "Crédito")) return false;
       return true;
     });
   }, [transacoes, filterTitular, showOnlyUnidentified, showPayments]);
 
   const getTitularColor = (id: string) => {
-    if (id === "isabela") return "bg-amber-500 text-white";
-    if (id === "claudio") return "bg-blue-500 text-white";
-    if (id === "daniel") return "bg-teal-500 text-white";
+    const lower = id.toLowerCase();
+    if (lower === "isabela") return "bg-amber-500 text-white";
+    if (lower === "claudio") return "bg-blue-500 text-white";
+    if (lower === "daniel") return "bg-teal-500 text-white";
     return "bg-slate-500 text-white";
   };
 
   const getTitularInitials = (id: string) => {
-    if (id === "isabela") return "IS";
-    if (id === "claudio") return "CD";
-    if (id === "daniel") return "DV";
+    const lower = id.toLowerCase();
+    if (lower === "isabela") return "IS";
+    if (lower === "claudio") return "CD";
+    if (lower === "daniel") return "DV";
     return "??";
   };
 
   const getRowColor = (t: Transacao) => {
     if (t.tipo === "Encargo Bancário") return "bg-red-50 text-red-700";
-    if (t.unidade === "Não identificado") return "bg-amber-50 text-amber-700";
+    if (t.cidade === "Não identificado") return "bg-amber-50 text-amber-700";
     if (t.tipo === "Crédito") return "bg-blue-50 text-blue-700";
     if (t.tipo === "Estorno") return "text-green-600";
     return "";
