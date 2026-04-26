@@ -299,12 +299,12 @@ const Index = () => {
                         <TooltipProvider>
                           <Tooltip>
                             <TooltipTrigger>
-                              <div className={cn("w-6 h-6 rounded-full flex items-center justify-center font-bold text-[8px]", getTitularColor(t.titularId))}>
-                                {getTitularInitials(t.titularId)}
+                              <div className={cn("w-6 h-6 rounded-full flex items-center justify-center font-bold text-[8px]", getTitularColor(t.titular))}>
+                                {getTitularInitials(t.titular)}
                               </div>
                             </TooltipTrigger>
                             <TooltipContent>
-                              <p className="text-xs font-bold">{config.titulares.find(tit => tit.id === t.titularId)?.nome}</p>
+                             <p className="text-xs font-bold">{config.titulares.find(tit => tit.id === t.titular)?.nome}</p>
                             </TooltipContent>
                           </Tooltip>
                         </TooltipProvider>
@@ -313,12 +313,12 @@ const Index = () => {
                       <TableCell className="py-2">
                         <div className="flex flex-col">
                           <Input 
-                            value={t.nomeLimpo} 
-                            onChange={(e) => updateTransacao(t.id, { nomeLimpo: e.target.value })}
+                            value={t.nome} 
+                            onChange={(e) => updateTransacao(t.id, { nome: e.target.value })}
                             className="h-6 text-[11px] border-none shadow-none bg-transparent hover:bg-white focus:bg-white p-0 px-1 font-bold"
                           />
                           <div className="flex gap-2 items-center">
-                             <Select value={t.unidade} onValueChange={(v) => updateTransacao(t.id, { unidade: v as Cidade })}>
+                             <Select value={t.cidade} onValueChange={(v) => updateTransacao(t.id, { cidade: v as string })}>
                               <SelectTrigger className="h-4 text-[9px] bg-transparent border-none p-0 w-auto gap-1 text-slate-400 font-medium shadow-none">
                                 <SelectValue />
                               </SelectTrigger>
