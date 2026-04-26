@@ -3,7 +3,7 @@ import { useAppContext } from '../hooks/useAppContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { SAMPLE_TRANSACTIONS } from '../data/sampleData';
+import { TRANSACOES } from '../data/transactions';
 import { Download, AlertCircle, Filter, FilterX, Eye, EyeOff } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -27,7 +27,7 @@ const Index = () => {
   // Simplified initialization
   useState(() => {
     if (transacoes.length === 0) {
-      setTransacoes(SAMPLE_TRANSACTIONS);
+      setTransacoes(TRANSACOES);
     }
   });
 
