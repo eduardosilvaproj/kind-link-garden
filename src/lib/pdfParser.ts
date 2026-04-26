@@ -38,7 +38,7 @@ export const parseC6PDF = async (file: File, config: Config): Promise<Transacao[
 
     if (line.includes("Inclusao de Pagamento")) return;
 
-    // Regex for: Date (dd mmm) + Name + (optional Parcela) + Value (x.xxx,xx)
+    // Updated regex to handle Portuguese months (jan, fev, mar, abr, mai, jun, jul, ago, set, out, nov, dez)
     const regex = /(\d{2}\s[a-z]{3})\s+(.+?)\s+(-?\d{1,3}(?:\.\d{3})*,\d{2})/;
     const match = line.match(regex);
 
