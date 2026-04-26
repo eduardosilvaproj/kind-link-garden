@@ -29,33 +29,33 @@ const Index = () => {
   }
 
   const totals = useMemo(() => {
-    const comprasIsabela = transacoes.filter(t => t.titularId === 'isabela' && t.tipo !== 'Encargo Bancário' && t.tipo !== 'Pagamento' && t.tipo !== 'Estorno').reduce((acc, t) => acc + t.valor, 0);
-    const encargosIsabela = transacoes.filter(t => t.titularId === 'isabela' && t.tipo === 'Encargo Bancário').reduce((acc, t) => acc + t.valor, 0);
-    const estornosIsabela = transacoes.filter(t => t.titularId === 'isabela' && t.tipo === 'Estorno').reduce((acc, t) => acc + t.valor, 0);
+    const compras = transacoes.filter(t => t.tipo !== 'Encargo Bancário' && t.tipo !== 'Crédito/Pagamento' && t.tipo !== 'Estorno' && t.tipo !== 'Pagamento').reduce((acc, t) => acc + t.valor, 0);
+    const encargos = transacoes.filter(t => t.tipo === 'Encargo Bancário').reduce((acc, t) => acc + t.valor, 0);
+    const creditos = transacoes.filter(t => t.tipo === 'Crédito/Pagamento' || t.tipo === 'Pagamento').reduce((acc, t) => acc + t.valor, 0);
+    const estornos = transacoes.filter(t => t.tipo === 'Estorno').reduce((acc, t) => acc + Math.abs(t.valor), 0);
     
-    const comprasClaudio = transacoes.filter(t => t.titularId === 'claudio' && t.tipo !== 'Encargo Bancário' && t.tipo !== 'Pagamento' && t.tipo !== 'Estorno').reduce((acc, t) => acc + t.valor, 0);
-    const encargosClaudio = transacoes.filter(t => t.titularId === 'claudio' && t.tipo === 'Encargo Bancário').reduce((acc, t) => acc + t.valor, 0);
-    
-    const comprasDaniel = transacoes.filter(t => t.titularId === 'daniel' && t.tipo !== 'Encargo Bancário' && t.tipo !== 'Pagamento' && t.tipo !== 'Estorno').reduce((acc, t) => acc + t.valor, 0);
-    const encargosDaniel = transacoes.filter(t => t.titularId === 'daniel' && t.tipo === 'Encargo Bancário').reduce((acc, t) => acc + t.valor, 0);
+    const totalCalculado = compras + encargos - creditos - estornos;
 
-   const totalFatura = transacoes.reduce((acc, t) => {
-     if (t.tipo === 'Pagamento') return acc;
-     return acc + t.valor;
-   }, 0);
+    // Subtotals per holder for cards
+    const isabelaSub = transacoes.filter(t => t.titularId === 'isabela' && t.tipo !== 'Crédito/Pagamento' && t.tipo !== 'Pagamento' && t.tipo !== 'Estorno').reduce((acc, t) => acc + t.valor, 0);
+    const claudioSub = transacoes.filter(t => t.titularId === 'claudio' && t.tipo !== 'Crédito/Pagamento' && t.tipo !== 'Pagamento' && t.tipo !== 'Estorno').reduce((acc, t) => acc + t.valor, 0);
+    const danielSub = transacoes.filter(t => t.titularId === 'daniel' && t.tipo !== 'Crédito/Pagamento' && t.tipo !== 'Pagamento' && t.tipo !== 'Estorno').reduce((acc, t) => acc + t.valor, 0);
 
     return {
-      isabela: comprasIsabela + estornosIsabela + encargosIsabela,
-      isabela_compras: comprasIsabela + estornosIsabela,
-      isabela_encargos: encargosIsabela,
-      claudio: comprasClaudio + encargosClaudio,
-      claudio_encargos: encargosClaudio,
-      daniel: comprasDaniel + encargosDaniel,
-      totalCompras: comprasIsabela + estornosIsabela + comprasClaudio + comprasDaniel,
-      totalEncargos: encargosIsabela + encargosClaudio + encargosDaniel,
-      totalFatura: totalFatura
+      compras,
+      encargos,
+      creditos,
+      estornos,
+      totalCalculado,
+      isabela: isabelaSub,
+      claudio: claudioSub,
+      daniel: danielSub
     };
   }, [transacoes]);
+
+  const EXPECTED_TOTAL = 11019.68;
+  const diff = Math.abs(totals.totalCalculado - EXPECTED_TOTAL);
+  const isValid = diff < 0.01;
 
   const crossTable = useMemo(() => {
     const cidades: Cidade[] = ["Araraquara", "Bauru", "São Carlos", "Ribeirão Preto", "Online / Digital", "Outra cidade", "Não identificado"];
@@ -64,7 +64,7 @@ const Index = () => {
       let total = 0;
       config.titulares.forEach(titular => {
         const val = transacoes
-          .filter(t => t.unidade === cidade && t.titularId === titular.id && t.tipo !== 'Pagamento')
+          .filter(t => t.unidade === cidade && t.titularId === titular.id && t.tipo !== 'Crédito/Pagamento' && t.tipo !== 'Pagamento')
           .reduce((acc, t) => acc + t.valor, 0);
         row[titular.id] = val;
         total += val;
@@ -96,8 +96,10 @@ const Index = () => {
   };
 
   const getRowColor = (t: Transacao) => {
-    if (t.tipo === "Encargo Bancário") return "bg-red-50";
-    if (t.unidade === "Não identificado") return "bg-amber-50/50";
+    if (t.tipo === "Encargo Bancário") return "bg-red-50 text-red-700";
+    if (t.unidade === "Não identificado") return "bg-amber-50 text-amber-700";
+    if (t.tipo === "Crédito/Pagamento" || t.tipo === "Pagamento") return "bg-blue-50 text-blue-700";
+    if (t.tipo === "Estorno") return "text-green-600";
     return "";
   };
 
@@ -109,7 +111,12 @@ const Index = () => {
     <div className="h-screen flex flex-col bg-slate-50 overflow-hidden text-slate-900">
       {/* HEADER */}
       <header className="px-6 py-4 flex justify-between items-center bg-white border-b shrink-0">
-        <h1 className="text-xl font-bold">Classificador de Fatura C6 Bank</h1>
+        <div className="flex items-center gap-4">
+          <h1 className="text-xl font-bold">Classificador de Fatura C6 Bank</h1>
+          <Badge className={cn("text-[10px] font-bold uppercase", isValid ? "bg-green-100 text-green-700 border-green-200" : "bg-red-100 text-red-700 border-red-200")}>
+            Total calculado: {formatBRL(totals.totalCalculado)} — Esperado: {formatBRL(EXPECTED_TOTAL)} [{isValid ? '✓ Correto' : '✗ Divergência'}]
+          </Badge>
+        </div>
         <div className="flex items-center gap-4">
           <Button variant="outline" size="sm" onClick={() => exportToXLSX(transacoes, config)} className="flex gap-2">
             <Download className="w-4 h-4" /> Exportar Excel
@@ -121,31 +128,26 @@ const Index = () => {
       <div className="px-6 py-4 grid grid-cols-4 gap-4 shrink-0">
         <Card>
           <CardContent className="p-4">
-            <p className="text-xs font-bold text-slate-500 uppercase mb-1">Total Compras</p>
-            <p className="text-2xl font-black">{formatBRL(totals.totalCompras)}</p>
+            <p className="text-xs font-bold text-slate-500 uppercase mb-1">Isabela (Compras)</p>
+            <p className="text-2xl font-black text-amber-600">{formatBRL(totals.isabela)}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
-            <p className="text-xs font-bold text-slate-500 uppercase mb-1">Encargos</p>
-            <p className="text-2xl font-black text-red-600">{formatBRL(totals.totalEncargos)}</p>
+            <p className="text-xs font-bold text-slate-500 uppercase mb-1">Claudio (Encargos)</p>
+            <p className="text-2xl font-black text-blue-600">{formatBRL(totals.claudio)}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-xs font-bold text-slate-500 uppercase mb-1">Daniel (Compras)</p>
+            <p className="text-2xl font-black text-teal-600">{formatBRL(totals.daniel)}</p>
           </CardContent>
         </Card>
         <Card className="bg-slate-900 text-white">
           <CardContent className="p-4">
-            <p className="text-xs font-bold text-slate-400 uppercase mb-1">Fatura a Pagar</p>
-            <p className="text-2xl font-black">{formatBRL(totals.totalFatura)}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4 flex justify-between items-center">
-            <div>
-              <p className="text-xs font-bold text-slate-500 uppercase mb-1">Não identificados</p>
-              <p className="text-2xl font-black text-amber-600">
-                {transacoes.filter(t => t.unidade === "Não identificado").length}
-              </p>
-            </div>
-            {transacoes.filter(t => t.unidade === "Não identificado").length > 0 && <AlertCircle className="text-amber-500 w-8 h-8" />}
+            <p className="text-xs font-bold text-slate-400 uppercase mb-1">TOTAL FATURA</p>
+            <p className="text-2xl font-black">{formatBRL(totals.totalCalculado)}</p>
           </CardContent>
         </Card>
       </div>
@@ -180,38 +182,56 @@ const Index = () => {
                     </TableRow>
                   ))}
                   <TableRow className="bg-slate-100 font-black">
-                    <TableCell>TOTAL COMPRAS</TableCell>
-                    <TableCell className="text-right">{formatBRL(totals.isabela_compras)}</TableCell>
+                    <TableCell>TOTAL GERAL</TableCell>
+                    <TableCell className="text-right">{formatBRL(crossTable.reduce((acc, r) => acc + r.isabela, 0))}</TableCell>
                     <TableCell className="text-right">{formatBRL(crossTable.reduce((acc, r) => acc + r.claudio, 0))}</TableCell>
                     <TableCell className="text-right">{formatBRL(crossTable.reduce((acc, r) => acc + r.daniel, 0))}</TableCell>
-                    <TableCell className="text-right">{formatBRL(totals.totalCompras)}</TableCell>
+                    <TableCell className="text-right">{formatBRL(totals.compras)}</TableCell>
                   </TableRow>
                 </TableBody>
               </Table>
             </div>
           </Card>
           
-          {/* Summary Bars */}
-          <div className="h-20 shrink-0 flex gap-4">
-             {config.titulares.map(t => {
-                const total = totals[t.id as keyof typeof totals] as number;
-                const percentage = (total / (totals.totalCompras + totals.totalEncargos)) * 100;
-                return (
-                  <Card key={t.id} className="flex-1">
-                    <CardContent className="p-3 flex items-center gap-3">
-                      <Avatar className={cn("h-8 w-8", getTitularColor(t.id))}>
-                        <AvatarFallback className="text-[10px] font-bold">{getTitularInitials(t.id)}</AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <p className="text-[10px] font-bold text-slate-500 uppercase">{t.nome}</p>
-                        <p className="text-sm font-black">{formatBRL(total)}</p>
+          {/* Summary Distribution Bar */}
+          <Card className="shrink-0">
+            <CardContent className="p-4">
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-[10px] font-bold uppercase text-slate-500">Distribuição por Titular</span>
+                <div className="flex gap-4">
+                  {config.titulares.map(t => (
+                    <div key={t.id} className="flex items-center gap-1">
+                      <div className={cn("w-2 h-2 rounded-full", getTitularColor(t.id))} />
+                      <span className="text-[10px] font-bold text-slate-600">{t.nome}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="flex h-4 w-full rounded-full overflow-hidden bg-slate-100">
+                {config.titulares.map(t => {
+                  const total = totals[t.id as keyof typeof totals] as number;
+                  const percentage = (total / (totals.compras + totals.encargos)) * 100;
+                  return (
+                    <div 
+                      key={t.id} 
+                      className={cn("h-full transition-all", getTitularColor(t.id))} 
+                      style={{ width: `${percentage}%` }}
+                    />
+                  );
+                })}
+              </div>
+              <div className="flex justify-between mt-2">
+                 {config.titulares.map(t => {
+                    const total = totals[t.id as keyof typeof totals] as number;
+                    return (
+                      <div key={t.id} className="text-center">
+                        <p className="text-[10px] font-bold text-slate-900">{formatBRL(total)}</p>
                       </div>
-                      <div className="ml-auto text-[10px] font-bold text-slate-400">{percentage.toFixed(0)}%</div>
-                    </CardContent>
-                  </Card>
-                )
-             })}
-          </div>
+                    );
+                 })}
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
         {/* RIGHT COLUMN: Transactions Table */}
