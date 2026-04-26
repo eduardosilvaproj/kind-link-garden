@@ -22,24 +22,26 @@ export type Cidade =
    | "Depósito" 
    | "Cliente" 
    | "Fornecedor" 
-    | "Serviço Digital"
-    | "Encargo Bancário"
-    | "Estorno"
-  | "Crédito"
-  | "Pagamento";
+   | "Serviço Digital"
+   | "Encargo Bancário"
+   | "Estorno"
+   | "Crédito"
+   | "Pagamento";
 
-export type Transacao = {
-  id: number;
-  titular: string;
-  cartao: string;
-  data: string;
-  raw: string;
-  nome: string;
-  parcela: string;
-  valor: number;
-  cidade: string;
-  tipo: TipoDestino;
-};
+ export type Transacao = {
+   id: number;
+   titular: string;
+   cartao: string;
+   data: string;
+   raw: string;
+   nome: string;
+   parcela: string;
+   valor: number;
+   cidade: string;
+   tipo: TipoDestino;
+   destino?: string;
+   clienteNome?: string;
+ };
 
 export type AutoRule = {
   keyword: string;
