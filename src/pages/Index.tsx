@@ -64,7 +64,7 @@ const Index = () => {
       let total = 0;
       config.titulares.forEach(titular => {
         const val = transacoes
-          .filter(t => t.unidade === cidade && t.titularId === titular.id && t.tipo !== 'Pagamento')
+          .filter(t => t.unidade === cidade && t.titularId === titular.id && t.tipo !== 'Crédito/Pagamento' && t.tipo !== 'Pagamento')
           .reduce((acc, t) => acc + t.valor, 0);
         row[titular.id] = val;
         total += val;
