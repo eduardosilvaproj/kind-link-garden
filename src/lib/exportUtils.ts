@@ -1,63 +1,77 @@
 import * as XLSX from 'xlsx';
-import { jsPDF } from 'jspdf';
-import { Transacao, Config, Titular } from '../types';
+import { Transacao, Config } from '../types';
 
 export const exportToXLSX = (transacoes: Transacao[], config: Config) => {
-  const data = transacoes.map(t => ({
-    Titular: config.titulares.find(tit => tit.id === t.titularId)?.nome || '',
-    Data: t.data,
-    Estabelecimento: t.estabelecimento,
-    'Nome Limpo': t.nomeLimpo,
-    Unidade: t.unidade,
-    Tipo: t.tipo,
-    Parcela: t.parcela,
-    Valor: t.valor,
-    Observação: t.observacao
-  }));
-
-  const ws = XLSX.utils.json_to_sheet(data);
   const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, "Transações");
-
-  // Pivot sheet
-  const pivotData: any[] = [];
-  const cidades = Array.from(new Set(transacoes.map(t => t.unidade)));
   
-  cidades.forEach(cidade => {
-    const row: any = { Cidade: cidade };
-    config.titulares.forEach(titular => {
-      row[titular.nome] = transacoes
-        .filter(t => t.unidade === cidade && t.titularId === titular.id)
-        .reduce((acc, t) => acc + t.valor, 0);
-    });
-    pivotData.push(row);
+  // Sheet 1: Transações
+  const dataTransacoes = transacoes.map(t => {
+    const titular = config.titulares.find(tit => tit.id === t.titularId);
+    return {
+      'Titular': titular?.nome || t.titularId,
+      'Data': t.data,
+      'Estabelecimento (Raw)': t.estabelecimento,
+      'Nome Limpo': t.nomeLimpo,
+      'Cidade/Unidade': t.unidade,
+      'Tipo': t.tipo,
+      'Parcela': t.parcela,
+      'Valor': t.valor,
+      'Obs': t.observacao
+    };
   });
+  const wsTransacoes = XLSX.utils.json_to_sheet(dataTransacoes);
+  XLSX.utils.book_append_sheet(wb, wsTransacoes, 'Transações');
+  
+  // Sheet 2: Resumo
+  const cidades = ["Araraquara", "Bauru", "São Carlos", "Ribeirão Preto", "Online / Digital", "Outra cidade", "Não identificado"];
+  const titulares = config.titulares;
+  
+  const resumoData = cidades.map(cidade => {
+    const row: any = { 'Cidade': cidade };
+    let totalCidade = 0;
+    titulares.forEach(titular => {
+      const valor = transacoes
+        .filter(t => t.unidade === cidade && t.titularId === titular.id && t.tipo !== 'Pagamento')
+        .reduce((acc, t) => acc + t.valor, 0);
+      row[titular.nome] = valor;
+      totalCidade += valor;
+    });
+    row['Total'] = totalCidade;
+    return row;
+  });
+  
+  // Adicionar linha de total final
+  const totalGeral: any = { 'Cidade': 'TOTAL GERAL' };
+  titulares.forEach(titular => {
+    totalGeral[titular.nome] = transacoes
+      .filter(t => t.titularId === titular.id && t.tipo !== 'Pagamento')
+      .reduce((acc, t) => acc + t.valor, 0);
+  });
+  totalGeral['Total'] = transacoes
+    .filter(t => t.tipo !== 'Pagamento')
+    .reduce((acc, t) => acc + t.valor, 0);
+  resumoData.push(totalGeral);
 
-  const wsPivot = XLSX.utils.json_to_sheet(pivotData);
-  XLSX.utils.book_append_sheet(wb, wsPivot, "Resumo");
-
-  XLSX.writeFile(wb, "extrato_classificado.xlsx");
+  const wsResumo = XLSX.utils.json_to_sheet(resumoData);
+  XLSX.utils.book_append_sheet(wb, wsResumo, 'Resumo');
+  
+  XLSX.writeFile(wb, 'Fatura_C6_Classificada.xlsx');
 };
 
-export const exportToCSV = (transacoes: Transacao[], config: Config) => {
-  const headers = ["Titular", "Data", "Estabelecimento", "Nome Limpo", "Unidade", "Tipo", "Parcela", "Valor", "Observacao"];
+export const exportToCSV = (transacoes: Transacao[]) => {
+  // Simplificado, focado no XLSX conforme pedido
+  const headers = ['Titular', 'Data', 'Estabelecimento', 'Nome Limpo', 'Cidade', 'Tipo', 'Parcela', 'Valor', 'Obs'];
   const rows = transacoes.map(t => [
-    config.titulares.find(tit => tit.id === t.titularId)?.nome || '',
-    t.data,
-    t.estabelecimento,
-    t.nomeLimpo,
-    t.unidade,
-    t.tipo,
-    t.parcela,
-    t.valor.toFixed(2),
-    t.observacao
+    t.titularId, t.data, t.estabelecimento, t.nomeLimpo, t.unidade, t.tipo, t.parcela, t.valor, t.observacao
   ]);
-
+  
   const csvContent = [headers, ...rows].map(e => e.join(",")).join("\n");
   const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
   const link = document.createElement("a");
-  link.href = URL.createObjectURL(blob);
-  link.setAttribute("download", "extrato_classificado.csv");
+  const url = URL.createObjectURL(blob);
+  link.setAttribute("href", url);
+  link.setAttribute("download", "fatura_c6.csv");
+  link.style.visibility = 'hidden';
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);

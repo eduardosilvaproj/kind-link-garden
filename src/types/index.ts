@@ -15,13 +15,15 @@ export type Cidade =
   | "Outra cidade" 
   | "Não identificado";
 
-export type TipoDestino = 
-  | "Loja" 
-  | "Depósito" 
-  | "Cliente" 
-  | "Fornecedor" 
-  | "Serviço Digital" 
-  | "Encargo Bancário";
+ export type TipoDestino = 
+   | "Loja" 
+   | "Depósito" 
+   | "Cliente" 
+   | "Fornecedor" 
+   | "Serviço Digital" 
+   | "Encargo Bancário"
+   | "Estorno"
+   | "Pagamento";
 
 export type Transacao = {
   id: string;
