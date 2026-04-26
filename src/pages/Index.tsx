@@ -1,347 +1,329 @@
-// Update this page (the content is just a fallback if you fail to update the page)
-
-// IMPORTANT: Fully REPLACE this with your own code
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useAppContext } from '../hooks/useAppContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { SAMPLE_TRANSACTIONS } from '../data/sampleData';
-
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Settings, Download, Upload, BarChart3, List, FileText } from "lucide-react";
+import { Download, AlertCircle, Filter, FilterX, Eye, EyeOff } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { parseC6PDF } from "../lib/pdfParser";
-import { Cidade, TipoDestino, Transacao, Titular } from "../types";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Legend, Cell } from 'recharts';
-
+import { Cidade, TipoDestino, Transacao } from "../types";
 import { cn } from "@/lib/utils";
-
-import { exportToXLSX, exportToCSV } from "../lib/exportUtils";
+import { exportToXLSX } from "../lib/exportUtils";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 const Index = () => {
-  const { transacoes, setTransacoes, config, updateTransacao, updateConfig, clearData } = useAppContext();
+  const { transacoes, setTransacoes, config, updateTransacao } = useAppContext();
   const [filterTitular, setFilterTitular] = useState<string>("Todos");
-  const [filterCidade, setFilterCidade] = useState<string>("Todas");
-  const [filterUnclassified, setFilterUnclassified] = useState(false);
+  const [showOnlyUnidentified, setShowOnlyUnidentified] = useState(false);
+  const [showPayments, setShowPayments] = useState(false);
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const newTransacoes = await parseC6PDF(file, config);
-    setTransacoes([...transacoes, ...newTransacoes]);
-  };
+  // Initialize with all data if empty (as requested)
+  if (transacoes.length === 0) {
+    setTransacoes(SAMPLE_TRANSACTIONS);
+  }
 
-  const loadDemo = () => setTransacoes(SAMPLE_TRANSACTIONS);
+  const totals = useMemo(() => {
+    const comprasIsabela = transacoes.filter(t => t.titularId === 'isabela' && t.tipo !== 'Encargo Bancário' && t.tipo !== 'Pagamento' && t.tipo !== 'Estorno').reduce((acc, t) => acc + t.valor, 0);
+    const encargosIsabela = transacoes.filter(t => t.titularId === 'isabela' && t.tipo === 'Encargo Bancário').reduce((acc, t) => acc + t.valor, 0);
+    const estornosIsabela = transacoes.filter(t => t.titularId === 'isabela' && t.tipo === 'Estorno').reduce((acc, t) => acc + t.valor, 0);
+    
+    const comprasClaudio = transacoes.filter(t => t.titularId === 'claudio' && t.tipo !== 'Encargo Bancário' && t.tipo !== 'Pagamento' && t.tipo !== 'Estorno').reduce((acc, t) => acc + t.valor, 0);
+    const encargosClaudio = transacoes.filter(t => t.titularId === 'claudio' && t.tipo === 'Encargo Bancário').reduce((acc, t) => acc + t.valor, 0);
+    
+    const comprasDaniel = transacoes.filter(t => t.titularId === 'daniel' && t.tipo !== 'Encargo Bancário' && t.tipo !== 'Pagamento' && t.tipo !== 'Estorno').reduce((acc, t) => acc + t.valor, 0);
+    const encargosDaniel = transacoes.filter(t => t.titularId === 'daniel' && t.tipo === 'Encargo Bancário').reduce((acc, t) => acc + t.valor, 0);
+
+    const totalFatura = transacoes.reduce((acc, t) => {
+      if (t.tipo === 'Pagamento') return acc - t.valor;
+      return acc + t.valor;
+    }, 0);
+
+    return {
+      isabela: comprasIsabela + estornosIsabela + encargosIsabela,
+      isabela_compras: comprasIsabela + estornosIsabela,
+      isabela_encargos: encargosIsabela,
+      claudio: comprasClaudio + encargosClaudio,
+      claudio_encargos: encargosClaudio,
+      daniel: comprasDaniel + encargosDaniel,
+      totalCompras: comprasIsabela + estornosIsabela + comprasClaudio + comprasDaniel,
+      totalEncargos: encargosIsabela + encargosClaudio + encargosDaniel,
+      totalFatura: totalFatura
+    };
+  }, [transacoes]);
+
+  const crossTable = useMemo(() => {
+    const cidades: Cidade[] = ["Araraquara", "Bauru", "São Carlos", "Ribeirão Preto", "Online / Digital", "Outra cidade", "Não identificado"];
+    return cidades.map(cidade => {
+      const row: any = { cidade };
+      let total = 0;
+      config.titulares.forEach(titular => {
+        const val = transacoes
+          .filter(t => t.unidade === cidade && t.titularId === titular.id && t.tipo !== 'Pagamento')
+          .reduce((acc, t) => acc + t.valor, 0);
+        row[titular.id] = val;
+        total += val;
+      });
+      row.total = total;
+      return row;
+    });
+  }, [transacoes, config]);
 
   const filteredTransacoes = transacoes.filter(t => {
     if (filterTitular !== "Todos" && t.titularId !== filterTitular) return false;
-    if (filterCidade !== "Todas" && t.unidade !== filterCidade) return false;
-    if (filterUnclassified && t.unidade !== "Não identificado") return false;
+    if (showOnlyUnidentified && t.unidade !== "Não identificado") return false;
+    if (!showPayments && t.tipo === "Pagamento") return false;
     return true;
   });
 
   const getTitularColor = (id: string) => {
-    const t = config.titulares.find(tit => tit.id === id);
-    if (t?.cor === "amber") return "bg-amber-100 text-amber-800 border-amber-200";
-    if (t?.cor === "blue") return "bg-blue-100 text-blue-800 border-blue-200";
-    if (t?.cor === "teal") return "bg-teal-100 text-teal-800 border-teal-200";
-    return "bg-gray-100";
+    if (id === "isabela") return "bg-amber-500 text-white";
+    if (id === "claudio") return "bg-blue-500 text-white";
+    if (id === "daniel") return "bg-teal-500 text-white";
+    return "bg-slate-500 text-white";
   };
 
-  const totalsByCity = Array.from(new Set(transacoes.map(t => t.unidade))).map(cidade => {
-    const total = transacoes.filter(t => t.unidade === cidade).reduce((acc, t) => acc + t.valor, 0);
-    return { name: cidade, value: total };
-  });
+  const getTitularInitials = (id: string) => {
+    if (id === "isabela") return "IS";
+    if (id === "claudio") return "CD";
+    if (id === "daniel") return "DV";
+    return "??";
+  };
 
-  const [showSettings, setShowSettings] = useState(false);
+  const getRowColor = (t: Transacao) => {
+    if (t.tipo === "Encargo Bancário") return "bg-red-50";
+    if (t.unidade === "Não identificado") return "bg-amber-50/50";
+    return "";
+  };
 
-  const handleUpdateTitular = (id: string, field: keyof Titular, value: string) => {
-    const newTitulares = config.titulares.map(t => t.id === id ? { ...t, [field]: value } : t);
-    updateConfig({ ...config, titulares: newTitulares });
+  const formatBRL = (val: number) => {
+    return val.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   };
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <header className="bg-white border-b px-6 py-4 flex justify-between items-center sticky top-0 z-10">
-        <div className="flex items-center gap-2">
-          <FileText className="w-6 h-6 text-primary" />
-          <h1 className="text-xl font-bold tracking-tight">Classificador de Fatura C6</h1>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={clearData}>Limpar tudo</Button>
-          <Button variant="ghost" size="icon" onClick={() => setShowSettings(!showSettings)}><Settings className="w-5 h-5" /></Button>
+    <div className="h-screen flex flex-col bg-slate-50 overflow-hidden text-slate-900">
+      {/* HEADER */}
+      <header className="px-6 py-4 flex justify-between items-center bg-white border-b shrink-0">
+        <h1 className="text-xl font-bold">Classificador de Fatura C6 Bank</h1>
+        <div className="flex items-center gap-4">
+          <Button variant="outline" size="sm" onClick={() => exportToXLSX(transacoes, config)} className="flex gap-2">
+            <Download className="w-4 h-4" /> Exportar Excel
+          </Button>
         </div>
       </header>
 
-      <main className="container mx-auto p-4 md:p-6 max-w-7xl">
-        <Tabs defaultValue="classificacao" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4 lg:w-[600px]">
-            <TabsTrigger value="upload" className="flex gap-2"><Upload className="w-4 h-4" /> Upload</TabsTrigger>
-            <TabsTrigger value="classificacao" className="flex gap-2"><List className="w-4 h-4" /> Classificar</TabsTrigger>
-            <TabsTrigger value="resumo" className="flex gap-2"><BarChart3 className="w-4 h-4" /> Resumo</TabsTrigger>
-            <TabsTrigger value="exportar" className="flex gap-2"><Download className="w-4 h-4" /> Exportar</TabsTrigger>
-            <TabsTrigger value="config" className="flex gap-2"><Settings className="w-4 h-4" /> Config</TabsTrigger>
-          </TabsList>
+      {/* METRIC CARDS */}
+      <div className="px-6 py-4 grid grid-cols-4 gap-4 shrink-0">
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-xs font-bold text-slate-500 uppercase mb-1">Total Compras</p>
+            <p className="text-2xl font-black">{formatBRL(totals.totalCompras)}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-xs font-bold text-slate-500 uppercase mb-1">Encargos</p>
+            <p className="text-2xl font-black text-red-600">{formatBRL(totals.totalEncargos)}</p>
+          </CardContent>
+        </Card>
+        <Card className="bg-slate-900 text-white">
+          <CardContent className="p-4">
+            <p className="text-xs font-bold text-slate-400 uppercase mb-1">Fatura a Pagar</p>
+            <p className="text-2xl font-black">{formatBRL(totals.totalFatura)}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4 flex justify-between items-center">
+            <div>
+              <p className="text-xs font-bold text-slate-500 uppercase mb-1">Não identificados</p>
+              <p className="text-2xl font-black text-amber-600">
+                {transacoes.filter(t => t.unidade === "Não identificado").length}
+              </p>
+            </div>
+            {transacoes.filter(t => t.unidade === "Não identificado").length > 0 && <AlertCircle className="text-amber-500 w-8 h-8" />}
+          </CardContent>
+        </Card>
+      </div>
 
-          <TabsContent value="upload">
-            <Card>
-              <CardHeader>
-                <CardTitle>Importar extrato PDF</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="border-2 border-dashed border-slate-200 rounded-xl p-12 text-center hover:border-primary/50 transition-colors cursor-pointer relative">
-                  <input type="file" accept="application/pdf" onChange={handleFileUpload} className="absolute inset-0 opacity-0 cursor-pointer" />
-                  <Upload className="w-12 h-12 text-slate-400 mx-auto mb-4" />
-                  <p className="text-slate-600 font-medium">Arraste seu PDF aqui ou clique para selecionar</p>
-                  <p className="text-slate-400 text-sm mt-1">Extratos do C6 Bank em formato PDF</p>
-                </div>
-                
-                <div className="flex flex-col items-center gap-4">
-                  <div className="flex items-center gap-2 text-slate-400">
-                    <div className="h-px w-20 bg-slate-200"></div>
-                    <span className="text-xs uppercase font-bold tracking-widest">ou use dados simulados</span>
-                    <div className="h-px w-20 bg-slate-200"></div>
-                  </div>
-                  <Button variant="secondary" onClick={loadDemo}>Carregar dados de exemplo</Button>
-                </div>
-
-                {transacoes.length > 0 && (
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-8">
-                    <Card className="bg-primary/5 border-primary/10">
-                      <CardContent className="p-4">
-                        <p className="text-xs text-primary/60 font-bold uppercase">Transações</p>
-                        <p className="text-2xl font-bold">{transacoes.length}</p>
-                      </CardContent>
-                    </Card>
-                    <Card>
-                      <CardContent className="p-4">
-                        <p className="text-xs text-slate-500 font-bold uppercase">Total</p>
-                        <p className="text-2xl font-bold">R$ {transacoes.reduce((acc, t) => acc + t.valor, 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
-                      </CardContent>
-                    </Card>
-                    <Card>
-                      <CardContent className="p-4">
-                        <p className="text-xs text-amber-600 font-bold uppercase">Pendentes</p>
-                        <p className="text-2xl font-bold text-amber-600">{transacoes.filter(t => t.unidade === "Não identificado").length}</p>
-                      </CardContent>
-                    </Card>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="classificacao">
-            <div className="flex flex-col gap-4">
-              <Card className="p-4">
-                <div className="flex flex-wrap gap-4 items-end">
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-slate-500 uppercase">Titular</label>
-                    <Select value={filterTitular} onValueChange={setFilterTitular}>
-                      <SelectTrigger className="w-[180px]">
-                        <SelectValue placeholder="Titular" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Todos">Todos</SelectItem>
-                        {config.titulares.map(t => <SelectItem key={t.id} value={t.id}>{t.nome}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-slate-500 uppercase">Cidade</label>
-                    <Select value={filterCidade} onValueChange={setFilterCidade}>
-                      <SelectTrigger className="w-[180px]">
-                        <SelectValue placeholder="Cidade" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Todas">Todas</SelectItem>
-                        {["Araraquara", "Bauru", "São Carlos", "Ribeirão Preto", "Online / Digital", "Outra cidade", "Não identificado"].map(c => (
-                          <SelectItem key={c} value={c}>{c}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="flex items-center gap-2 mb-2">
-                    <Checkbox id="unclassified" checked={filterUnclassified} onCheckedChange={(v) => setFilterUnclassified(!!v)} />
-                    <label htmlFor="unclassified" className="text-sm font-medium leading-none cursor-pointer">Apenas não classificados</label>
-                  </div>
-                </div>
-              </Card>
-
-              <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
-                <Table>
-                  <TableHeader className="bg-slate-50">
-                    <TableRow>
-                      <TableHead className="w-20">Titular</TableHead>
-                      <TableHead className="w-20">Data</TableHead>
-                      <TableHead>Estabelecimento</TableHead>
-                      <TableHead>Nome Limpo</TableHead>
-                      <TableHead className="w-40">Unidade</TableHead>
-                      <TableHead className="w-40">Tipo</TableHead>
-                      <TableHead className="w-20">Parc.</TableHead>
-                      <TableHead className="text-right">Valor</TableHead>
+      {/* MAIN CONTENT AREA */}
+      <div className="flex-1 flex overflow-hidden px-6 pb-6 gap-6">
+        {/* LEFT COLUMN: Cross Table */}
+        <div className="w-[55%] flex flex-col gap-6 overflow-hidden">
+          <Card className="flex-1 overflow-hidden flex flex-col">
+            <CardHeader className="py-3 px-4 shrink-0 border-b bg-slate-50/50">
+              <CardTitle className="text-sm font-bold uppercase text-slate-500">Distribuição Cidade × Titular</CardTitle>
+            </CardHeader>
+            <div className="flex-1 overflow-auto">
+              <Table>
+                <TableHeader className="sticky top-0 bg-white z-10 shadow-sm">
+                  <TableRow>
+                    <TableHead className="font-bold">Cidade</TableHead>
+                    <TableHead className="text-right font-bold">Isabela</TableHead>
+                    <TableHead className="text-right font-bold">Claudio</TableHead>
+                    <TableHead className="text-right font-bold">Daniel</TableHead>
+                    <TableHead className="text-right font-bold bg-slate-50">Total</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {crossTable.map((row, idx) => (
+                    <TableRow key={idx} className={row.cidade === 'Não identificado' && row.total > 0 ? 'bg-amber-50' : ''}>
+                      <TableCell className="font-medium">{row.cidade}</TableCell>
+                      <TableCell className="text-right tabular-nums">{row.isabela > 0 ? formatBRL(row.isabela) : '-'}</TableCell>
+                      <TableCell className="text-right tabular-nums">{row.claudio > 0 ? formatBRL(row.claudio) : '-'}</TableCell>
+                      <TableCell className="text-right tabular-nums">{row.daniel > 0 ? formatBRL(row.daniel) : '-'}</TableCell>
+                      <TableCell className="text-right font-bold tabular-nums bg-slate-50">{formatBRL(row.total)}</TableCell>
                     </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredTransacoes.map(t => (
-                      <TableRow key={t.id} className={cn(
-                        t.isEncargo ? "bg-red-50/50" : t.unidade === "Não identificado" ? "bg-amber-50/30" : ""
-                      )}>
-                        <TableCell>
-                          <Badge variant="outline" className={getTitularColor(t.titularId)}>
-                            {config.titulares.find(tit => tit.id === t.titularId)?.nome.substring(0, 2).toUpperCase()}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-slate-500 text-sm whitespace-nowrap">{t.data}</TableCell>
-                        <TableCell className="max-w-[200px] truncate text-xs font-mono" title={t.estabelecimento}>{t.estabelecimento}</TableCell>
-                        <TableCell>
+                  ))}
+                  <TableRow className="bg-slate-100 font-black">
+                    <TableCell>TOTAL COMPRAS</TableCell>
+                    <TableCell className="text-right">{formatBRL(totals.isabela_compras)}</TableCell>
+                    <TableCell className="text-right">{formatBRL(crossTable.reduce((acc, r) => acc + r.claudio, 0))}</TableCell>
+                    <TableCell className="text-right">{formatBRL(crossTable.reduce((acc, r) => acc + r.daniel, 0))}</TableCell>
+                    <TableCell className="text-right">{formatBRL(totals.totalCompras)}</TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
+            </div>
+          </Card>
+          
+          {/* Summary Bars */}
+          <div className="h-20 shrink-0 flex gap-4">
+             {config.titulares.map(t => {
+                const total = totals[t.id as keyof typeof totals] as number;
+                const percentage = (total / (totals.totalCompras + totals.totalEncargos)) * 100;
+                return (
+                  <Card key={t.id} className="flex-1">
+                    <CardContent className="p-3 flex items-center gap-3">
+                      <Avatar className={cn("h-8 w-8", getTitularColor(t.id))}>
+                        <AvatarFallback className="text-[10px] font-bold">{getTitularInitials(t.id)}</AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <p className="text-[10px] font-bold text-slate-500 uppercase">{t.nome}</p>
+                        <p className="text-sm font-black">{formatBRL(total)}</p>
+                      </div>
+                      <div className="ml-auto text-[10px] font-bold text-slate-400">{percentage.toFixed(0)}%</div>
+                    </CardContent>
+                  </Card>
+                )
+             })}
+          </div>
+        </div>
+
+        {/* RIGHT COLUMN: Transactions Table */}
+        <div className="w-[45%] flex flex-col gap-4 overflow-hidden">
+          <Card className="flex-1 overflow-hidden flex flex-col">
+            <CardHeader className="py-3 px-4 shrink-0 border-b bg-slate-50/50 flex flex-row items-center justify-between space-y-0">
+              <div className="flex items-center gap-2">
+                <Select value={filterTitular} onValueChange={setFilterTitular}>
+                  <SelectTrigger className="h-8 w-[120px] bg-white">
+                    <Filter className="w-3 h-3 mr-2" />
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Todos">Todos</SelectItem>
+                    {config.titulares.map(t => <SelectItem key={t.id} value={t.id}>{t.nome}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+                
+                <div className="flex items-center gap-2 bg-white px-2 py-1 rounded-md border h-8">
+                  <Switch id="unidentified" checked={showOnlyUnidentified} onCheckedChange={setShowOnlyUnidentified} className="scale-75" />
+                  <Label htmlFor="unidentified" className="text-[10px] font-bold uppercase cursor-pointer flex items-center gap-1">
+                    Pendentes
+                  </Label>
+                </div>
+
+                <div className="flex items-center gap-2 bg-white px-2 py-1 rounded-md border h-8">
+                  <Switch id="payments" checked={showPayments} onCheckedChange={setShowPayments} className="scale-75" />
+                  <Label htmlFor="payments" className="text-[10px] font-bold uppercase cursor-pointer">
+                    Pgtos
+                  </Label>
+                </div>
+              </div>
+              <span className="text-[10px] font-bold text-slate-400 uppercase">{filteredTransacoes.length} linhas</span>
+            </CardHeader>
+            
+            <div className="flex-1 overflow-auto">
+              <Table>
+                <TableHeader className="sticky top-0 bg-white z-10 shadow-sm">
+                  <TableRow className="text-[10px] uppercase text-slate-500">
+                    <TableHead className="w-[50px]">Tit</TableHead>
+                    <TableHead className="w-[60px]">Data</TableHead>
+                    <TableHead>Estabelecimento</TableHead>
+                    <TableHead className="text-right">Valor</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredTransacoes.map(t => (
+                    <TableRow key={t.id} className={cn("group text-xs", getRowColor(t))}>
+                      <TableCell className="py-2">
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger>
+                              <div className={cn("w-6 h-6 rounded-full flex items-center justify-center font-bold text-[8px]", getTitularColor(t.titularId))}>
+                                {getTitularInitials(t.titularId)}
+                              </div>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p className="text-xs font-bold">{config.titulares.find(tit => tit.id === t.titularId)?.nome}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </TableCell>
+                      <TableCell className="py-2 font-medium text-slate-500">{t.data}</TableCell>
+                      <TableCell className="py-2">
+                        <div className="flex flex-col">
                           <Input 
                             value={t.nomeLimpo} 
                             onChange={(e) => updateTransacao(t.id, { nomeLimpo: e.target.value })}
-                            className="h-8 text-sm"
+                            className="h-6 text-[11px] border-none shadow-none bg-transparent hover:bg-white focus:bg-white p-0 px-1 font-bold"
                           />
-                        </TableCell>
-                        <TableCell>
-                          <Select value={t.unidade} onValueChange={(v) => updateTransacao(t.id, { unidade: v as Cidade })}>
-                            <SelectTrigger className="h-8 text-xs">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {["Araraquara", "Bauru", "São Carlos", "Ribeirão Preto", "Online / Digital", "Outra cidade", "Não identificado"].map(c => (
-                                <SelectItem key={c} value={c} className="text-xs">{c}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </TableCell>
-                        <TableCell>
-                          <Select value={t.tipo} onValueChange={(v) => updateTransacao(t.id, { tipo: v as TipoDestino })}>
-                            <SelectTrigger className="h-8 text-xs">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {["Loja", "Depósito", "Cliente", "Fornecedor", "Serviço Digital", "Encargo Bancário"].map(type => (
-                                <SelectItem key={type} value={type} className="text-xs">{type}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </TableCell>
-                        <TableCell className="text-slate-400 text-xs">{t.parcela}</TableCell>
-                        <TableCell className={cn("text-right font-semibold tabular-nums", t.isEstorno ? "text-green-600" : "text-slate-900")}>
-                          {t.isEstorno ? "-" : ""}R$ {t.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            </div>
-          </TabsContent>
-
-          <TabsContent value="resumo">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Gastos por Cidade</CardTitle>
-                </CardHeader>
-                <CardContent className="h-[300px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={totalsByCity} layout="vertical">
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis type="number" />
-                      <YAxis dataKey="name" type="category" width={100} fontSize={12} />
-                      <RechartsTooltip formatter={(val: number) => `R$ ${val.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`} />
-                      <Bar dataKey="value" fill="#3b82f6" radius={[0, 4, 4, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </CardContent>
-              </Card>
-
-              <div className="grid grid-cols-1 gap-6">
-                {config.titulares.map(titular => {
-                  const total = transacoes.filter(t => t.titularId === titular.id).reduce((acc, t) => acc + t.valor, 0);
-                  const encargos = transacoes.filter(t => t.titularId === titular.id && t.isEncargo).reduce((acc, t) => acc + t.valor, 0);
-                  return (
-                    <Card key={titular.id}>
-                      <CardContent className="p-6 flex justify-between items-center">
-                        <div className="flex items-center gap-4">
-                          <div className={cn("w-12 h-12 rounded-full flex items-center justify-center font-bold text-lg", getTitularColor(titular.id))}>
-                            {titular.nome.substring(0, 2).toUpperCase()}
-                          </div>
-                          <div>
-                            <p className="font-bold text-slate-900">{titular.nome}</p>
-                            <p className="text-xs text-slate-500 uppercase">{titular.tipo} • Final {titular.final}</p>
+                          <div className="flex gap-2 items-center">
+                             <Select value={t.unidade} onValueChange={(v) => updateTransacao(t.id, { unidade: v as Cidade })}>
+                              <SelectTrigger className="h-4 text-[9px] bg-transparent border-none p-0 w-auto gap-1 text-slate-400 font-medium shadow-none">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {["Araraquara", "Bauru", "São Carlos", "Ribeirão Preto", "Online / Digital", "Outra cidade", "Não identificado"].map(c => (
+                                  <SelectItem key={c} value={c} className="text-[10px]">{c}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <span className="text-[9px] text-slate-300">•</span>
+                            <Select value={t.tipo} onValueChange={(v) => updateTransacao(t.id, { tipo: v as TipoDestino })}>
+                              <SelectTrigger className="h-4 text-[9px] bg-transparent border-none p-0 w-auto gap-1 text-slate-400 font-medium shadow-none">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {["Loja", "Depósito", "Cliente", "Fornecedor", "Serviço Digital", "Encargo Bancário", "Estorno", "Pagamento"].map(type => (
+                                  <SelectItem key={type} value={type} className="text-[10px]">{type}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            {t.parcela && t.parcela !== "—" && (
+                              <>
+                                <span className="text-[9px] text-slate-300">•</span>
+                                <span className="text-[9px] text-slate-400 italic">{t.parcela}</span>
+                              </>
+                            )}
                           </div>
                         </div>
-                        <div className="text-right">
-                          <p className="text-2xl font-bold">R$ {total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
-                          {encargos > 0 && <p className="text-xs text-red-500 font-bold">Encargos: R$ {encargos.toFixed(2)}</p>}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
-              </div>
+                      </TableCell>
+                      <TableCell className={cn("py-2 text-right font-bold tabular-nums", t.tipo === "Estorno" ? "text-green-600" : "")}>
+                        {formatBRL(t.valor)}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
             </div>
-          </TabsContent>
-          
-          <TabsContent value="config">
-            <Card>
-              <CardHeader>
-                <CardTitle>Configuração de Titulares</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                {config.titulares.map(titular => (
-                  <div key={titular.id} className="grid grid-cols-1 md:grid-cols-4 gap-4 p-4 border rounded-lg bg-white">
-                    <div className="space-y-2">
-                      <Label>Nome</Label>
-                      <Input value={titular.nome} onChange={(e) => handleUpdateTitular(titular.id, 'nome', e.target.value)} />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Final Cartão</Label>
-                      <Input value={titular.final} onChange={(e) => handleUpdateTitular(titular.id, 'final', e.target.value)} />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Tipo</Label>
-                      <Input value={titular.tipo} onChange={(e) => handleUpdateTitular(titular.id, 'tipo', e.target.value)} />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Cor</Label>
-                      <Select value={titular.cor} onValueChange={(v) => handleUpdateTitular(titular.id, 'cor', v)}>
-                        <SelectTrigger><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="amber">Laranja (Amber)</SelectItem>
-                          <SelectItem value="blue">Azul (Blue)</SelectItem>
-                          <SelectItem value="teal">Verde (Teal)</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="exportar">
-             <Card>
-                <CardHeader>
-                  <CardTitle>Exportar Dados</CardTitle>
-                </CardHeader>
-                <CardContent className="flex gap-4">
-                  <Button className="flex gap-2" onClick={() => exportToXLSX(transacoes, config)}><Download className="w-4 h-4" /> Exportar XLSX</Button>
-                  <Button variant="outline" className="flex gap-2" onClick={() => exportToCSV(transacoes, config)}><Download className="w-4 h-4" /> Exportar CSV</Button>
-                  <Button variant="outline" className="flex gap-2" onClick={() => window.print()}><FileText className="w-4 h-4" /> Imprimir Relatório</Button>
-                </CardContent>
-             </Card>
-          </TabsContent>
-        </Tabs>
-      </main>
+          </Card>
+        </div>
+      </div>
     </div>
   );
 };
