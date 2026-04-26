@@ -23,12 +23,8 @@ export type Cidade =
     | "Serviço Digital"
     | "Encargo Bancário"
     | "Estorno"
-    | "Crédito/Pagamento"
-    | "Pagamento"
-    | "Loja"
-    | "Fornecedor"
-    | "Depósito"
-    | "Cliente";
+  | "Crédito"
+  | "Pagamento";
 
 export type Transacao = {
   id: string;

@@ -24,22 +24,30 @@ const Index = () => {
   const [showPayments, setShowPayments] = useState(false);
 
   // Initialize with all data if empty (as requested)
-  if (transacoes.length === 0) {
-    setTransacoes(SAMPLE_TRANSACTIONS);
-  }
+  // Simplified initialization
+  useState(() => {
+    if (transacoes.length === 0) {
+      setTransacoes(SAMPLE_TRANSACTIONS);
+    }
+  });
 
   const totals = useMemo(() => {
-    const compras = transacoes.filter(t => t.tipo !== 'Encargo Bancário' && t.tipo !== 'Crédito/Pagamento' && t.tipo !== 'Estorno' && t.tipo !== 'Pagamento').reduce((acc, t) => acc + t.valor, 0);
+    const compras = transacoes.filter(t => ['Loja', 'Fornecedor', 'Serviço Digital', 'Depósito', 'Cliente'].includes(t.tipo)).reduce((acc, t) => acc + t.valor, 0);
     const encargos = transacoes.filter(t => t.tipo === 'Encargo Bancário').reduce((acc, t) => acc + t.valor, 0);
-    const creditos = transacoes.filter(t => t.tipo === 'Crédito/Pagamento' || t.tipo === 'Pagamento').reduce((acc, t) => acc + t.valor, 0);
+    const creditos = transacoes.filter(t => t.tipo === 'Crédito').reduce((acc, t) => acc + t.valor, 0);
     const estornos = transacoes.filter(t => t.tipo === 'Estorno').reduce((acc, t) => acc + Math.abs(t.valor), 0);
     
     const totalCalculado = compras + encargos - creditos - estornos;
 
     // Subtotals per holder for cards
-    const isabelaSub = transacoes.filter(t => t.titularId === 'isabela' && t.tipo !== 'Crédito/Pagamento' && t.tipo !== 'Pagamento' && t.tipo !== 'Estorno').reduce((acc, t) => acc + t.valor, 0);
-    const claudioSub = transacoes.filter(t => t.titularId === 'claudio' && t.tipo !== 'Crédito/Pagamento' && t.tipo !== 'Pagamento' && t.tipo !== 'Estorno').reduce((acc, t) => acc + t.valor, 0);
-    const danielSub = transacoes.filter(t => t.titularId === 'daniel' && t.tipo !== 'Crédito/Pagamento' && t.tipo !== 'Pagamento' && t.tipo !== 'Estorno').reduce((acc, t) => acc + t.valor, 0);
+    // Isabela: subtotal líquido = soma(compras...) - soma(créditos)
+    const isabelaPurchases = transacoes.filter(t => t.titularId === 'isabela' && ['Loja', 'Fornecedor', 'Serviço Digital', 'Depósito', 'Cliente', 'Encargo Bancário'].includes(t.tipo)).reduce((acc, t) => acc + t.valor, 0);
+    const isabelaCredits = transacoes.filter(t => t.titularId === 'isabela' && t.tipo === 'Crédito').reduce((acc, t) => acc + t.valor, 0);
+    const isabelaEstornos = transacoes.filter(t => t.titularId === 'isabela' && t.tipo === 'Estorno').reduce((acc, t) => acc + Math.abs(t.valor), 0);
+    const isabelaSub = isabelaPurchases - isabelaCredits - isabelaEstornos;
+
+    const claudioSub = transacoes.filter(t => t.titularId === 'claudio' && t.tipo !== 'Pagamento').reduce((acc, t) => acc + t.valor, 0);
+    const danielSub = transacoes.filter(t => t.titularId === 'daniel' && t.tipo !== 'Pagamento').reduce((acc, t) => acc + t.valor, 0);
 
     return {
       compras,
@@ -58,14 +66,21 @@ const Index = () => {
   const isValid = diff < 0.01;
 
   const crossTable = useMemo(() => {
-    const cidades: Cidade[] = ["Araraquara", "Bauru", "São Carlos", "Ribeirão Preto", "Online / Digital", "Outra cidade", "Não identificado"];
-    return cidades.map(cidade => {
-      const row: any = { cidade };
+    const rowLabels = ["Araraquara", "Online / Digital", "Não identificado", "Encargos"];
+    return rowLabels.map(label => {
+      const row: any = { label };
       let total = 0;
       config.titulares.forEach(titular => {
-        const val = transacoes
-          .filter(t => t.unidade === cidade && t.titularId === titular.id && t.tipo !== 'Crédito/Pagamento' && t.tipo !== 'Pagamento')
-          .reduce((acc, t) => acc + t.valor, 0);
+        let val = 0;
+        if (label === 'Encargos') {
+          val = transacoes
+            .filter(t => t.titularId === titular.id && t.tipo === 'Encargo Bancário')
+            .reduce((acc, t) => acc + t.valor, 0);
+        } else {
+          val = transacoes
+            .filter(t => t.unidade === label && t.titularId === titular.id && ['Loja', 'Fornecedor', 'Serviço Digital', 'Depósito', 'Cliente'].includes(t.tipo))
+            .reduce((acc, t) => acc + t.valor, 0);
+        }
         row[titular.id] = val;
         total += val;
       });
@@ -74,12 +89,14 @@ const Index = () => {
     });
   }, [transacoes, config]);
 
-  const filteredTransacoes = transacoes.filter(t => {
-    if (filterTitular !== "Todos" && t.titularId !== filterTitular) return false;
-    if (showOnlyUnidentified && t.unidade !== "Não identificado") return false;
-    if (!showPayments && t.tipo === "Pagamento") return false;
-    return true;
-  });
+  const filteredTransacoes = useMemo(() => {
+    return transacoes.filter(t => {
+      if (filterTitular !== "Todos" && t.titularId !== filterTitular) return false;
+      if (showOnlyUnidentified && t.unidade !== "Não identificado") return false;
+      if (!showPayments && (t.tipo === "Pagamento" || t.tipo === "Crédito")) return false;
+      return true;
+    });
+  }, [transacoes, filterTitular, showOnlyUnidentified, showPayments]);
 
   const getTitularColor = (id: string) => {
     if (id === "isabela") return "bg-amber-500 text-white";
@@ -98,7 +115,7 @@ const Index = () => {
   const getRowColor = (t: Transacao) => {
     if (t.tipo === "Encargo Bancário") return "bg-red-50 text-red-700";
     if (t.unidade === "Não identificado") return "bg-amber-50 text-amber-700";
-    if (t.tipo === "Crédito/Pagamento" || t.tipo === "Pagamento") return "bg-blue-50 text-blue-700";
+    if (t.tipo === "Crédito") return "bg-blue-50 text-blue-700";
     if (t.tipo === "Estorno") return "text-green-600";
     return "";
   };
@@ -113,8 +130,8 @@ const Index = () => {
       <header className="px-6 py-4 flex justify-between items-center bg-white border-b shrink-0">
         <div className="flex items-center gap-4">
           <h1 className="text-xl font-bold">Classificador de Fatura C6 Bank</h1>
-          <Badge className={cn("text-[10px] font-bold uppercase", isValid ? "bg-green-100 text-green-700 border-green-200" : "bg-red-100 text-red-700 border-red-200")}>
-            Total calculado: {formatBRL(totals.totalCalculado)} — Esperado: {formatBRL(EXPECTED_TOTAL)} [{isValid ? '✓ Correto' : '✗ Divergência'}]
+          <Badge className={cn("text-[10px] font-bold uppercase px-3 py-1", isValid ? "bg-green-100 text-green-700 border-green-200" : "bg-red-100 text-red-700 border-red-200")}>
+            Total calculado: {formatBRL(totals.totalCalculado)} {isValid ? '✓' : '✗'}
           </Badge>
         </div>
         <div className="flex items-center gap-4">
@@ -128,19 +145,19 @@ const Index = () => {
       <div className="px-6 py-4 grid grid-cols-4 gap-4 shrink-0">
         <Card>
           <CardContent className="p-4">
-            <p className="text-xs font-bold text-slate-500 uppercase mb-1">Isabela (Compras)</p>
+            <p className="text-xs font-bold text-slate-500 uppercase mb-1">Isabela (Líquido)</p>
             <p className="text-2xl font-black text-amber-600">{formatBRL(totals.isabela)}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
-            <p className="text-xs font-bold text-slate-500 uppercase mb-1">Claudio (Encargos)</p>
+            <p className="text-xs font-bold text-slate-500 uppercase mb-1">Claudio (Líquido)</p>
             <p className="text-2xl font-black text-blue-600">{formatBRL(totals.claudio)}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
-            <p className="text-xs font-bold text-slate-500 uppercase mb-1">Daniel (Compras)</p>
+            <p className="text-xs font-bold text-slate-500 uppercase mb-1">Daniel (Adicional)</p>
             <p className="text-2xl font-black text-teal-600">{formatBRL(totals.daniel)}</p>
           </CardContent>
         </Card>
@@ -173,20 +190,20 @@ const Index = () => {
                 </TableHeader>
                 <TableBody>
                   {crossTable.map((row, idx) => (
-                    <TableRow key={idx} className={row.cidade === 'Não identificado' && row.total > 0 ? 'bg-amber-50' : ''}>
-                      <TableCell className="font-medium">{row.cidade}</TableCell>
+                    <TableRow key={idx} className={cn(row.label === 'Não identificado' && row.total > 0 ? 'bg-amber-50' : row.label === 'Encargos' ? 'bg-red-50' : '')}>
+                      <TableCell className="font-medium">{row.label}</TableCell>
                       <TableCell className="text-right tabular-nums">{row.isabela > 0 ? formatBRL(row.isabela) : '-'}</TableCell>
                       <TableCell className="text-right tabular-nums">{row.claudio > 0 ? formatBRL(row.claudio) : '-'}</TableCell>
                       <TableCell className="text-right tabular-nums">{row.daniel > 0 ? formatBRL(row.daniel) : '-'}</TableCell>
                       <TableCell className="text-right font-bold tabular-nums bg-slate-50">{formatBRL(row.total)}</TableCell>
                     </TableRow>
                   ))}
-                  <TableRow className="bg-slate-100 font-black">
-                    <TableCell>TOTAL GERAL</TableCell>
-                    <TableCell className="text-right">{formatBRL(crossTable.reduce((acc, r) => acc + r.isabela, 0))}</TableCell>
-                    <TableCell className="text-right">{formatBRL(crossTable.reduce((acc, r) => acc + r.claudio, 0))}</TableCell>
-                    <TableCell className="text-right">{formatBRL(crossTable.reduce((acc, r) => acc + r.daniel, 0))}</TableCell>
-                    <TableCell className="text-right">{formatBRL(totals.compras)}</TableCell>
+                  <TableRow className="bg-slate-100 font-black text-[11px]">
+                    <TableCell>Total</TableCell>
+                    <TableCell className="text-right tabular-nums">{formatBRL(crossTable.reduce((acc, r) => acc + r.isabela, 0))}</TableCell>
+                    <TableCell className="text-right tabular-nums">{formatBRL(crossTable.reduce((acc, r) => acc + r.claudio, 0))}</TableCell>
+                    <TableCell className="text-right tabular-nums">{formatBRL(crossTable.reduce((acc, r) => acc + r.daniel, 0))}</TableCell>
+                    <TableCell className="text-right tabular-nums bg-slate-200">{formatBRL(crossTable.reduce((acc, r) => acc + r.total, 0))}</TableCell>
                   </TableRow>
                 </TableBody>
               </Table>
@@ -308,7 +325,7 @@ const Index = () => {
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
-                                {["Araraquara", "Bauru", "São Carlos", "Ribeirão Preto", "Online / Digital", "Outra cidade", "Não identificado"].map(c => (
+                                {["Araraquara", "Online / Digital", "Não identificado"].map(c => (
                                   <SelectItem key={c} value={c} className="text-[10px]">{c}</SelectItem>
                                 ))}
                               </SelectContent>
@@ -319,7 +336,7 @@ const Index = () => {
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
-                                {["Loja", "Depósito", "Cliente", "Fornecedor", "Serviço Digital", "Encargo Bancário", "Estorno", "Pagamento"].map(type => (
+                                {["Loja", "Depósito", "Cliente", "Fornecedor", "Serviço Digital", "Encargo Bancário", "Estorno", "Crédito", "Pagamento"].map(type => (
                                   <SelectItem key={type} value={type} className="text-[10px]">{type}</SelectItem>
                                 ))}
                               </SelectContent>
