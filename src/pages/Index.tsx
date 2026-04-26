@@ -63,19 +63,19 @@ const Index = () => {
   const isValid = diff < 0.01;
 
   const crossTable = useMemo(() => {
-    const cidades: Cidade[] = ["Araraquara", "Bauru", "São Carlos", "Ribeirão Preto", "Online / Digital", "Outra cidade", "Não identificado"];
-    return cidades.map(cidade => {
-      const row: any = { cidade, isEncargos: cidade === 'Encargos' };
+    const rowLabels = ["Araraquara", "Online / Digital", "Não identificado", "Encargos"];
+    return rowLabels.map(label => {
+      const row: any = { label };
       let total = 0;
       config.titulares.forEach(titular => {
         let val = 0;
-        if (cidade === 'Encargos') {
+        if (label === 'Encargos') {
           val = transacoes
             .filter(t => t.titularId === titular.id && t.tipo === 'Encargo Bancário')
             .reduce((acc, t) => acc + t.valor, 0);
         } else {
           val = transacoes
-            .filter(t => t.unidade === cidade && t.titularId === titular.id && ['Loja', 'Fornecedor', 'Serviço Digital', 'Depósito', 'Cliente'].includes(t.tipo))
+            .filter(t => t.unidade === label && t.titularId === titular.id && ['Loja', 'Fornecedor', 'Serviço Digital', 'Depósito', 'Cliente'].includes(t.tipo))
             .reduce((acc, t) => acc + t.valor, 0);
         }
         row[titular.id] = val;
@@ -185,8 +185,8 @@ const Index = () => {
                 </TableHeader>
                 <TableBody>
                   {crossTable.map((row, idx) => (
-                    <TableRow key={idx} className={row.cidade === 'Não identificado' && row.total > 0 ? 'bg-amber-50' : ''}>
-                      <TableCell className="font-medium">{row.cidade}</TableCell>
+                    <TableRow key={idx} className={cn(row.label === 'Não identificado' && row.total > 0 ? 'bg-amber-50' : row.label === 'Encargos' ? 'bg-red-50' : '')}>
+                      <TableCell className="font-medium">{row.label}</TableCell>
                       <TableCell className="text-right tabular-nums">{row.isabela > 0 ? formatBRL(row.isabela) : '-'}</TableCell>
                       <TableCell className="text-right tabular-nums">{row.claudio > 0 ? formatBRL(row.claudio) : '-'}</TableCell>
                       <TableCell className="text-right tabular-nums">{row.daniel > 0 ? formatBRL(row.daniel) : '-'}</TableCell>
