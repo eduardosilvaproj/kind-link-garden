@@ -29,17 +29,22 @@ const Index = () => {
   }
 
   const totals = useMemo(() => {
-    const compras = transacoes.filter(t => t.tipo !== 'Encargo Bancário' && t.tipo !== 'Crédito/Pagamento' && t.tipo !== 'Estorno' && t.tipo !== 'Pagamento').reduce((acc, t) => acc + t.valor, 0);
+    const compras = transacoes.filter(t => ['Loja', 'Fornecedor', 'Serviço Digital', 'Depósito', 'Cliente'].includes(t.tipo)).reduce((acc, t) => acc + t.valor, 0);
     const encargos = transacoes.filter(t => t.tipo === 'Encargo Bancário').reduce((acc, t) => acc + t.valor, 0);
-    const creditos = transacoes.filter(t => t.tipo === 'Crédito/Pagamento' || t.tipo === 'Pagamento').reduce((acc, t) => acc + t.valor, 0);
+    const creditos = transacoes.filter(t => t.tipo === 'Crédito').reduce((acc, t) => acc + t.valor, 0);
     const estornos = transacoes.filter(t => t.tipo === 'Estorno').reduce((acc, t) => acc + Math.abs(t.valor), 0);
     
     const totalCalculado = compras + encargos - creditos - estornos;
 
     // Subtotals per holder for cards
-    const isabelaSub = transacoes.filter(t => t.titularId === 'isabela' && t.tipo !== 'Crédito/Pagamento' && t.tipo !== 'Pagamento' && t.tipo !== 'Estorno').reduce((acc, t) => acc + t.valor, 0);
-    const claudioSub = transacoes.filter(t => t.titularId === 'claudio' && t.tipo !== 'Crédito/Pagamento' && t.tipo !== 'Pagamento' && t.tipo !== 'Estorno').reduce((acc, t) => acc + t.valor, 0);
-    const danielSub = transacoes.filter(t => t.titularId === 'daniel' && t.tipo !== 'Crédito/Pagamento' && t.tipo !== 'Pagamento' && t.tipo !== 'Estorno').reduce((acc, t) => acc + t.valor, 0);
+    // Isabela: subtotal líquido = soma(compras...) - soma(créditos)
+    const isabelaPurchases = transacoes.filter(t => t.titularId === 'isabela' && ['Loja', 'Fornecedor', 'Serviço Digital', 'Depósito', 'Cliente', 'Encargo Bancário'].includes(t.tipo)).reduce((acc, t) => acc + t.valor, 0);
+    const isabelaCredits = transacoes.filter(t => t.titularId === 'isabela' && t.tipo === 'Crédito').reduce((acc, t) => acc + t.valor, 0);
+    const isabelaEstornos = transacoes.filter(t => t.titularId === 'isabela' && t.tipo === 'Estorno').reduce((acc, t) => acc + Math.abs(t.valor), 0);
+    const isabelaSub = isabelaPurchases - isabelaCredits - isabelaEstornos;
+
+    const claudioSub = transacoes.filter(t => t.titularId === 'claudio' && t.tipo !== 'Pagamento').reduce((acc, t) => acc + t.valor, 0);
+    const danielSub = transacoes.filter(t => t.titularId === 'daniel' && t.tipo !== 'Pagamento').reduce((acc, t) => acc + t.valor, 0);
 
     return {
       compras,
@@ -60,12 +65,19 @@ const Index = () => {
   const crossTable = useMemo(() => {
     const cidades: Cidade[] = ["Araraquara", "Bauru", "São Carlos", "Ribeirão Preto", "Online / Digital", "Outra cidade", "Não identificado"];
     return cidades.map(cidade => {
-      const row: any = { cidade };
+      const row: any = { cidade, isEncargos: cidade === 'Encargos' };
       let total = 0;
       config.titulares.forEach(titular => {
-        const val = transacoes
-          .filter(t => t.unidade === cidade && t.titularId === titular.id && t.tipo !== 'Crédito/Pagamento' && t.tipo !== 'Pagamento')
-          .reduce((acc, t) => acc + t.valor, 0);
+        let val = 0;
+        if (cidade === 'Encargos') {
+          val = transacoes
+            .filter(t => t.titularId === titular.id && t.tipo === 'Encargo Bancário')
+            .reduce((acc, t) => acc + t.valor, 0);
+        } else {
+          val = transacoes
+            .filter(t => t.unidade === cidade && t.titularId === titular.id && ['Loja', 'Fornecedor', 'Serviço Digital', 'Depósito', 'Cliente'].includes(t.tipo))
+            .reduce((acc, t) => acc + t.valor, 0);
+        }
         row[titular.id] = val;
         total += val;
       });
@@ -98,7 +110,7 @@ const Index = () => {
   const getRowColor = (t: Transacao) => {
     if (t.tipo === "Encargo Bancário") return "bg-red-50 text-red-700";
     if (t.unidade === "Não identificado") return "bg-amber-50 text-amber-700";
-    if (t.tipo === "Crédito/Pagamento" || t.tipo === "Pagamento") return "bg-blue-50 text-blue-700";
+    if (t.tipo === "Crédito") return "bg-blue-50 text-blue-700";
     if (t.tipo === "Estorno") return "text-green-600";
     return "";
   };

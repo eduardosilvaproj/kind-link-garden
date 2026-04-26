@@ -26,13 +26,17 @@ export const exportToXLSX = (transacoes: Transacao[], config: Config) => {
   const cidades = ["Araraquara", "Bauru", "São Carlos", "Ribeirão Preto", "Online / Digital", "Outra cidade", "Não identificado"];
   const titulares = config.titulares;
   
-  const resumoData = cidades.map(cidade => {
+  const summaryRows = ["Araraquara", "Online / Digital", "Não identificado", "Encargos"];
+  const resumoData = summaryRows.map(cidade => {
     const row: any = { 'Cidade': cidade };
     let totalCidade = 0;
     titulares.forEach(titular => {
-      const valor = transacoes
-        .filter(t => t.unidade === cidade && t.titularId === titular.id && t.tipo !== 'Pagamento' && t.tipo !== 'Crédito/Pagamento')
-        .reduce((acc, t) => acc + t.valor, 0);
+      let valor = 0;
+      if (cidade === 'Encargos') {
+        valor = transacoes.filter(t => t.titularId === titular.id && t.tipo === 'Encargo Bancário').reduce((acc, t) => acc + t.valor, 0);
+      } else {
+        valor = transacoes.filter(t => t.unidade === cidade && t.titularId === titular.id && ['Loja', 'Fornecedor', 'Serviço Digital', 'Depósito', 'Cliente'].includes(t.tipo)).reduce((acc, t) => acc + t.valor, 0);
+      }
       row[titular.nome] = valor;
       totalCidade += valor;
     });
