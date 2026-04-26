@@ -26,8 +26,23 @@ export const exportToXLSX = (transacoes: Transacao[], config: Config) => {
   const cidades = ["Araraquara", "Bauru", "São Carlos", "Ribeirão Preto", "Online / Digital", "Outra cidade", "Não identificado"];
   const titulares = config.titulares;
   
-  const summaryRows = ["Araraquara", "Online / Digital", "Não identificado", "Encargos"];
+  const summaryRows = ["Araraquara", "Online / Digital", "Não identificado", "Encargos", "Total"];
   const resumoData = summaryRows.map(cidade => {
+    if (cidade === "Total") {
+      const row: any = { 'Cidade': 'Total' };
+      let totalGeral = 0;
+      titulares.forEach(titular => {
+        let val = 0;
+        // We want the same logic as the crossTable in UI: Purchases + Encargos
+        const purc = transacoes.filter(t => t.titularId === titular.id && ['Loja', 'Fornecedor', 'Serviço Digital', 'Depósito', 'Cliente'].includes(t.tipo)).reduce((acc, t) => acc + t.valor, 0);
+        const enc = transacoes.filter(t => t.titularId === titular.id && t.tipo === 'Encargo Bancário').reduce((acc, t) => acc + t.valor, 0);
+        val = purc + enc;
+        row[titular.nome] = val;
+        totalGeral += val;
+      });
+      row['Total'] = totalGeral;
+      return row;
+    }
     const row: any = { 'Cidade': cidade };
     let totalCidade = 0;
     titulares.forEach(titular => {

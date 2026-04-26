@@ -86,12 +86,14 @@ const Index = () => {
     });
   }, [transacoes, config]);
 
-  const filteredTransacoes = transacoes.filter(t => {
-    if (filterTitular !== "Todos" && t.titularId !== filterTitular) return false;
-    if (showOnlyUnidentified && t.unidade !== "Não identificado") return false;
-    if (!showPayments && t.tipo === "Pagamento") return false;
-    return true;
-  });
+  const filteredTransacoes = useMemo(() => {
+    return transacoes.filter(t => {
+      if (filterTitular !== "Todos" && t.titularId !== filterTitular) return false;
+      if (showOnlyUnidentified && t.unidade !== "Não identificado") return false;
+      if (!showPayments && (t.tipo === "Pagamento" || t.tipo === "Crédito")) return false;
+      return true;
+    });
+  }, [transacoes, filterTitular, showOnlyUnidentified, showPayments]);
 
   const getTitularColor = (id: string) => {
     if (id === "isabela") return "bg-amber-500 text-white";
@@ -140,19 +142,19 @@ const Index = () => {
       <div className="px-6 py-4 grid grid-cols-4 gap-4 shrink-0">
         <Card>
           <CardContent className="p-4">
-            <p className="text-xs font-bold text-slate-500 uppercase mb-1">Isabela (Compras)</p>
+            <p className="text-xs font-bold text-slate-500 uppercase mb-1">Isabela (Líquido)</p>
             <p className="text-2xl font-black text-amber-600">{formatBRL(totals.isabela)}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
-            <p className="text-xs font-bold text-slate-500 uppercase mb-1">Claudio (Encargos)</p>
+            <p className="text-xs font-bold text-slate-500 uppercase mb-1">Claudio (Líquido)</p>
             <p className="text-2xl font-black text-blue-600">{formatBRL(totals.claudio)}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
-            <p className="text-xs font-bold text-slate-500 uppercase mb-1">Daniel (Compras)</p>
+            <p className="text-xs font-bold text-slate-500 uppercase mb-1">Daniel (Adicional)</p>
             <p className="text-2xl font-black text-teal-600">{formatBRL(totals.daniel)}</p>
           </CardContent>
         </Card>
@@ -193,12 +195,12 @@ const Index = () => {
                       <TableCell className="text-right font-bold tabular-nums bg-slate-50">{formatBRL(row.total)}</TableCell>
                     </TableRow>
                   ))}
-                  <TableRow className="bg-slate-100 font-black">
-                    <TableCell>TOTAL GERAL</TableCell>
-                    <TableCell className="text-right">{formatBRL(crossTable.reduce((acc, r) => acc + r.isabela, 0))}</TableCell>
-                    <TableCell className="text-right">{formatBRL(crossTable.reduce((acc, r) => acc + r.claudio, 0))}</TableCell>
-                    <TableCell className="text-right">{formatBRL(crossTable.reduce((acc, r) => acc + r.daniel, 0))}</TableCell>
-                    <TableCell className="text-right">{formatBRL(totals.compras)}</TableCell>
+                  <TableRow className="bg-slate-100 font-black text-[11px]">
+                    <TableCell>Total</TableCell>
+                    <TableCell className="text-right tabular-nums">{formatBRL(crossTable.reduce((acc, r) => acc + r.isabela, 0))}</TableCell>
+                    <TableCell className="text-right tabular-nums">{formatBRL(crossTable.reduce((acc, r) => acc + r.claudio, 0))}</TableCell>
+                    <TableCell className="text-right tabular-nums">{formatBRL(crossTable.reduce((acc, r) => acc + r.daniel, 0))}</TableCell>
+                    <TableCell className="text-right tabular-nums bg-slate-200">{formatBRL(crossTable.reduce((acc, r) => acc + r.total, 0))}</TableCell>
                   </TableRow>
                 </TableBody>
               </Table>
@@ -320,7 +322,7 @@ const Index = () => {
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
-                                {["Araraquara", "Bauru", "São Carlos", "Ribeirão Preto", "Online / Digital", "Outra cidade", "Não identificado"].map(c => (
+                                {["Araraquara", "Online / Digital", "Não identificado"].map(c => (
                                   <SelectItem key={c} value={c} className="text-[10px]">{c}</SelectItem>
                                 ))}
                               </SelectContent>
@@ -331,7 +333,7 @@ const Index = () => {
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
-                                {["Loja", "Depósito", "Cliente", "Fornecedor", "Serviço Digital", "Encargo Bancário", "Estorno", "Pagamento"].map(type => (
+                                {["Loja", "Depósito", "Cliente", "Fornecedor", "Serviço Digital", "Encargo Bancário", "Estorno", "Crédito", "Pagamento"].map(type => (
                                   <SelectItem key={type} value={type} className="text-[10px]">{type}</SelectItem>
                                 ))}
                               </SelectContent>
