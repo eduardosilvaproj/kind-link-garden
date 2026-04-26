@@ -11,7 +11,9 @@ export type Cidade =
   | "Bauru" 
   | "São Carlos" 
   | "Ribeirão Preto" 
-  | "Online / Digital" 
+  | "Online"
+  | "Online / Digital"
+  | "—"
   | "Outra cidade" 
   | "Não identificado";
 
