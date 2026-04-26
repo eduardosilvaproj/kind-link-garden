@@ -205,18 +205,18 @@ const Index = () => {
                    {crossTable.map((row, idx) => (
                      <TableRow key={idx} className={cn(row.label === 'Não identificado' && row.total > 0 ? 'bg-amber-50' : row.label === 'Encargos' ? 'bg-red-50' : '')}>
                         <TableCell className="font-medium text-[11px] whitespace-normal leading-tight py-2">{row.label}</TableCell>
-                        <TableCell className="text-right tabular-nums text-[12px]">{row.Isabela > 0.01 ? formatBRL(row.Isabela).replace("R$", "").trim() : '—'}</TableCell>
-                        <TableCell className="text-right tabular-nums text-[12px]">{row.Claudio > 0.01 ? formatBRL(row.Claudio).replace("R$", "").trim() : '—'}</TableCell>
-                        <TableCell className="text-right tabular-nums text-[12px]">{row.Daniel > 0.01 ? formatBRL(row.Daniel).replace("R$", "").trim() : '—'}</TableCell>
-                        <TableCell className="text-right font-bold tabular-nums bg-slate-50 text-[12px]">{formatBRL(row.total).replace("R$", "").trim()}</TableCell>
+                        <TableCell className="text-right tabular-nums text-[11px] py-1">{row.Isabela > 0.01 ? formatBRL(row.Isabela).replace("R$", "").trim() : '—'}</TableCell>
+                        <TableCell className="text-right tabular-nums text-[11px] py-1">{row.Claudio > 0.01 ? formatBRL(row.Claudio).replace("R$", "").trim() : '—'}</TableCell>
+                        <TableCell className="text-right tabular-nums text-[11px] py-1">{row.Daniel > 0.01 ? formatBRL(row.Daniel).replace("R$", "").trim() : '—'}</TableCell>
+                        <TableCell className="text-right font-bold tabular-nums bg-slate-50 text-[11px] py-1">{formatBRL(row.total).replace("R$", "").trim()}</TableCell>
                      </TableRow>
                    ))}
                    <TableRow className="bg-slate-100 font-black text-[11px]">
                        <TableCell className="w-[130px] text-[11px] font-bold">TOTAL</TableCell>
-                      <TableCell className="text-right tabular-nums w-[22%] text-[12px] font-bold">{formatBRL(crossTable.reduce((acc, r) => acc + r.Isabela, 0)).replace("R$", "").trim()}</TableCell>
-                      <TableCell className="text-right tabular-nums w-[22%] text-[12px] font-bold">{formatBRL(crossTable.reduce((acc, r) => acc + r.Claudio, 0)).replace("R$", "").trim()}</TableCell>
-                      <TableCell className="text-right tabular-nums w-[22%] text-[12px] font-bold">{formatBRL(crossTable.reduce((acc, r) => acc + r.Daniel, 0)).replace("R$", "").trim()}</TableCell>
-                      <TableCell className="text-right tabular-nums bg-slate-200 w-[22%] text-[12px] font-bold">{formatBRL(crossTable.reduce((acc, r) => acc + r.total, 0)).replace("R$", "").trim()}</TableCell>
+                       <TableCell className="text-right tabular-nums w-[22%] text-[11px] font-bold py-1">{formatBRL(crossTable.reduce((acc, r) => acc + r.Isabela, 0)).replace("R$", "").trim()}</TableCell>
+                       <TableCell className="text-right tabular-nums w-[22%] text-[11px] font-bold py-1">{formatBRL(crossTable.reduce((acc, r) => acc + r.Claudio, 0)).replace("R$", "").trim()}</TableCell>
+                       <TableCell className="text-right tabular-nums w-[22%] text-[11px] font-bold py-1">{formatBRL(crossTable.reduce((acc, r) => acc + r.Daniel, 0)).replace("R$", "").trim()}</TableCell>
+                       <TableCell className="text-right tabular-nums bg-slate-200 w-[22%] text-[11px] font-bold py-1">{formatBRL(crossTable.reduce((acc, r) => acc + r.total, 0)).replace("R$", "").trim()}</TableCell>
                    </TableRow>
                  </TableBody>
                </Table>
