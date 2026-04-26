@@ -125,13 +125,13 @@ const Index = () => {
     return "??";
   };
 
-  const getRowColor = (t: Transacao) => {
-    if (t.tipo === "Encargo Bancário") return "bg-red-50 text-red-700";
-    if (t.cidade === "Não identificado") return "bg-amber-50 text-amber-700";
-    if (t.tipo === "Crédito") return "bg-blue-50 text-blue-700";
-    if (t.tipo === "Estorno") return "text-green-600";
-    return "";
-  };
+   const getRowColor = (t: Transacao) => {
+     if (t.tipo === "Encargo Bancário") return "bg-red-50 text-red-700";
+     if (t.cidade === "Não identificado") return "bg-amber-50 text-amber-700";
+     if (t.tipo === "Crédito") return "bg-blue-50 text-blue-700";
+     if (t.tipo === "Estorno") return "bg-green-50 text-green-700";
+     return "";
+   };
 
   const formatBRL = (val: number) => {
     return val.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
