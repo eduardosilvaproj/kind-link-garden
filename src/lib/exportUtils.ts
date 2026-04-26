@@ -6,17 +6,16 @@ export const exportToXLSX = (transacoes: Transacao[], config: Config) => {
   
   // Sheet 1: Transações
   const dataTransacoes = transacoes.map(t => {
-    const titular = config.titulares.find(tit => tit.id === t.titularId);
+    const titular = config.titulares.find(tit => tit.id === t.titular);
     return {
-      'Titular': titular?.nome || t.titularId,
+      'Titular': titular?.nome || t.titular,
       'Data': t.data,
-      'Estabelecimento (Raw)': t.estabelecimento,
-      'Nome Limpo': t.nomeLimpo,
-      'Cidade/Unidade': t.unidade,
+      'Estabelecimento (Raw)': t.raw,
+      'Nome Limpo': t.nome,
+      'Cidade/Unidade': t.cidade,
       'Tipo': t.tipo,
       'Parcela': t.parcela,
-      'Valor': t.valor,
-      'Obs': t.observacao
+      'Valor': t.valor
     };
   });
   const wsTransacoes = XLSX.utils.json_to_sheet(dataTransacoes);
@@ -32,15 +31,15 @@ export const exportToXLSX = (transacoes: Transacao[], config: Config) => {
       let val = 0;
       if (label === "Total") {
         // Logic: Purchases + Encargos - Créditos - Estornos
-        const purc = transacoes.filter(t => t.titularId === titular.id && ['Loja', 'Fornecedor', 'Serviço Digital', 'Depósito', 'Cliente'].includes(t.tipo)).reduce((acc, t) => acc + t.valor, 0);
-        const enc = transacoes.filter(t => t.titularId === titular.id && t.tipo === 'Encargo Bancário').reduce((acc, t) => acc + t.valor, 0);
-        const cred = transacoes.filter(t => t.titularId === titular.id && t.tipo === 'Crédito').reduce((acc, t) => acc + t.valor, 0);
-        const est = transacoes.filter(t => t.titularId === titular.id && t.tipo === 'Estorno').reduce((acc, t) => acc + Math.abs(t.valor), 0);
+        const purc = transacoes.filter(t => t.titular === titular.id && ['Loja', 'Fornecedor', 'Serviço Digital', 'Depósito', 'Cliente'].includes(t.tipo)).reduce((acc, t) => acc + t.valor, 0);
+        const enc = transacoes.filter(t => t.titular === titular.id && t.tipo === 'Encargo Bancário').reduce((acc, t) => acc + t.valor, 0);
+        const cred = transacoes.filter(t => t.titular === titular.id && t.tipo === 'Crédito').reduce((acc, t) => acc + t.valor, 0);
+        const est = transacoes.filter(t => t.titular === titular.id && t.tipo === 'Estorno').reduce((acc, t) => acc + Math.abs(t.valor), 0);
         val = purc + enc - cred - est;
       } else if (label === "Encargos") {
-        val = transacoes.filter(t => t.titularId === titular.id && t.tipo === 'Encargo Bancário').reduce((acc, t) => acc + t.valor, 0);
+        val = transacoes.filter(t => t.titular === titular.id && t.tipo === 'Encargo Bancário').reduce((acc, t) => acc + t.valor, 0);
       } else {
-        val = transacoes.filter(t => t.unidade === label && t.titularId === titular.id && ['Loja', 'Fornecedor', 'Serviço Digital', 'Depósito', 'Cliente'].includes(t.tipo)).reduce((acc, t) => acc + t.valor, 0);
+        val = transacoes.filter(t => t.cidade === label && t.titular === titular.id && ['Loja', 'Fornecedor', 'Serviço Digital', 'Depósito', 'Cliente'].includes(t.tipo)).reduce((acc, t) => acc + t.valor, 0);
       }
       row[titular.nome] = val;
       totalRow += val;
@@ -57,9 +56,9 @@ export const exportToXLSX = (transacoes: Transacao[], config: Config) => {
 
 export const exportToCSV = (transacoes: Transacao[]) => {
   // Simplificado, focado no XLSX conforme pedido
-  const headers = ['Titular', 'Data', 'Estabelecimento', 'Nome Limpo', 'Cidade', 'Tipo', 'Parcela', 'Valor', 'Obs'];
+  const headers = ['Titular', 'Data', 'Estabelecimento', 'Nome Limpo', 'Cidade', 'Tipo', 'Parcela', 'Valor'];
   const rows = transacoes.map(t => [
-    t.titularId, t.data, t.estabelecimento, t.nomeLimpo, t.unidade, t.tipo, t.parcela, t.valor, t.observacao
+    t.titular, t.data, t.raw, t.nome, t.cidade, t.tipo, t.parcela, t.valor
   ]);
   
   const csvContent = [headers, ...rows].map(e => e.join(",")).join("\n");
