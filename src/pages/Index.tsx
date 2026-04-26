@@ -180,11 +180,11 @@ const Index = () => {
                     </TableRow>
                   ))}
                   <TableRow className="bg-slate-100 font-black">
-                    <TableCell>TOTAL COMPRAS</TableCell>
-                    <TableCell className="text-right">{formatBRL(totals.isabela_compras)}</TableCell>
+                    <TableCell>TOTAL GERAL</TableCell>
+                    <TableCell className="text-right">{formatBRL(crossTable.reduce((acc, r) => acc + r.isabela, 0))}</TableCell>
                     <TableCell className="text-right">{formatBRL(crossTable.reduce((acc, r) => acc + r.claudio, 0))}</TableCell>
                     <TableCell className="text-right">{formatBRL(crossTable.reduce((acc, r) => acc + r.daniel, 0))}</TableCell>
-                    <TableCell className="text-right">{formatBRL(totals.totalCompras)}</TableCell>
+                    <TableCell className="text-right">{formatBRL(totals.compras)}</TableCell>
                   </TableRow>
                 </TableBody>
               </Table>
