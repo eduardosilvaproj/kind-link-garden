@@ -338,7 +338,7 @@ const Index = () => {
                                  <SelectValue placeholder="Cidade" />
                                </SelectTrigger>
                                <SelectContent>
-                                 {["Araraquara", "Online", "Não identificado"].map(c => (
+                                 {["Araraquara", "Online", "Não identificado", "—"].map(c => (
                                    <SelectItem key={c} value={c} className="text-[11px]">{c}</SelectItem>
                                  ))}
                                </SelectContent>
