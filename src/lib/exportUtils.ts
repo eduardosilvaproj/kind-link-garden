@@ -31,9 +31,12 @@ export const exportToXLSX = (transacoes: Transacao[], config: Config) => {
     titulares.forEach(titular => {
       let val = 0;
       if (label === "Total") {
+        // Logic: Purchases + Encargos - Créditos - Estornos
         const purc = transacoes.filter(t => t.titularId === titular.id && ['Loja', 'Fornecedor', 'Serviço Digital', 'Depósito', 'Cliente'].includes(t.tipo)).reduce((acc, t) => acc + t.valor, 0);
         const enc = transacoes.filter(t => t.titularId === titular.id && t.tipo === 'Encargo Bancário').reduce((acc, t) => acc + t.valor, 0);
-        val = purc + enc;
+        const cred = transacoes.filter(t => t.titularId === titular.id && t.tipo === 'Crédito').reduce((acc, t) => acc + t.valor, 0);
+        const est = transacoes.filter(t => t.titularId === titular.id && t.tipo === 'Estorno').reduce((acc, t) => acc + Math.abs(t.valor), 0);
+        val = purc + enc - cred - est;
       } else if (label === "Encargos") {
         val = transacoes.filter(t => t.titularId === titular.id && t.tipo === 'Encargo Bancário').reduce((acc, t) => acc + t.valor, 0);
       } else {
