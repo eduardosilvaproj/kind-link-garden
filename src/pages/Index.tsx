@@ -67,7 +67,15 @@ const Index = () => {
   const isValid = diff < 0.01;
 
     const crossTable = useMemo(() => {
-      const rowLabels = ["Araraquara", "Online", "Não identificado", "Encargos"];
+      const rowLabels = [
+        "Araraquara",
+        "Bauru",
+        "Ribeirão Preto",
+        "São Carlos",
+        "Online",
+        "Não identificado",
+        "Encargos"
+      ];
       const titularIds = ["Isabela", "Claudio", "Daniel"];
       
       return rowLabels.map(label => {
@@ -87,6 +95,7 @@ const Index = () => {
                 t.tipo !== "Crédito" &&
                 t.tipo !== "Estorno" &&
                 t.tipo !== "Pagamento" &&
+                t.tipo !== "Encargo Bancário" &&
                 t.valor > 0
               )
               .reduce((acc, t) => acc + t.valor, 0);
@@ -338,7 +347,7 @@ const Index = () => {
                                  <SelectValue placeholder="Cidade" />
                                </SelectTrigger>
                                <SelectContent>
-                                 {["Araraquara", "Online", "Não identificado", "—"].map(c => (
+                                 {["Araraquara", "Bauru", "Ribeirão Preto", "São Carlos", "Online", "Não identificado"].map(c => (
                                    <SelectItem key={c} value={c} className="text-[11px]">{c}</SelectItem>
                                  ))}
                                </SelectContent>
