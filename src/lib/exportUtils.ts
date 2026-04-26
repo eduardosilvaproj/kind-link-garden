@@ -31,7 +31,7 @@ export const exportToXLSX = (transacoes: Transacao[], config: Config) => {
     let totalCidade = 0;
     titulares.forEach(titular => {
       const valor = transacoes
-        .filter(t => t.unidade === cidade && t.titularId === titular.id && t.tipo !== 'Pagamento')
+        .filter(t => t.unidade === cidade && t.titularId === titular.id && t.tipo !== 'Pagamento' && t.tipo !== 'Crédito/Pagamento')
         .reduce((acc, t) => acc + t.valor, 0);
       row[titular.nome] = valor;
       totalCidade += valor;
