@@ -15,7 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { parseC6PDF } from "../lib/pdfParser";
-import { Cidade, TipoDestino, Transacao } from "../types";
+import { Cidade, TipoDestino, Transacao, Titular } from "../types";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Legend, Cell } from 'recharts';
 
 import { cn } from "@/lib/utils";
