@@ -109,7 +109,12 @@ const Index = () => {
     <div className="h-screen flex flex-col bg-slate-50 overflow-hidden text-slate-900">
       {/* HEADER */}
       <header className="px-6 py-4 flex justify-between items-center bg-white border-b shrink-0">
-        <h1 className="text-xl font-bold">Classificador de Fatura C6 Bank</h1>
+        <div className="flex items-center gap-4">
+          <h1 className="text-xl font-bold">Classificador de Fatura C6 Bank</h1>
+          <Badge className={cn("text-[10px] font-bold uppercase", isValid ? "bg-green-100 text-green-700 border-green-200" : "bg-red-100 text-red-700 border-red-200")}>
+            Total calculado: {formatBRL(totals.totalCalculado)} — Esperado: {formatBRL(EXPECTED_TOTAL)} [{isValid ? '✓ Correto' : '✗ Divergência'}]
+          </Badge>
+        </div>
         <div className="flex items-center gap-4">
           <Button variant="outline" size="sm" onClick={() => exportToXLSX(transacoes, config)} className="flex gap-2">
             <Download className="w-4 h-4" /> Exportar Excel
@@ -121,31 +126,26 @@ const Index = () => {
       <div className="px-6 py-4 grid grid-cols-4 gap-4 shrink-0">
         <Card>
           <CardContent className="p-4">
-            <p className="text-xs font-bold text-slate-500 uppercase mb-1">Total Compras</p>
-            <p className="text-2xl font-black">{formatBRL(totals.totalCompras)}</p>
+            <p className="text-xs font-bold text-slate-500 uppercase mb-1">Isabela (Compras)</p>
+            <p className="text-2xl font-black text-amber-600">{formatBRL(totals.isabela)}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
-            <p className="text-xs font-bold text-slate-500 uppercase mb-1">Encargos</p>
-            <p className="text-2xl font-black text-red-600">{formatBRL(totals.totalEncargos)}</p>
+            <p className="text-xs font-bold text-slate-500 uppercase mb-1">Claudio (Encargos)</p>
+            <p className="text-2xl font-black text-blue-600">{formatBRL(totals.claudio)}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-xs font-bold text-slate-500 uppercase mb-1">Daniel (Compras)</p>
+            <p className="text-2xl font-black text-teal-600">{formatBRL(totals.daniel)}</p>
           </CardContent>
         </Card>
         <Card className="bg-slate-900 text-white">
           <CardContent className="p-4">
-            <p className="text-xs font-bold text-slate-400 uppercase mb-1">Fatura a Pagar</p>
-            <p className="text-2xl font-black">{formatBRL(totals.totalFatura)}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4 flex justify-between items-center">
-            <div>
-              <p className="text-xs font-bold text-slate-500 uppercase mb-1">Não identificados</p>
-              <p className="text-2xl font-black text-amber-600">
-                {transacoes.filter(t => t.unidade === "Não identificado").length}
-              </p>
-            </div>
-            {transacoes.filter(t => t.unidade === "Não identificado").length > 0 && <AlertCircle className="text-amber-500 w-8 h-8" />}
+            <p className="text-xs font-bold text-slate-400 uppercase mb-1">TOTAL FATURA</p>
+            <p className="text-2xl font-black">{formatBRL(totals.totalCalculado)}</p>
           </CardContent>
         </Card>
       </div>
