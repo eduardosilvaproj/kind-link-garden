@@ -39,10 +39,10 @@ const Index = () => {
     const comprasDaniel = transacoes.filter(t => t.titularId === 'daniel' && t.tipo !== 'Encargo Bancário' && t.tipo !== 'Pagamento' && t.tipo !== 'Estorno').reduce((acc, t) => acc + t.valor, 0);
     const encargosDaniel = transacoes.filter(t => t.titularId === 'daniel' && t.tipo === 'Encargo Bancário').reduce((acc, t) => acc + t.valor, 0);
 
-    const totalFatura = transacoes.reduce((acc, t) => {
-      if (t.tipo === 'Pagamento') return acc - t.valor;
-      return acc + t.valor;
-    }, 0);
+   const totalFatura = transacoes.reduce((acc, t) => {
+     if (t.tipo === 'Pagamento') return acc;
+     return acc + t.valor;
+   }, 0);
 
     return {
       isabela: comprasIsabela + estornosIsabela + encargosIsabela,
