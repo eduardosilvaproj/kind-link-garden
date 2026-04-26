@@ -29,33 +29,33 @@ const Index = () => {
   }
 
   const totals = useMemo(() => {
-    const comprasIsabela = transacoes.filter(t => t.titularId === 'isabela' && t.tipo !== 'Encargo Bancário' && t.tipo !== 'Pagamento' && t.tipo !== 'Estorno').reduce((acc, t) => acc + t.valor, 0);
-    const encargosIsabela = transacoes.filter(t => t.titularId === 'isabela' && t.tipo === 'Encargo Bancário').reduce((acc, t) => acc + t.valor, 0);
-    const estornosIsabela = transacoes.filter(t => t.titularId === 'isabela' && t.tipo === 'Estorno').reduce((acc, t) => acc + t.valor, 0);
+    const compras = transacoes.filter(t => t.tipo !== 'Encargo Bancário' && t.tipo !== 'Crédito/Pagamento' && t.tipo !== 'Estorno' && t.tipo !== 'Pagamento').reduce((acc, t) => acc + t.valor, 0);
+    const encargos = transacoes.filter(t => t.tipo === 'Encargo Bancário').reduce((acc, t) => acc + t.valor, 0);
+    const creditos = transacoes.filter(t => t.tipo === 'Crédito/Pagamento' || t.tipo === 'Pagamento').reduce((acc, t) => acc + t.valor, 0);
+    const estornos = transacoes.filter(t => t.tipo === 'Estorno').reduce((acc, t) => acc + Math.abs(t.valor), 0);
     
-    const comprasClaudio = transacoes.filter(t => t.titularId === 'claudio' && t.tipo !== 'Encargo Bancário' && t.tipo !== 'Pagamento' && t.tipo !== 'Estorno').reduce((acc, t) => acc + t.valor, 0);
-    const encargosClaudio = transacoes.filter(t => t.titularId === 'claudio' && t.tipo === 'Encargo Bancário').reduce((acc, t) => acc + t.valor, 0);
-    
-    const comprasDaniel = transacoes.filter(t => t.titularId === 'daniel' && t.tipo !== 'Encargo Bancário' && t.tipo !== 'Pagamento' && t.tipo !== 'Estorno').reduce((acc, t) => acc + t.valor, 0);
-    const encargosDaniel = transacoes.filter(t => t.titularId === 'daniel' && t.tipo === 'Encargo Bancário').reduce((acc, t) => acc + t.valor, 0);
+    const totalCalculado = compras + encargos - creditos - estornos;
 
-   const totalFatura = transacoes.reduce((acc, t) => {
-     if (t.tipo === 'Pagamento') return acc;
-     return acc + t.valor;
-   }, 0);
+    // Subtotals per holder for cards
+    const isabelaSub = transacoes.filter(t => t.titularId === 'isabela' && t.tipo !== 'Crédito/Pagamento' && t.tipo !== 'Pagamento' && t.tipo !== 'Estorno').reduce((acc, t) => acc + t.valor, 0);
+    const claudioSub = transacoes.filter(t => t.titularId === 'claudio' && t.tipo !== 'Crédito/Pagamento' && t.tipo !== 'Pagamento' && t.tipo !== 'Estorno').reduce((acc, t) => acc + t.valor, 0);
+    const danielSub = transacoes.filter(t => t.titularId === 'daniel' && t.tipo !== 'Crédito/Pagamento' && t.tipo !== 'Pagamento' && t.tipo !== 'Estorno').reduce((acc, t) => acc + t.valor, 0);
 
     return {
-      isabela: comprasIsabela + estornosIsabela + encargosIsabela,
-      isabela_compras: comprasIsabela + estornosIsabela,
-      isabela_encargos: encargosIsabela,
-      claudio: comprasClaudio + encargosClaudio,
-      claudio_encargos: encargosClaudio,
-      daniel: comprasDaniel + encargosDaniel,
-      totalCompras: comprasIsabela + estornosIsabela + comprasClaudio + comprasDaniel,
-      totalEncargos: encargosIsabela + encargosClaudio + encargosDaniel,
-      totalFatura: totalFatura
+      compras,
+      encargos,
+      creditos,
+      estornos,
+      totalCalculado,
+      isabela: isabelaSub,
+      claudio: claudioSub,
+      daniel: danielSub
     };
   }, [transacoes]);
+
+  const EXPECTED_TOTAL = 11019.68;
+  const diff = Math.abs(totals.totalCalculado - EXPECTED_TOTAL);
+  const isValid = diff < 0.01;
 
   const crossTable = useMemo(() => {
     const cidades: Cidade[] = ["Araraquara", "Bauru", "São Carlos", "Ribeirão Preto", "Online / Digital", "Outra cidade", "Não identificado"];
