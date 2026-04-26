@@ -83,7 +83,7 @@ const Index = () => {
             val = transacoes
               .filter(t => 
                 t.titular === titularId &&
-                t.cidade === (label === "Online" ? "Online" : label) &&
+                (label === "Online" ? (t.cidade === "Online" || t.cidade === "Online / Digital") : t.cidade === label) &&
                 t.tipo !== "Crédito" &&
                 t.tipo !== "Estorno" &&
                 t.tipo !== "Pagamento" &&
