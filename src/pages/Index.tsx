@@ -96,8 +96,10 @@ const Index = () => {
   };
 
   const getRowColor = (t: Transacao) => {
-    if (t.tipo === "Encargo Bancário") return "bg-red-50";
-    if (t.unidade === "Não identificado") return "bg-amber-50/50";
+    if (t.tipo === "Encargo Bancário") return "bg-red-50 text-red-700";
+    if (t.unidade === "Não identificado") return "bg-amber-50 text-amber-700";
+    if (t.tipo === "Crédito/Pagamento" || t.tipo === "Pagamento") return "bg-blue-50 text-blue-700";
+    if (t.tipo === "Estorno") return "text-green-600";
     return "";
   };
 
