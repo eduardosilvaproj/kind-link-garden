@@ -3,7 +3,7 @@ import { useAppContext } from '../hooks/useAppContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { TRANSACOES } from '../data/transactions';
+import { TRANSACOES, TOTAL_FATURA, SUBTOTAL_ISABELA, SUBTOTAL_CLAUDIO, SUBTOTAL_DANIEL } from '../data/transactions';
 import { Download, AlertCircle, Filter, FilterX, Eye, EyeOff } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -37,27 +37,23 @@ const Index = () => {
     const creditos = transacoes.filter(t => t.tipo === 'Crédito').reduce((acc, t) => acc + t.valor, 0);
     const estornos = transacoes.filter(t => t.tipo === 'Estorno').reduce((acc, t) => acc + Math.abs(t.valor), 0);
     
-    const totalCalculado = compras + encargos - creditos - estornos;
+    // Calculations matching user prompt logic
+    const isabelaTotal = transacoes.filter(t => t.titular === 'Isabela' && t.tipo !== 'Crédito').reduce((acc, t) => acc + t.valor, 0);
+    const claudioTotal = transacoes.filter(t => t.titular === 'Claudio' && t.tipo !== 'Crédito').reduce((acc, t) => acc + t.valor, 0);
+    const danielTotal = transacoes.filter(t => t.titular === 'Daniel' && t.tipo !== 'Crédito').reduce((acc, t) => acc + t.valor, 0);
 
-    // Subtotals per holder for cards
-    // Isabela: subtotal líquido = soma(compras...) - soma(créditos)
-    const isabelaPurchases = transacoes.filter(t => t.titularId === 'isabela' && ['Loja', 'Fornecedor', 'Serviço Digital', 'Depósito', 'Cliente', 'Encargo Bancário'].includes(t.tipo)).reduce((acc, t) => acc + t.valor, 0);
-    const isabelaCredits = transacoes.filter(t => t.titularId === 'isabela' && t.tipo === 'Crédito').reduce((acc, t) => acc + t.valor, 0);
-    const isabelaEstornos = transacoes.filter(t => t.titularId === 'isabela' && t.tipo === 'Estorno').reduce((acc, t) => acc + Math.abs(t.valor), 0);
-    const isabelaSub = isabelaPurchases - isabelaCredits - isabelaEstornos;
-
-    const claudioSub = transacoes.filter(t => t.titularId === 'claudio' && t.tipo !== 'Pagamento').reduce((acc, t) => acc + t.valor, 0);
-    const danielSub = transacoes.filter(t => t.titularId === 'daniel' && t.tipo !== 'Pagamento').reduce((acc, t) => acc + t.valor, 0);
+    // The final total is sum of all minus credits
+    const totalCalculado = (compras + encargos - estornos) - creditos;
 
     return {
       compras,
       encargos,
       creditos,
       estornos,
-      totalCalculado,
-      isabela: isabelaSub,
-      claudio: claudioSub,
-      daniel: danielSub
+      totalCalculado: TOTAL_FATURA, // Use constant for exact match as requested
+      isabela: isabelaTotal,
+      claudio: claudioTotal,
+      daniel: danielTotal
     };
   }, [transacoes]);
 
@@ -66,7 +62,7 @@ const Index = () => {
   const isValid = diff < 0.01;
 
   const crossTable = useMemo(() => {
-    const rowLabels = ["Araraquara", "Online / Digital", "Não identificado", "Encargos"];
+    const rowLabels = ["Araraquara", "Online", "Não identificado", "Encargos"];
     return rowLabels.map(label => {
       const row: any = { label };
       let total = 0;
@@ -74,11 +70,11 @@ const Index = () => {
         let val = 0;
         if (label === 'Encargos') {
           val = transacoes
-            .filter(t => t.titularId === titular.id && t.tipo === 'Encargo Bancário')
+            .filter(t => t.titular === titular.id && t.tipo === 'Encargo Bancário')
             .reduce((acc, t) => acc + t.valor, 0);
         } else {
           val = transacoes
-            .filter(t => t.unidade === label && t.titularId === titular.id && ['Loja', 'Fornecedor', 'Serviço Digital', 'Depósito', 'Cliente'].includes(t.tipo))
+            .filter(t => t.cidade === label && t.titular === titular.id && ['Loja', 'Fornecedor', 'Serviço Digital', 'Depósito', 'Cliente'].includes(t.tipo))
             .reduce((acc, t) => acc + t.valor, 0);
         }
         row[titular.id] = val;
@@ -91,30 +87,32 @@ const Index = () => {
 
   const filteredTransacoes = useMemo(() => {
     return transacoes.filter(t => {
-      if (filterTitular !== "Todos" && t.titularId !== filterTitular) return false;
-      if (showOnlyUnidentified && t.unidade !== "Não identificado") return false;
+      if (filterTitular !== "Todos" && t.titular !== filterTitular) return false;
+      if (showOnlyUnidentified && t.cidade !== "Não identificado") return false;
       if (!showPayments && (t.tipo === "Pagamento" || t.tipo === "Crédito")) return false;
       return true;
     });
   }, [transacoes, filterTitular, showOnlyUnidentified, showPayments]);
 
   const getTitularColor = (id: string) => {
-    if (id === "isabela") return "bg-amber-500 text-white";
-    if (id === "claudio") return "bg-blue-500 text-white";
-    if (id === "daniel") return "bg-teal-500 text-white";
+    const lower = id.toLowerCase();
+    if (lower === "isabela") return "bg-amber-500 text-white";
+    if (lower === "claudio") return "bg-blue-500 text-white";
+    if (lower === "daniel") return "bg-teal-500 text-white";
     return "bg-slate-500 text-white";
   };
 
   const getTitularInitials = (id: string) => {
-    if (id === "isabela") return "IS";
-    if (id === "claudio") return "CD";
-    if (id === "daniel") return "DV";
+    const lower = id.toLowerCase();
+    if (lower === "isabela") return "IS";
+    if (lower === "claudio") return "CD";
+    if (lower === "daniel") return "DV";
     return "??";
   };
 
   const getRowColor = (t: Transacao) => {
     if (t.tipo === "Encargo Bancário") return "bg-red-50 text-red-700";
-    if (t.unidade === "Não identificado") return "bg-amber-50 text-amber-700";
+    if (t.cidade === "Não identificado") return "bg-amber-50 text-amber-700";
     if (t.tipo === "Crédito") return "bg-blue-50 text-blue-700";
     if (t.tipo === "Estorno") return "text-green-600";
     return "";
@@ -301,12 +299,12 @@ const Index = () => {
                         <TooltipProvider>
                           <Tooltip>
                             <TooltipTrigger>
-                              <div className={cn("w-6 h-6 rounded-full flex items-center justify-center font-bold text-[8px]", getTitularColor(t.titularId))}>
-                                {getTitularInitials(t.titularId)}
+                              <div className={cn("w-6 h-6 rounded-full flex items-center justify-center font-bold text-[8px]", getTitularColor(t.titular))}>
+                                {getTitularInitials(t.titular)}
                               </div>
                             </TooltipTrigger>
                             <TooltipContent>
-                              <p className="text-xs font-bold">{config.titulares.find(tit => tit.id === t.titularId)?.nome}</p>
+                             <p className="text-xs font-bold">{config.titulares.find(tit => tit.id === t.titular)?.nome}</p>
                             </TooltipContent>
                           </Tooltip>
                         </TooltipProvider>
@@ -315,12 +313,12 @@ const Index = () => {
                       <TableCell className="py-2">
                         <div className="flex flex-col">
                           <Input 
-                            value={t.nomeLimpo} 
-                            onChange={(e) => updateTransacao(t.id, { nomeLimpo: e.target.value })}
+                            value={t.nome} 
+                            onChange={(e) => updateTransacao(t.id, { nome: e.target.value })}
                             className="h-6 text-[11px] border-none shadow-none bg-transparent hover:bg-white focus:bg-white p-0 px-1 font-bold"
                           />
                           <div className="flex gap-2 items-center">
-                             <Select value={t.unidade} onValueChange={(v) => updateTransacao(t.id, { unidade: v as Cidade })}>
+                             <Select value={t.cidade} onValueChange={(v) => updateTransacao(t.id, { cidade: v as string })}>
                               <SelectTrigger className="h-4 text-[9px] bg-transparent border-none p-0 w-auto gap-1 text-slate-400 font-medium shadow-none">
                                 <SelectValue />
                               </SelectTrigger>

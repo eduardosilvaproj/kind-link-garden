@@ -11,7 +11,9 @@ export type Cidade =
   | "Bauru" 
   | "São Carlos" 
   | "Ribeirão Preto" 
-  | "Online / Digital" 
+  | "Online"
+  | "Online / Digital"
+  | "—"
   | "Outra cidade" 
   | "Não identificado";
 
@@ -27,23 +29,21 @@ export type Cidade =
   | "Pagamento";
 
 export type Transacao = {
-  id: string;
+  id: number;
+  titular: string;
+  cartao: string;
   data: string;
-  estabelecimento: string;
-  nomeLimpo: string;
+  raw: string;
+  nome: string;
   parcela: string;
   valor: number;
-  titularId: string;
-  unidade: Cidade;
+  cidade: string;
   tipo: TipoDestino;
-  observacao: string;
-  isEstorno: boolean;
-  isEncargo: boolean;
 };
 
 export type AutoRule = {
   keyword: string;
-  unidade: Cidade;
+  cidade: Cidade;
   tipo: TipoDestino;
 };
 
