@@ -20,6 +20,9 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip,
 
 import { cn } from "@/lib/utils";
 
+import { exportToXLSX, exportToCSV } from "../lib/exportUtils";
+import { Label } from "@/components/ui/label";
+
 const Index = () => {
   const { transacoes, setTransacoes, config, updateTransacao, updateConfig, clearData } = useAppContext();
   const [filterTitular, setFilterTitular] = useState<string>("Todos");
@@ -55,6 +58,13 @@ const Index = () => {
     return { name: cidade, value: total };
   });
 
+  const [showSettings, setShowSettings] = useState(false);
+
+  const handleUpdateTitular = (id: string, field: keyof Titular, value: string) => {
+    const newTitulares = config.titulares.map(t => t.id === id ? { ...t, [field]: value } : t);
+    updateConfig({ ...config, titulares: newTitulares });
+  };
+
   return (
     <div className="min-h-screen bg-slate-50">
       <header className="bg-white border-b px-6 py-4 flex justify-between items-center sticky top-0 z-10">
@@ -64,7 +74,7 @@ const Index = () => {
         </div>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={clearData}>Limpar tudo</Button>
-          <Button variant="ghost" size="icon"><Settings className="w-5 h-5" /></Button>
+          <Button variant="ghost" size="icon" onClick={() => setShowSettings(!showSettings)}><Settings className="w-5 h-5" /></Button>
         </div>
       </header>
 
@@ -280,15 +290,52 @@ const Index = () => {
             </div>
           </TabsContent>
           
+          <TabsContent value="config">
+            <Card>
+              <CardHeader>
+                <CardTitle>Configuração de Titulares</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {config.titulares.map(titular => (
+                  <div key={titular.id} className="grid grid-cols-1 md:grid-cols-4 gap-4 p-4 border rounded-lg bg-white">
+                    <div className="space-y-2">
+                      <Label>Nome</Label>
+                      <Input value={titular.nome} onChange={(e) => handleUpdateTitular(titular.id, 'nome', e.target.value)} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Final Cartão</Label>
+                      <Input value={titular.final} onChange={(e) => handleUpdateTitular(titular.id, 'final', e.target.value)} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Tipo</Label>
+                      <Input value={titular.tipo} onChange={(e) => handleUpdateTitular(titular.id, 'tipo', e.target.value)} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Cor</Label>
+                      <Select value={titular.cor} onValueChange={(v) => handleUpdateTitular(titular.id, 'cor', v)}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="amber">Laranja (Amber)</SelectItem>
+                          <SelectItem value="blue">Azul (Blue)</SelectItem>
+                          <SelectItem value="teal">Verde (Teal)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
           <TabsContent value="exportar">
              <Card>
                 <CardHeader>
                   <CardTitle>Exportar Dados</CardTitle>
                 </CardHeader>
                 <CardContent className="flex gap-4">
-                  <Button className="flex gap-2"><Download className="w-4 h-4" /> Exportar XLSX</Button>
-                  <Button variant="outline" className="flex gap-2"><Download className="w-4 h-4" /> Exportar CSV</Button>
-                  <Button variant="outline" className="flex gap-2"><FileText className="w-4 h-4" /> Relatório PDF</Button>
+                  <Button className="flex gap-2" onClick={() => exportToXLSX(transacoes, config)}><Download className="w-4 h-4" /> Exportar XLSX</Button>
+                  <Button variant="outline" className="flex gap-2" onClick={() => exportToCSV(transacoes, config)}><Download className="w-4 h-4" /> Exportar CSV</Button>
+                  <Button variant="outline" className="flex gap-2" onClick={() => window.print()}><FileText className="w-4 h-4" /> Imprimir Relatório</Button>
                 </CardContent>
              </Card>
           </TabsContent>
