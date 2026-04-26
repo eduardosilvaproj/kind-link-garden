@@ -205,9 +205,9 @@ const Index = () => {
                    {crossTable.map((row, idx) => (
                      <TableRow key={idx} className={cn(row.label === 'Não identificado' && row.total > 0 ? 'bg-amber-50' : row.label === 'Encargos' ? 'bg-red-50' : '')}>
                         <TableCell className="font-medium text-[12px] whitespace-normal leading-tight py-2">{row.label}</TableCell>
-                        <TableCell className="text-right tabular-nums text-[12px]">{row.Isabela > 0.01 ? formatBRL(row.Isabela) : '—'}</TableCell>
-                        <TableCell className="text-right tabular-nums text-[12px]">{row.Claudio > 0.01 ? formatBRL(row.Claudio) : '—'}</TableCell>
-                        <TableCell className="text-right tabular-nums text-[12px]">{row.Daniel > 0.01 ? formatBRL(row.Daniel) : '—'}</TableCell>
+                        <TableCell className="text-right tabular-nums text-[12px]">{row.Isabela > 0.01 ? formatBRL(row.Isabela).replace("R$", "").trim() : '—'}</TableCell>
+                        <TableCell className="text-right tabular-nums text-[12px]">{row.Claudio > 0.01 ? formatBRL(row.Claudio).replace("R$", "").trim() : '—'}</TableCell>
+                        <TableCell className="text-right tabular-nums text-[12px]">{row.Daniel > 0.01 ? formatBRL(row.Daniel).replace("R$", "").trim() : '—'}</TableCell>
                         <TableCell className="text-right font-bold tabular-nums bg-slate-50 text-[12px]">{formatBRL(row.total)}</TableCell>
                      </TableRow>
                    ))}
