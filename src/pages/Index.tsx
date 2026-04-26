@@ -332,35 +332,46 @@ const Index = () => {
                             onChange={(e) => updateTransacao(t.id, { nome: e.target.value })}
                             className="h-6 text-[11px] border-none shadow-none bg-transparent hover:bg-white focus:bg-white p-0 px-1 font-bold"
                           />
-                          <div className="flex gap-2 items-center">
-                             <Select value={t.cidade} onValueChange={(v) => updateTransacao(t.id, { cidade: v as string })}>
-                              <SelectTrigger className="h-4 text-[9px] bg-transparent border-none p-0 w-auto gap-1 text-slate-400 font-medium shadow-none">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {["Araraquara", "Online / Digital", "Não identificado"].map(c => (
-                                  <SelectItem key={c} value={c} className="text-[10px]">{c}</SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                            <span className="text-[9px] text-slate-300">•</span>
-                            <Select value={t.tipo} onValueChange={(v) => updateTransacao(t.id, { tipo: v as TipoDestino })}>
-                              <SelectTrigger className="h-4 text-[9px] bg-transparent border-none p-0 w-auto gap-1 text-slate-400 font-medium shadow-none">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {["Loja", "Depósito", "Cliente", "Fornecedor", "Serviço Digital", "Encargo Bancário", "Estorno", "Crédito", "Pagamento"].map(type => (
-                                  <SelectItem key={type} value={type} className="text-[10px]">{type}</SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                            {t.parcela && t.parcela !== "—" && (
-                              <>
-                                <span className="text-[9px] text-slate-300">•</span>
-                                <span className="text-[9px] text-slate-400 italic">{t.parcela}</span>
-                              </>
-                            )}
-                          </div>
+                           <div className="flex gap-1 items-center mt-1">
+                             <Select value={t.cidade} onValueChange={(v) => updateTransacao(t.id, { cidade: v })}>
+                               <SelectTrigger className="h-5 text-[11px] bg-white border border-slate-200 rounded-md px-2 w-fit gap-1 text-slate-600 font-medium shadow-none hover:bg-slate-50">
+                                 <SelectValue placeholder="Cidade" />
+                               </SelectTrigger>
+                               <SelectContent>
+                                 {["Araraquara", "Bauru", "Ribeirão Preto", "São Carlos", "Online / Digital", "Não identificado"].map(c => (
+                                   <SelectItem key={c} value={c} className="text-[11px]">{c}</SelectItem>
+                                 ))}
+                               </SelectContent>
+                             </Select>
+
+                             <Select value={t.destino || ""} onValueChange={(v) => updateTransacao(t.id, { destino: v })}>
+                               <SelectTrigger className="h-5 text-[11px] bg-white border border-slate-200 rounded-md px-2 w-fit gap-1 text-slate-600 font-medium shadow-none hover:bg-slate-50">
+                                 <div className="flex items-center gap-1">
+                                   <span>{t.destino === "Cliente" && t.clienteNome ? `Cliente — ${t.clienteNome}` : (t.destino || "Destino")}</span>
+                                 </div>
+                               </SelectTrigger>
+                               <SelectContent>
+                                 <SelectItem value="Loja" className="text-[11px]">Loja</SelectItem>
+                                 <SelectItem value="Depósito" className="text-[11px]">Depósito</SelectItem>
+                                 <SelectItem value="Cliente" className="text-[11px]">Cliente</SelectItem>
+                               </SelectContent>
+                             </Select>
+
+                             {t.destino === "Cliente" && (
+                               <Input
+                                 placeholder="Nome"
+                                 value={t.clienteNome || ""}
+                                 onChange={(e) => updateTransacao(t.id, { clienteNome: e.target.value })}
+                                 className="h-5 w-24 text-[11px] px-1 border-slate-200"
+                               />
+                             )}
+
+                             {t.parcela && t.parcela !== "—" && (
+                               <Badge variant="outline" className="h-5 text-[11px] font-medium border-slate-200 text-slate-500 rounded-md px-2 py-0">
+                                 {t.parcela}
+                               </Badge>
+                             )}
+                           </div>
                         </div>
                       </TableCell>
                       <TableCell className={cn("py-2 text-right font-bold tabular-nums", t.tipo === "Estorno" ? "text-green-600" : "")}>
