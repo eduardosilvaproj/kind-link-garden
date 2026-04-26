@@ -61,29 +61,44 @@ const Index = () => {
   const diff = Math.abs(totals.totalCalculado - EXPECTED_TOTAL);
   const isValid = diff < 0.01;
 
-  const crossTable = useMemo(() => {
-    const rowLabels = ["Araraquara", "Online", "Não identificado", "Encargos"];
-    return rowLabels.map(label => {
-      const row: any = { label };
-      let total = 0;
-      config.titulares.forEach(titular => {
-        let val = 0;
-        if (label === 'Encargos') {
-          val = transacoes
-            .filter(t => t.titular === titular.id && t.tipo === 'Encargo Bancário')
-            .reduce((acc, t) => acc + t.valor, 0);
-        } else {
-          val = transacoes
-            .filter(t => t.cidade === label && t.titular === titular.id && ['Loja', 'Fornecedor', 'Serviço Digital', 'Depósito', 'Cliente'].includes(t.tipo))
-            .reduce((acc, t) => acc + t.valor, 0);
-        }
-        row[titular.id] = val;
-        total += val;
-      });
-      row.total = total;
-      return row;
-    });
-  }, [transacoes, config]);
+   const crossTable = useMemo(() => {
+     const activeCities = Array.from(new Set(transacoes.map(t => t.cidade))).filter(c => c !== "Encargos");
+     const rowLabels = [
+       "Araraquara", 
+       "Bauru", 
+       "Ribeirão Preto", 
+       "São Carlos", 
+       "Online / Digital", 
+       "Não identificado"
+     ].filter(label => activeCities.includes(label) || label === "Não identificado");
+     
+     const labelsToProcess = [...rowLabels, "Encargos"];
+     
+     return labelsToProcess.map(label => {
+       const row: any = { label };
+       let total = 0;
+       config.titulares.forEach(titular => {
+         let val = 0;
+         if (label === 'Encargos') {
+           val = transacoes
+             .filter(t => t.titular === titular.id && t.tipo === 'Encargo Bancário')
+             .reduce((acc, t) => acc + t.valor, 0);
+         } else {
+           val = transacoes
+             .filter(t => 
+               t.cidade === label && 
+               t.titular === titular.id && 
+               !['Crédito', 'Estorno', 'Pagamento', 'Encargo Bancário'].includes(t.tipo)
+             )
+             .reduce((acc, t) => acc + t.valor, 0);
+         }
+         row[titular.id] = val;
+         total += val;
+       });
+       row.total = total;
+       return row;
+     });
+   }, [transacoes, config]);
 
   const filteredTransacoes = useMemo(() => {
     return transacoes.filter(t => {
@@ -176,35 +191,35 @@ const Index = () => {
               <CardTitle className="text-sm font-bold uppercase text-slate-500">Distribuição Cidade × Titular</CardTitle>
             </CardHeader>
             <div className="flex-1 overflow-auto">
-              <Table>
-                <TableHeader className="sticky top-0 bg-white z-10 shadow-sm">
-                  <TableRow>
-                    <TableHead className="font-bold">Cidade</TableHead>
-                    <TableHead className="text-right font-bold">Isabela</TableHead>
-                    <TableHead className="text-right font-bold">Claudio</TableHead>
-                    <TableHead className="text-right font-bold">Daniel</TableHead>
-                    <TableHead className="text-right font-bold bg-slate-50">Total</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {crossTable.map((row, idx) => (
-                    <TableRow key={idx} className={cn(row.label === 'Não identificado' && row.total > 0 ? 'bg-amber-50' : row.label === 'Encargos' ? 'bg-red-50' : '')}>
-                      <TableCell className="font-medium">{row.label}</TableCell>
-                      <TableCell className="text-right tabular-nums">{row.isabela > 0 ? formatBRL(row.isabela) : '-'}</TableCell>
-                      <TableCell className="text-right tabular-nums">{row.claudio > 0 ? formatBRL(row.claudio) : '-'}</TableCell>
-                      <TableCell className="text-right tabular-nums">{row.daniel > 0 ? formatBRL(row.daniel) : '-'}</TableCell>
-                      <TableCell className="text-right font-bold tabular-nums bg-slate-50">{formatBRL(row.total)}</TableCell>
-                    </TableRow>
-                  ))}
-                  <TableRow className="bg-slate-100 font-black text-[11px]">
-                    <TableCell>Total</TableCell>
-                    <TableCell className="text-right tabular-nums">{formatBRL(crossTable.reduce((acc, r) => acc + r.isabela, 0))}</TableCell>
-                    <TableCell className="text-right tabular-nums">{formatBRL(crossTable.reduce((acc, r) => acc + r.claudio, 0))}</TableCell>
-                    <TableCell className="text-right tabular-nums">{formatBRL(crossTable.reduce((acc, r) => acc + r.daniel, 0))}</TableCell>
-                    <TableCell className="text-right tabular-nums bg-slate-200">{formatBRL(crossTable.reduce((acc, r) => acc + r.total, 0))}</TableCell>
-                  </TableRow>
-                </TableBody>
-              </Table>
+               <Table className="table-fixed w-full">
+                 <TableHeader className="sticky top-0 bg-white z-10 shadow-sm">
+                   <TableRow>
+                     <TableHead className="font-bold w-[130px]">Cidade</TableHead>
+                     <TableHead className="text-right font-bold w-[22%]">Isabela</TableHead>
+                     <TableHead className="text-right font-bold w-[22%]">Claudio</TableHead>
+                     <TableHead className="text-right font-bold w-[22%]">Daniel</TableHead>
+                     <TableHead className="text-right font-bold bg-slate-50 w-[22%]">Total</TableHead>
+                   </TableRow>
+                 </TableHeader>
+                 <TableBody>
+                   {crossTable.map((row, idx) => (
+                     <TableRow key={idx} className={cn(row.label === 'Não identificado' && row.total > 0 ? 'bg-amber-50' : row.label === 'Encargos' ? 'bg-red-50' : '')}>
+                       <TableCell className="font-medium truncate max-w-[130px]">{row.label}</TableCell>
+                       <TableCell className="text-right tabular-nums">{row.isabela > 0.01 ? formatBRL(row.isabela) : '—'}</TableCell>
+                       <TableCell className="text-right tabular-nums">{row.claudio > 0.01 ? formatBRL(row.claudio) : '—'}</TableCell>
+                       <TableCell className="text-right tabular-nums">{row.daniel > 0.01 ? formatBRL(row.daniel) : '—'}</TableCell>
+                       <TableCell className="text-right font-bold tabular-nums bg-slate-50">{formatBRL(row.total)}</TableCell>
+                     </TableRow>
+                   ))}
+                   <TableRow className="bg-slate-100 font-black text-[11px]">
+                     <TableCell className="w-[130px]">Total</TableCell>
+                     <TableCell className="text-right tabular-nums w-[22%]">{formatBRL(crossTable.reduce((acc, r) => acc + r.isabela, 0))}</TableCell>
+                     <TableCell className="text-right tabular-nums w-[22%]">{formatBRL(crossTable.reduce((acc, r) => acc + r.claudio, 0))}</TableCell>
+                     <TableCell className="text-right tabular-nums w-[22%]">{formatBRL(crossTable.reduce((acc, r) => acc + r.daniel, 0))}</TableCell>
+                     <TableCell className="text-right tabular-nums bg-slate-200 w-[22%]">{formatBRL(crossTable.reduce((acc, r) => acc + r.total, 0))}</TableCell>
+                   </TableRow>
+                 </TableBody>
+               </Table>
             </div>
           </Card>
           
