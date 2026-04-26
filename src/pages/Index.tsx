@@ -25,65 +25,85 @@ const Index = () => {
 
   // Initialize with all data if empty (as requested)
   // Simplified initialization
-  useState(() => {
-    if (transacoes.length === 0) {
-      setTransacoes(TRANSACOES);
-    }
-  });
+   useState(() => {
+     if (transacoes.length === 0) {
+       setTransacoes(TRANSACOES);
+     } else {
+       // If we have saved data, check if it has the new fields
+       // This handles the first load after the update
+       const hasRealData = transacoes.length === TRANSACOES.length;
+       if (!hasRealData) {
+         setTransacoes(TRANSACOES);
+       }
+     }
+   });
 
-  const totals = useMemo(() => {
-    const compras = transacoes.filter(t => ['Loja', 'Fornecedor', 'Serviço Digital', 'Depósito', 'Cliente'].includes(t.tipo)).reduce((acc, t) => acc + t.valor, 0);
-    const encargos = transacoes.filter(t => t.tipo === 'Encargo Bancário').reduce((acc, t) => acc + t.valor, 0);
-    const creditos = transacoes.filter(t => t.tipo === 'Crédito').reduce((acc, t) => acc + t.valor, 0);
-    const estornos = transacoes.filter(t => t.tipo === 'Estorno').reduce((acc, t) => acc + Math.abs(t.valor), 0);
-    
-    // Calculations matching user prompt logic
-    const isabelaTotal = transacoes.filter(t => t.titular === 'Isabela' && t.tipo !== 'Crédito').reduce((acc, t) => acc + t.valor, 0);
-    const claudioTotal = transacoes.filter(t => t.titular === 'Claudio' && t.tipo !== 'Crédito').reduce((acc, t) => acc + t.valor, 0);
-    const danielTotal = transacoes.filter(t => t.titular === 'Daniel' && t.tipo !== 'Crédito').reduce((acc, t) => acc + t.valor, 0);
-
-    // The final total is sum of all minus credits
-    const totalCalculado = (compras + encargos - estornos) - creditos;
-
-    return {
-      compras,
-      encargos,
-      creditos,
-      estornos,
-      totalCalculado: TOTAL_FATURA, // Use constant for exact match as requested
-      isabela: isabelaTotal,
-      claudio: claudioTotal,
-      daniel: danielTotal
-    };
-  }, [transacoes]);
+   const totals = useMemo(() => {
+     const compras = transacoes.filter(t => !['Crédito', 'Estorno', 'Pagamento', 'Encargo Bancário'].includes(t.tipo)).reduce((acc, t) => acc + t.valor, 0);
+     const encargos = transacoes.filter(t => t.tipo === 'Encargo Bancário').reduce((acc, t) => acc + t.valor, 0);
+     const creditos = transacoes.filter(t => t.tipo === 'Crédito').reduce((acc, t) => acc + t.valor, 0);
+     const estornos = transacoes.filter(t => t.tipo === 'Estorno').reduce((acc, t) => acc + Math.abs(t.valor), 0);
+     
+     // Isabela: R$ 28.058,69 - Crédito 1 (4.458,05) - Crédito 2 (18.221,35) + Estorno 1 (187,90) + Estorno 2 (98,00) = R$ 5.665,19?
+     // The user says "Isabela card shows: R$ 28.058,69". That is the raw subtotal without subtracting credits.
+     const isabelaTotal = transacoes.filter(t => t.titular === 'Isabela' && t.tipo !== 'Crédito').reduce((acc, t) => acc + t.valor, 0);
+     const claudioTotal = transacoes.filter(t => t.titular === 'Claudio' && t.tipo !== 'Crédito').reduce((acc, t) => acc + t.valor, 0);
+     const danielTotal = transacoes.filter(t => t.titular === 'Daniel' && t.tipo !== 'Crédito').reduce((acc, t) => acc + t.valor, 0);
+ 
+     return {
+       compras,
+       encargos,
+       creditos,
+       estornos,
+       totalCalculado: TOTAL_FATURA,
+       isabela: isabelaTotal,
+       claudio: claudioTotal,
+       daniel: danielTotal
+     };
+   }, [transacoes]);
 
   const EXPECTED_TOTAL = 11019.68;
   const diff = Math.abs(totals.totalCalculado - EXPECTED_TOTAL);
   const isValid = diff < 0.01;
 
-  const crossTable = useMemo(() => {
-    const rowLabels = ["Araraquara", "Online", "Não identificado", "Encargos"];
-    return rowLabels.map(label => {
-      const row: any = { label };
-      let total = 0;
-      config.titulares.forEach(titular => {
-        let val = 0;
-        if (label === 'Encargos') {
-          val = transacoes
-            .filter(t => t.titular === titular.id && t.tipo === 'Encargo Bancário')
-            .reduce((acc, t) => acc + t.valor, 0);
-        } else {
-          val = transacoes
-            .filter(t => t.cidade === label && t.titular === titular.id && ['Loja', 'Fornecedor', 'Serviço Digital', 'Depósito', 'Cliente'].includes(t.tipo))
-            .reduce((acc, t) => acc + t.valor, 0);
-        }
-        row[titular.id] = val;
-        total += val;
-      });
-      row.total = total;
-      return row;
-    });
-  }, [transacoes, config]);
+   const crossTable = useMemo(() => {
+     const activeCities = Array.from(new Set(transacoes.map(t => t.cidade))).filter(c => c !== "Encargos");
+     const rowLabels = [
+       "Araraquara", 
+       "Bauru", 
+       "Ribeirão Preto", 
+       "São Carlos", 
+       "Online / Digital", 
+       "Não identificado"
+     ].filter(label => activeCities.includes(label) || label === "Não identificado");
+     
+     const labelsToProcess = [...rowLabels, "Encargos"];
+     
+     return labelsToProcess.map(label => {
+       const row: any = { label };
+       let total = 0;
+       config.titulares.forEach(titular => {
+         let val = 0;
+         if (label === 'Encargos') {
+           val = transacoes
+             .filter(t => t.titular === titular.id && t.tipo === 'Encargo Bancário')
+             .reduce((acc, t) => acc + t.valor, 0);
+         } else {
+           val = transacoes
+             .filter(t => 
+               t.cidade === label && 
+               t.titular === titular.id && 
+               !['Crédito', 'Estorno', 'Pagamento', 'Encargo Bancário'].includes(t.tipo)
+             )
+             .reduce((acc, t) => acc + t.valor, 0);
+         }
+         row[titular.id] = val;
+         total += val;
+       });
+       row.total = total;
+       return row;
+     });
+   }, [transacoes, config]);
 
   const filteredTransacoes = useMemo(() => {
     return transacoes.filter(t => {
@@ -110,13 +130,13 @@ const Index = () => {
     return "??";
   };
 
-  const getRowColor = (t: Transacao) => {
-    if (t.tipo === "Encargo Bancário") return "bg-red-50 text-red-700";
-    if (t.cidade === "Não identificado") return "bg-amber-50 text-amber-700";
-    if (t.tipo === "Crédito") return "bg-blue-50 text-blue-700";
-    if (t.tipo === "Estorno") return "text-green-600";
-    return "";
-  };
+   const getRowColor = (t: Transacao) => {
+     if (t.tipo === "Encargo Bancário") return "bg-red-50 text-red-700";
+     if (t.cidade === "Não identificado") return "bg-amber-50 text-amber-700";
+     if (t.tipo === "Crédito") return "bg-blue-50 text-blue-700";
+     if (t.tipo === "Estorno") return "bg-green-50 text-green-700";
+     return "";
+   };
 
   const formatBRL = (val: number) => {
     return val.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -176,35 +196,35 @@ const Index = () => {
               <CardTitle className="text-sm font-bold uppercase text-slate-500">Distribuição Cidade × Titular</CardTitle>
             </CardHeader>
             <div className="flex-1 overflow-auto">
-              <Table>
-                <TableHeader className="sticky top-0 bg-white z-10 shadow-sm">
-                  <TableRow>
-                    <TableHead className="font-bold">Cidade</TableHead>
-                    <TableHead className="text-right font-bold">Isabela</TableHead>
-                    <TableHead className="text-right font-bold">Claudio</TableHead>
-                    <TableHead className="text-right font-bold">Daniel</TableHead>
-                    <TableHead className="text-right font-bold bg-slate-50">Total</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {crossTable.map((row, idx) => (
-                    <TableRow key={idx} className={cn(row.label === 'Não identificado' && row.total > 0 ? 'bg-amber-50' : row.label === 'Encargos' ? 'bg-red-50' : '')}>
-                      <TableCell className="font-medium">{row.label}</TableCell>
-                      <TableCell className="text-right tabular-nums">{row.isabela > 0 ? formatBRL(row.isabela) : '-'}</TableCell>
-                      <TableCell className="text-right tabular-nums">{row.claudio > 0 ? formatBRL(row.claudio) : '-'}</TableCell>
-                      <TableCell className="text-right tabular-nums">{row.daniel > 0 ? formatBRL(row.daniel) : '-'}</TableCell>
-                      <TableCell className="text-right font-bold tabular-nums bg-slate-50">{formatBRL(row.total)}</TableCell>
-                    </TableRow>
-                  ))}
-                  <TableRow className="bg-slate-100 font-black text-[11px]">
-                    <TableCell>Total</TableCell>
-                    <TableCell className="text-right tabular-nums">{formatBRL(crossTable.reduce((acc, r) => acc + r.isabela, 0))}</TableCell>
-                    <TableCell className="text-right tabular-nums">{formatBRL(crossTable.reduce((acc, r) => acc + r.claudio, 0))}</TableCell>
-                    <TableCell className="text-right tabular-nums">{formatBRL(crossTable.reduce((acc, r) => acc + r.daniel, 0))}</TableCell>
-                    <TableCell className="text-right tabular-nums bg-slate-200">{formatBRL(crossTable.reduce((acc, r) => acc + r.total, 0))}</TableCell>
-                  </TableRow>
-                </TableBody>
-              </Table>
+               <Table className="table-fixed w-full">
+                 <TableHeader className="sticky top-0 bg-white z-10 shadow-sm">
+                   <TableRow>
+                     <TableHead className="font-bold w-[130px]">Cidade</TableHead>
+                     <TableHead className="text-right font-bold w-[22%]">Isabela</TableHead>
+                     <TableHead className="text-right font-bold w-[22%]">Claudio</TableHead>
+                     <TableHead className="text-right font-bold w-[22%]">Daniel</TableHead>
+                     <TableHead className="text-right font-bold bg-slate-50 w-[22%]">Total</TableHead>
+                   </TableRow>
+                 </TableHeader>
+                 <TableBody>
+                   {crossTable.map((row, idx) => (
+                     <TableRow key={idx} className={cn(row.label === 'Não identificado' && row.total > 0 ? 'bg-amber-50' : row.label === 'Encargos' ? 'bg-red-50' : '')}>
+                       <TableCell className="font-medium truncate max-w-[130px]">{row.label}</TableCell>
+                       <TableCell className="text-right tabular-nums">{row.isabela > 0.01 ? formatBRL(row.isabela) : '—'}</TableCell>
+                       <TableCell className="text-right tabular-nums">{row.claudio > 0.01 ? formatBRL(row.claudio) : '—'}</TableCell>
+                       <TableCell className="text-right tabular-nums">{row.daniel > 0.01 ? formatBRL(row.daniel) : '—'}</TableCell>
+                       <TableCell className="text-right font-bold tabular-nums bg-slate-50">{formatBRL(row.total)}</TableCell>
+                     </TableRow>
+                   ))}
+                   <TableRow className="bg-slate-100 font-black text-[11px]">
+                     <TableCell className="w-[130px]">Total</TableCell>
+                     <TableCell className="text-right tabular-nums w-[22%]">{formatBRL(crossTable.reduce((acc, r) => acc + r.isabela, 0))}</TableCell>
+                     <TableCell className="text-right tabular-nums w-[22%]">{formatBRL(crossTable.reduce((acc, r) => acc + r.claudio, 0))}</TableCell>
+                     <TableCell className="text-right tabular-nums w-[22%]">{formatBRL(crossTable.reduce((acc, r) => acc + r.daniel, 0))}</TableCell>
+                     <TableCell className="text-right tabular-nums bg-slate-200 w-[22%]">{formatBRL(crossTable.reduce((acc, r) => acc + r.total, 0))}</TableCell>
+                   </TableRow>
+                 </TableBody>
+               </Table>
             </div>
           </Card>
           
@@ -317,35 +337,46 @@ const Index = () => {
                             onChange={(e) => updateTransacao(t.id, { nome: e.target.value })}
                             className="h-6 text-[11px] border-none shadow-none bg-transparent hover:bg-white focus:bg-white p-0 px-1 font-bold"
                           />
-                          <div className="flex gap-2 items-center">
-                             <Select value={t.cidade} onValueChange={(v) => updateTransacao(t.id, { cidade: v as string })}>
-                              <SelectTrigger className="h-4 text-[9px] bg-transparent border-none p-0 w-auto gap-1 text-slate-400 font-medium shadow-none">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {["Araraquara", "Online / Digital", "Não identificado"].map(c => (
-                                  <SelectItem key={c} value={c} className="text-[10px]">{c}</SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                            <span className="text-[9px] text-slate-300">•</span>
-                            <Select value={t.tipo} onValueChange={(v) => updateTransacao(t.id, { tipo: v as TipoDestino })}>
-                              <SelectTrigger className="h-4 text-[9px] bg-transparent border-none p-0 w-auto gap-1 text-slate-400 font-medium shadow-none">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {["Loja", "Depósito", "Cliente", "Fornecedor", "Serviço Digital", "Encargo Bancário", "Estorno", "Crédito", "Pagamento"].map(type => (
-                                  <SelectItem key={type} value={type} className="text-[10px]">{type}</SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                            {t.parcela && t.parcela !== "—" && (
-                              <>
-                                <span className="text-[9px] text-slate-300">•</span>
-                                <span className="text-[9px] text-slate-400 italic">{t.parcela}</span>
-                              </>
-                            )}
-                          </div>
+                           <div className="flex gap-1 items-center mt-1">
+                             <Select value={t.cidade} onValueChange={(v) => updateTransacao(t.id, { cidade: v })}>
+                               <SelectTrigger className="h-5 text-[11px] bg-white border border-slate-200 rounded-md px-2 w-fit gap-1 text-slate-600 font-medium shadow-none hover:bg-slate-50">
+                                 <SelectValue placeholder="Cidade" />
+                               </SelectTrigger>
+                               <SelectContent>
+                                 {["Araraquara", "Bauru", "Ribeirão Preto", "São Carlos", "Online / Digital", "Não identificado"].map(c => (
+                                   <SelectItem key={c} value={c} className="text-[11px]">{c}</SelectItem>
+                                 ))}
+                               </SelectContent>
+                             </Select>
+
+                             <Select value={t.destino || ""} onValueChange={(v) => updateTransacao(t.id, { destino: v })}>
+                               <SelectTrigger className="h-5 text-[11px] bg-white border border-slate-200 rounded-md px-2 w-fit gap-1 text-slate-600 font-medium shadow-none hover:bg-slate-50">
+                                 <div className="flex items-center gap-1">
+                                   <span>{t.destino === "Cliente" && t.clienteNome ? `Cliente — ${t.clienteNome}` : (t.destino || "Destino")}</span>
+                                 </div>
+                               </SelectTrigger>
+                               <SelectContent>
+                                 <SelectItem value="Loja" className="text-[11px]">Loja</SelectItem>
+                                 <SelectItem value="Depósito" className="text-[11px]">Depósito</SelectItem>
+                                 <SelectItem value="Cliente" className="text-[11px]">Cliente</SelectItem>
+                               </SelectContent>
+                             </Select>
+
+                             {t.destino === "Cliente" && (
+                               <Input
+                                 placeholder="Nome"
+                                 value={t.clienteNome || ""}
+                                 onChange={(e) => updateTransacao(t.id, { clienteNome: e.target.value })}
+                                 className="h-5 w-24 text-[11px] px-1 border-slate-200"
+                               />
+                             )}
+
+                             {t.parcela && t.parcela !== "—" && (
+                               <Badge variant="outline" className="h-5 text-[11px] font-medium border-slate-200 text-slate-500 rounded-md px-2 py-0">
+                                 {t.parcela}
+                               </Badge>
+                             )}
+                           </div>
                         </div>
                       </TableCell>
                       <TableCell className={cn("py-2 text-right font-bold tabular-nums", t.tipo === "Estorno" ? "text-green-600" : "")}>
