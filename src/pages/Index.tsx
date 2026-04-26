@@ -24,9 +24,12 @@ const Index = () => {
   const [showPayments, setShowPayments] = useState(false);
 
   // Initialize with all data if empty (as requested)
-  if (transacoes.length === 0) {
-    setTransacoes(SAMPLE_TRANSACTIONS);
-  }
+  // Simplified initialization
+  useState(() => {
+    if (transacoes.length === 0) {
+      setTransacoes(SAMPLE_TRANSACTIONS);
+    }
+  });
 
   const totals = useMemo(() => {
     const compras = transacoes.filter(t => ['Loja', 'Fornecedor', 'Serviço Digital', 'Depósito', 'Cliente'].includes(t.tipo)).reduce((acc, t) => acc + t.valor, 0);
@@ -127,8 +130,8 @@ const Index = () => {
       <header className="px-6 py-4 flex justify-between items-center bg-white border-b shrink-0">
         <div className="flex items-center gap-4">
           <h1 className="text-xl font-bold">Classificador de Fatura C6 Bank</h1>
-          <Badge className={cn("text-[10px] font-bold uppercase", isValid ? "bg-green-100 text-green-700 border-green-200" : "bg-red-100 text-red-700 border-red-200")}>
-            Total calculado: {formatBRL(totals.totalCalculado)} — Esperado: {formatBRL(EXPECTED_TOTAL)} [{isValid ? '✓ Correto' : '✗ Divergência'}]
+          <Badge className={cn("text-[10px] font-bold uppercase px-3 py-1", isValid ? "bg-green-100 text-green-700 border-green-200" : "bg-red-100 text-red-700 border-red-200")}>
+            Total calculado: {formatBRL(totals.totalCalculado)} {isValid ? '✓' : '✗'}
           </Badge>
         </div>
         <div className="flex items-center gap-4">
