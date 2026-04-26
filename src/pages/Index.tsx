@@ -125,8 +125,9 @@ const Index = () => {
   };
 
    const getRowColor = (t: Transacao) => {
+     const isUnidentified = t.cidade === "Não identificado";
      if (t.tipo === "Encargo Bancário") return "bg-red-50 text-red-700";
-     if (t.cidade === "Não identificado") return "bg-amber-50 text-amber-700";
+     if (isUnidentified) return "bg-amber-50 text-amber-700";
      if (t.tipo === "Crédito") return "bg-blue-50 text-blue-700";
      if (t.tipo === "Estorno") return "bg-green-50 text-green-700";
      return "";
