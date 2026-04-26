@@ -18,6 +18,8 @@ import { parseC6PDF } from "../lib/pdfParser";
 import { Cidade, TipoDestino, Transacao } from "../types";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Legend, Cell } from 'recharts';
 
+import { cn } from "@/lib/utils";
+
 const Index = () => {
   const { transacoes, setTransacoes, config, updateTransacao, updateConfig, clearData } = useAppContext();
   const [filterTitular, setFilterTitular] = useState<string>("Todos");
