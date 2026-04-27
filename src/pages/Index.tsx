@@ -111,13 +111,13 @@ const Index = () => {
     return "bg-slate-500 text-white";
   };
 
-  const getTitularInitials = (id: string) => {
-    const lower = id.toLowerCase();
-    if (lower === "isabela") return "IS";
-    if (lower === "claudio") return "CD";
-    if (lower === "daniel") return "DV";
-    return "??";
-  };
+   const getTitularInitials = (id: string) => {
+     const lower = id.toLowerCase();
+     if (lower === "isabela") return "IS";
+     if (lower === "claudio") return "CL";
+     if (lower === "daniel") return "DN";
+     return "??";
+   };
 
   const getRowColor = (t: Transacao) => {
     const isUnidentified = t.cidade === "Não identificado";
