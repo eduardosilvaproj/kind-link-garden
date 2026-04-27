@@ -129,19 +129,23 @@ import {
         "Outros": 0
       };
       
-      rows.forEach(t => {
-        if (t.tipo === 'Crédito' || t.tipo === 'Estorno' || t.tipo === 'Pagamento') return;
-        if (t.valor <= 0) return;
-        
+      const filtered = rows.filter(t => {
+        if (filterTitular !== "Todos" && t.titular !== filterTitular) return false;
+        if (t.tipo === 'Crédito' || t.tipo === 'Estorno' || t.tipo === 'Pagamento') return false;
+        if (t.valor <= 0) return false;
+        return true;
+      });
+
+      filtered.forEach(t => {
         if (CATEGORIAS_FINANCEIRAS.includes(t.destino)) {
           result[t.destino] += t.valor;
         } else {
           result["Outros"] += t.valor;
         }
       });
-      
+
       return result;
-    }, [rows]);
+    }, [rows, filterTitular]);
 
     const chartData = useMemo(() => {
       const filtered = rows.filter(t => {
