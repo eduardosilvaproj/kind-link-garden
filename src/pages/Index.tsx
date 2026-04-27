@@ -86,7 +86,7 @@ export default function Index() {
         .filter(t => {
           if (t.titular !== tit) return false;
           if (label === 'Encargos') return t.tipo === 'Encargo Bancário';
-          return t.cidade === label;
+          return t.cidade === label && t.tipo !== 'Encargo Bancário';
         })
         .reduce((s, t) => s + t.valor, 0);
       const Isabela = get('Isabela');
