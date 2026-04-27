@@ -122,6 +122,3 @@ export const TRANSACOES: Transacao[] = [
 ];
 
 export const TOTAL_FATURA = 11019.68;
-export const SUBTOTAL_ISABELA = 28058.69;
-export const SUBTOTAL_CLAUDIO = 133.95;
-export const SUBTOTAL_DANIEL = 1048.39;
