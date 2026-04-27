@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+ import { useState, useMemo, useEffect } from 'react';
 import { useAppContext } from '../hooks/useAppContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -17,34 +17,72 @@ import { Label } from "@/components/ui/label";
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 
-const Index = () => {
-   const { transacoes, setTransacoes, config, updateTransacao, updateBatchTransacoes } = useAppContext();
-  const [filterTitular, setFilterTitular] = useState<string>("Todos");
-  const [showOnlyUnidentified, setShowOnlyUnidentified] = useState(false);
-  const [showPayments, setShowPayments] = useState(false);
-
-  useState(() => {
-    if (transacoes.length === 0) {
-      setTransacoes(TRANSACOES);
-    } else {
-      const hasRealData = transacoes.length === TRANSACOES.length;
-      if (!hasRealData) {
-        setTransacoes(TRANSACOES);
-      }
-    }
-  });
+ type RowEdit = {
+   titular?: string;
+   cidade?: string;
+   destino?: string;
+   clienteNome?: string;
+   conferido?: boolean;
+   nome?: string;
+ };
+ 
+ const Index = () => {
+   const { config } = useAppContext();
+   const [filterTitular, setFilterTitular] = useState<string>("Todos");
+   const [showOnlyUnidentified, setShowOnlyUnidentified] = useState(false);
+   const [showPayments, setShowPayments] = useState(false);
+ 
+   const [rowEdits, setRowEdits] = useState<Record<number, RowEdit>>(() => {
+     const saved = localStorage.getItem('rowEdits');
+     return saved ? JSON.parse(saved) : {};
+   });
+ 
+   useEffect(() => {
+     localStorage.setItem('rowEdits', JSON.stringify(rowEdits));
+   }, [rowEdits]);
+ 
+   const transacoesEfetivas = useMemo(() => {
+     return TRANSACOES.map(t => ({
+       ...t,
+       titular: rowEdits[t.id]?.titular ?? t.titular,
+       cidade: rowEdits[t.id]?.cidade ?? t.cidade,
+       destino: rowEdits[t.id]?.destino ?? t.destino,
+       clienteNome: rowEdits[t.id]?.clienteNome ?? t.clienteNome,
+       conferido: rowEdits[t.id]?.conferido ?? false,
+       nome: rowEdits[t.id]?.nome ?? t.nome,
+     }));
+   }, [rowEdits]);
+ 
+   const updateRow = (id: number, changes: Partial<RowEdit>) => {
+     setRowEdits(prev => ({
+       ...prev,
+       [id]: { ...prev[id], ...changes }
+     }));
+   };
+ 
+   const updateBatchRows = (ids: number[], changes: Partial<RowEdit>) => {
+     setRowEdits(prev => {
+       const next = { ...prev };
+       ids.forEach(id => {
+         next[id] = { ...next[id], ...changes };
+       });
+       return next;
+     });
+   };
+ 
+   const checkedCount = useMemo(() => transacoesEfetivas.filter(t => t.conferido).length, [transacoesEfetivas]);
 
    const checkedCount = useMemo(() => transacoes.filter(t => t.conferido).length, [transacoes]);
  
-  const totals = useMemo(() => {
-    const compras = transacoes.filter(t => !['Crédito', 'Estorno', 'Pagamento', 'Encargo Bancário'].includes(t.tipo)).reduce((acc, t) => acc + t.valor, 0);
-    const encargos = transacoes.filter(t => t.tipo === 'Encargo Bancário').reduce((acc, t) => acc + t.valor, 0);
-    const creditos = transacoes.filter(t => t.tipo === 'Crédito').reduce((acc, t) => acc + t.valor, 0);
-    const estornos = transacoes.filter(t => t.tipo === 'Estorno').reduce((acc, t) => acc + Math.abs(t.valor), 0);
-    
-    const isabelaTotal = transacoes.filter(t => t.titular === 'Isabela' && t.tipo !== 'Crédito').reduce((acc, t) => acc + t.valor, 0);
-    const claudioTotal = transacoes.filter(t => t.titular === 'Claudio' && t.tipo !== 'Crédito').reduce((acc, t) => acc + t.valor, 0);
-    const danielTotal = transacoes.filter(t => t.titular === 'Daniel' && t.tipo !== 'Crédito').reduce((acc, t) => acc + t.valor, 0);
+   const totals = useMemo(() => {
+     const compras = transacoesEfetivas.filter(t => !['Crédito', 'Estorno', 'Pagamento', 'Encargo Bancário'].includes(t.tipo)).reduce((acc, t) => acc + t.valor, 0);
+     const encargos = transacoesEfetivas.filter(t => t.tipo === 'Encargo Bancário').reduce((acc, t) => acc + t.valor, 0);
+     const creditos = transacoesEfetivas.filter(t => t.tipo === 'Crédito').reduce((acc, t) => acc + t.valor, 0);
+     const estornos = transacoesEfetivas.filter(t => t.tipo === 'Estorno').reduce((acc, t) => acc + Math.abs(t.valor), 0);
+     
+     const isabelaTotal = transacoesEfetivas.filter(t => t.titular === 'Isabela' && t.tipo !== 'Crédito' && t.tipo !== 'Estorno').reduce((acc, t) => acc + t.valor, 0);
+     const claudioTotal = transacoesEfetivas.filter(t => t.titular === 'Claudio' && t.tipo !== 'Crédito' && t.tipo !== 'Estorno').reduce((acc, t) => acc + t.valor, 0);
+     const danielTotal = transacoesEfetivas.filter(t => t.titular === 'Daniel' && t.tipo !== 'Crédito' && t.tipo !== 'Estorno').reduce((acc, t) => acc + t.valor, 0);
 
     return {
       compras,
@@ -56,7 +94,7 @@ const Index = () => {
       claudio: claudioTotal,
       daniel: danielTotal
     };
-  }, [transacoes]);
+   }, [transacoesEfetivas]);
 
   const isValid = Math.abs(totals.totalCalculado - 11019.68) < 0.01;
 
