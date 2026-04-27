@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+ import { useState, useMemo, useEffect } from 'react';
 import { useAppContext } from '../hooks/useAppContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -17,34 +17,70 @@ import { Label } from "@/components/ui/label";
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 
-const Index = () => {
-   const { transacoes, setTransacoes, config, updateTransacao, updateBatchTransacoes } = useAppContext();
-  const [filterTitular, setFilterTitular] = useState<string>("Todos");
-  const [showOnlyUnidentified, setShowOnlyUnidentified] = useState(false);
-  const [showPayments, setShowPayments] = useState(false);
-
-  useState(() => {
-    if (transacoes.length === 0) {
-      setTransacoes(TRANSACOES);
-    } else {
-      const hasRealData = transacoes.length === TRANSACOES.length;
-      if (!hasRealData) {
-        setTransacoes(TRANSACOES);
-      }
-    }
-  });
-
-   const checkedCount = useMemo(() => transacoes.filter(t => t.conferido).length, [transacoes]);
+ type RowEdit = {
+   titular?: string;
+   cidade?: string;
+   destino?: string;
+   clienteNome?: string;
+   conferido?: boolean;
+   nome?: string;
+ };
  
-  const totals = useMemo(() => {
-    const compras = transacoes.filter(t => !['Crédito', 'Estorno', 'Pagamento', 'Encargo Bancário'].includes(t.tipo)).reduce((acc, t) => acc + t.valor, 0);
-    const encargos = transacoes.filter(t => t.tipo === 'Encargo Bancário').reduce((acc, t) => acc + t.valor, 0);
-    const creditos = transacoes.filter(t => t.tipo === 'Crédito').reduce((acc, t) => acc + t.valor, 0);
-    const estornos = transacoes.filter(t => t.tipo === 'Estorno').reduce((acc, t) => acc + Math.abs(t.valor), 0);
-    
-    const isabelaTotal = transacoes.filter(t => t.titular === 'Isabela' && t.tipo !== 'Crédito').reduce((acc, t) => acc + t.valor, 0);
-    const claudioTotal = transacoes.filter(t => t.titular === 'Claudio' && t.tipo !== 'Crédito').reduce((acc, t) => acc + t.valor, 0);
-    const danielTotal = transacoes.filter(t => t.titular === 'Daniel' && t.tipo !== 'Crédito').reduce((acc, t) => acc + t.valor, 0);
+ const Index = () => {
+   const { config } = useAppContext();
+   const [filterTitular, setFilterTitular] = useState<string>("Todos");
+   const [showOnlyUnidentified, setShowOnlyUnidentified] = useState(false);
+   const [showPayments, setShowPayments] = useState(false);
+ 
+   const [rowEdits, setRowEdits] = useState<Record<number, RowEdit>>(() => {
+     const saved = localStorage.getItem('rowEdits');
+     return saved ? JSON.parse(saved) : {};
+   });
+ 
+   useEffect(() => {
+     localStorage.setItem('rowEdits', JSON.stringify(rowEdits));
+   }, [rowEdits]);
+ 
+   const transacoesEfetivas = useMemo(() => {
+     return TRANSACOES.map(t => ({
+       ...t,
+       titular: rowEdits[t.id]?.titular ?? t.titular,
+       cidade: rowEdits[t.id]?.cidade ?? t.cidade,
+       destino: rowEdits[t.id]?.destino ?? t.destino,
+       clienteNome: rowEdits[t.id]?.clienteNome ?? t.clienteNome,
+       conferido: rowEdits[t.id]?.conferido ?? false,
+       nome: rowEdits[t.id]?.nome ?? t.nome,
+     }));
+   }, [rowEdits]);
+ 
+   const updateRow = (id: number, changes: Partial<RowEdit>) => {
+     setRowEdits(prev => ({
+       ...prev,
+       [id]: { ...prev[id], ...changes }
+     }));
+   };
+ 
+   const updateBatchRows = (ids: number[], changes: Partial<RowEdit>) => {
+     setRowEdits(prev => {
+       const next = { ...prev };
+       ids.forEach(id => {
+         next[id] = { ...next[id], ...changes };
+       });
+       return next;
+     });
+   };
+ 
+    const checkedCount = useMemo(() => transacoesEfetivas.filter(t => t.conferido).length, [transacoesEfetivas]);
+ 
+   const totals = useMemo(() => {
+     const compras = transacoesEfetivas.filter(t => !['Crédito', 'Estorno', 'Pagamento', 'Encargo Bancário'].includes(t.tipo)).reduce((acc, t) => acc + t.valor, 0);
+     const encargos = transacoesEfetivas.filter(t => t.tipo === 'Encargo Bancário').reduce((acc, t) => acc + t.valor, 0);
+     const creditos = transacoesEfetivas.filter(t => t.tipo === 'Crédito').reduce((acc, t) => acc + t.valor, 0);
+     const estornos = transacoesEfetivas.filter(t => t.tipo === 'Estorno').reduce((acc, t) => acc + Math.abs(t.valor), 0);
+     
+     const isabelaTotal = transacoesEfetivas.filter(t => t.titular === 'Isabela' && t.tipo !== 'Crédito' && t.tipo !== 'Estorno').reduce((acc, t) => acc + t.valor, 0);
+     const claudioTotal = transacoesEfetivas.filter(t => t.titular === 'Claudio' && t.tipo !== 'Crédito' && t.tipo !== 'Estorno').reduce((acc, t) => acc + t.valor, 0);
+     const danielTotal = transacoesEfetivas.filter(t => t.titular === 'Daniel' && t.tipo !== 'Crédito' && t.tipo !== 'Estorno').reduce((acc, t) => acc + t.valor, 0);
 
     return {
       compras,
@@ -56,7 +92,7 @@ const Index = () => {
       claudio: claudioTotal,
       daniel: danielTotal
     };
-  }, [transacoes]);
+   }, [transacoesEfetivas]);
 
   const isValid = Math.abs(totals.totalCalculado - 11019.68) < 0.01;
 
@@ -70,11 +106,11 @@ const Index = () => {
       titularIds.forEach(titularId => {
         let val = 0;
         if (label === 'Encargos') {
-          val = transacoes
+          val = transacoesEfetivas
             .filter(t => t.titular === titularId && t.tipo === 'Encargo Bancário')
             .reduce((acc, t) => acc + t.valor, 0);
         } else {
-          val = transacoes
+          val = transacoesEfetivas
             .filter(t => 
               t.titular === titularId &&
               (label === "Online" ? (t.cidade === "Online" || t.cidade === "Online / Digital") : t.cidade === label) &&
@@ -92,16 +128,16 @@ const Index = () => {
       row.total = total;
       return row;
     });
-  }, [transacoes]);
+  }, [transacoesEfetivas]);
 
   const filteredTransacoes = useMemo(() => {
-    return transacoes.filter(t => {
+    return transacoesEfetivas.filter(t => {
       if (filterTitular !== "Todos" && t.titular !== filterTitular) return false;
       if (showOnlyUnidentified && t.cidade !== "Não identificado") return false;
       if (!showPayments && (t.tipo === "Pagamento" || t.tipo === "Crédito")) return false;
       return true;
     });
-  }, [transacoes, filterTitular, showOnlyUnidentified, showPayments]);
+  }, [transacoesEfetivas, filterTitular, showOnlyUnidentified, showPayments]);
 
   const getTitularColor = (id: string) => {
     const lower = id.toLowerCase();
@@ -204,11 +240,11 @@ const Index = () => {
                Total calculado: {formatBRL(totals.totalCalculado)} {isValid ? '✓' : '✗'}
              </Badge>
              <Badge variant="outline" className="text-[10px] font-bold uppercase px-3 py-1 bg-white border-slate-200 text-slate-600">
-               ✓ Conferidos: {checkedCount} / {transacoes.length}
+               ✓ Conferidos: {checkedCount} / {transacoesEfetivas.length}
              </Badge>
           </div>
           <div className="flex items-center gap-2">
-             <Button variant="outline" size="sm" onClick={() => exportToXLSX(transacoes, config)} className="flex gap-2 no-print">
+             <Button variant="outline" size="sm" onClick={() => exportToXLSX(transacoesEfetivas, config)} className="flex gap-2 no-print">
               <Download className="w-4 h-4" /> Exportar Excel
             </Button>
              <Button variant="outline" size="sm" onClick={exportPDF} className="flex gap-2 no-print">
@@ -321,7 +357,7 @@ const Index = () => {
                        onChange={(e) => {
                          const checked = e.target.checked;
                          const ids = filteredTransacoes.map(t => t.id);
-                         updateBatchTransacoes(ids, { conferido: checked });
+                          updateBatchRows(ids, { conferido: checked });
                        }}
                      />
                    </TableHead>
@@ -342,11 +378,11 @@ const Index = () => {
                          type="checkbox" 
                          className="w-4 h-4 rounded border-slate-300 accent-[#198754]"
                          checked={!!t.conferido}
-                         onChange={(e) => updateTransacao(t.id, { conferido: e.target.checked })}
+                          onChange={(e) => updateRow(t.id, { conferido: e.target.checked })}
                        />
                      </TableCell>
                      <TableCell className="px-6 py-3">
-                       <Select value={t.titular} onValueChange={(v) => updateTransacao(t.id, { titular: v })}>
+                        <Select value={t.titular} onValueChange={(v) => updateRow(t.id, { titular: v })}>
                          <SelectTrigger className={cn("w-10 h-8 p-0 rounded-full flex items-center justify-center font-bold text-[10px] border-none shadow-none focus:ring-0", getTitularColor(t.titular))}>
                            <SelectValue>{getTitularInitials(t.titular)}▾</SelectValue>
                          </SelectTrigger>
@@ -364,11 +400,11 @@ const Index = () => {
                       <div className="flex flex-col gap-2">
                         <Input 
                           value={t.nome} 
-                          onChange={(e) => updateTransacao(t.id, { nome: e.target.value })}
+                           onChange={(e) => updateRow(t.id, { nome: e.target.value })}
                           className="h-7 text-sm border-none shadow-none bg-transparent hover:bg-white focus:bg-white p-0 px-1 font-bold w-full max-w-md"
                         />
                         <div className="flex gap-2 items-center">
-                          <Select value={t.cidade} onValueChange={(v) => updateTransacao(t.id, { cidade: v })}>
+                           <Select value={t.cidade} onValueChange={(v) => updateRow(t.id, { cidade: v })}>
                             <SelectTrigger className="h-6 text-[11px] bg-white border border-slate-200 rounded-md px-2 w-fit gap-1 text-slate-600 font-medium">
                               <SelectValue placeholder="Cidade" />
                             </SelectTrigger>
@@ -379,7 +415,7 @@ const Index = () => {
                             </SelectContent>
                           </Select>
 
-                          <Select value={t.destino || ""} onValueChange={(v) => updateTransacao(t.id, { destino: v })}>
+                           <Select value={t.destino || ""} onValueChange={(v) => updateRow(t.id, { destino: v })}>
                             <SelectTrigger className="h-6 text-[11px] bg-white border border-slate-200 rounded-md px-2 w-fit gap-1 text-slate-600 font-medium">
                               <span>{t.destino === "Cliente" && t.clienteNome ? `Cliente — ${t.clienteNome}` : (t.destino || "Destino")}</span>
                             </SelectTrigger>
@@ -394,7 +430,7 @@ const Index = () => {
                             <Input
                               placeholder="Nome"
                               value={t.clienteNome || ""}
-                              onChange={(e) => updateTransacao(t.id, { clienteNome: e.target.value })}
+                               onChange={(e) => updateRow(t.id, { clienteNome: e.target.value })}
                               className="h-6 w-32 text-[11px] px-2 border-slate-200"
                             />
                           )}
