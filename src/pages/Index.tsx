@@ -168,17 +168,17 @@ export default function Index() {
                   }
                 >
                   <td className="px-6 py-2 font-medium">{row.label}</td>
-                  <td className="text-right px-6 py-2 tabular-nums">{row.Isabela > 0.009 ? brl(row.Isabela) : '—'}</td>
-                  <td className="text-right px-6 py-2 tabular-nums">{row.Claudio > 0.009 ? brl(row.Claudio) : '—'}</td>
-                  <td className="text-right px-6 py-2 tabular-nums">{row.Daniel > 0.009 ? brl(row.Daniel) : '—'}</td>
+                  <td className="text-right px-6 py-2 tabular-nums">{(row as any).Isabela > 0.009 ? brl((row as any).Isabela) : '—'}</td>
+                  <td className="text-right px-6 py-2 tabular-nums">{(row as any).Claudio > 0.009 ? brl((row as any).Claudio) : '—'}</td>
+                  <td className="text-right px-6 py-2 tabular-nums">{(row as any).Daniel > 0.009 ? brl((row as any).Daniel) : '—'}</td>
                   <td className="text-right px-6 py-2 tabular-nums font-bold bg-slate-50">{brl(row.total)}</td>
                 </tr>
               ))}
               <tr className="border-t bg-slate-100 font-bold">
                 <td className="px-6 py-3">TOTAL</td>
-                <td className="text-right px-6 py-3 tabular-nums">{brl(crossTab.reduce((s, r) => s + r.Isabela, 0))}</td>
-                <td className="text-right px-6 py-3 tabular-nums">{brl(crossTab.reduce((s, r) => s + r.Claudio, 0))}</td>
-                <td className="text-right px-6 py-3 tabular-nums">{brl(crossTab.reduce((s, r) => s + r.Daniel, 0))}</td>
+                <td className="text-right px-6 py-3 tabular-nums">{brl(crossTab.reduce((s, r) => s + (r as any).Isabela, 0))}</td>
+                <td className="text-right px-6 py-3 tabular-nums">{brl(crossTab.reduce((s, r) => s + (r as any).Claudio, 0))}</td>
+                <td className="text-right px-6 py-3 tabular-nums">{brl(crossTab.reduce((s, r) => s + (r as any).Daniel, 0))}</td>
                 <td className="text-right px-6 py-3 tabular-nums bg-slate-200">{brl(crossTab.reduce((s, r) => s + r.total, 0))}</td>
               </tr>
             </tbody>
