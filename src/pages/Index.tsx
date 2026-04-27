@@ -120,7 +120,6 @@ import {
     }, [edits]);
   
     // 3. AGGREGATED CALCULATIONS — Centralized logic for all components
-    // We use "edits" as a dependency to ensure any UI change triggers a recalculation
     const aggregatedData = useMemo(() => {
       const totals: Record<string, number> = { Isabela: 0, Claudio: 0, Daniel: 0 };
       const CIDADES = ['Araraquara', 'Bauru', 'Ribeirão Preto', 'São Carlos', 'Online', 'Não identificado'];
@@ -134,14 +133,15 @@ import {
       rows.forEach(t => {
         const titular = t.titular;
         const val = t.valor;
-        
         const isNegative = t.tipo === 'Crédito' || t.tipo === 'Estorno' || t.tipo === 'Pagamento';
         const finalVal = isNegative ? -Math.abs(val) : val;
 
+        // Global totals for cards
         if (totals.hasOwnProperty(titular)) {
           totals[titular] += finalVal;
         }
 
+        // City distribution (crossTab)
         let category = t.cidade;
         if (t.tipo === 'Encargo Bancário') category = 'Encargos';
         if (!category || !categories.includes(category)) category = 'Não identificado';
@@ -156,7 +156,7 @@ import {
         totals, 
         crossTab: Object.values(crossTab) 
       };
-    }, [rows, edits]); // Added edits here just to be absolutely sure, though rows already depends on it
+    }, [rows]);
 
     const { totals: titularTotals, crossTab } = aggregatedData;
     const somaIsabela = titularTotals['Isabela'] || 0;
@@ -602,16 +602,21 @@ import {
                         </SelectContent>
                       </Select>
                     </TableCell>
-                    <TableCell className="px-6 py-3 text-right font-bold tabular-nums text-sm">
-                      <Input 
-                        type="text"
-                        defaultValue={t.valor}
-                        onBlur={(e) => {
-                          const val = parseFloat(e.target.value.replace(/[R$\s.]/g, '').replace(',', '.'));
-                          if (!isNaN(val)) updateRow(t.id, { valor: val });
-                        }}
-                        className={cn("h-8 text-right font-bold border-slate-200 bg-white w-[100px] ml-auto px-2", (t.tipo === "Estorno" || t.tipo === "Crédito") ? "text-green-600" : "text-slate-900")}
-                      />
+                    <TableCell className="px-6 py-3 text-right">
+                      <div className="flex justify-end">
+                        <Input 
+                          type="text"
+                          defaultValue={t.valor}
+                          onBlur={(e) => {
+                            const val = parseFloat(e.target.value.replace(/[R$\s.]/g, '').replace(',', '.'));
+                            if (!isNaN(val)) updateRow(t.id, { valor: val });
+                          }}
+                          className={cn(
+                            "h-8 text-right font-bold border-slate-200 bg-white w-[100px] px-2", 
+                            (t.tipo === "Estorno" || t.tipo === "Crédito") ? "text-green-600" : "text-slate-900"
+                          )}
+                        />
+                      </div>
                     </TableCell>
                     <TableCell className="px-6 py-3 text-right font-mono text-[12px] tabular-nums bg-slate-50/30 text-slate-500">
                       {formatBRL((t as any).saldoAcumulado)}
