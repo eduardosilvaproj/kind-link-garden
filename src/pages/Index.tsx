@@ -390,15 +390,17 @@ import {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {crossTab.map((row, idx) => (
-                  <TableRow key={idx} className={cn(row.label === 'Não identificado' && row.total > 0 ? 'bg-amber-50' : row.label === 'Encargos' ? 'bg-red-50' : '')}>
-                    <TableCell className="font-medium text-[12px] px-6 py-2">{row.label}</TableCell>
-                    <TableCell className="text-right tabular-nums text-[12px] px-6 py-2">{row.Isabela > 0.01 ? formatBRL(row.Isabela) : '—'}</TableCell>
-                    <TableCell className="text-right tabular-nums text-[12px] px-6 py-2">{row.Claudio > 0.01 ? formatBRL(row.Claudio) : '—'}</TableCell>
-                    <TableCell className="text-right tabular-nums text-[12px] px-6 py-2">{row.Daniel > 0.01 ? formatBRL(row.Daniel) : '—'}</TableCell>
-                    <TableCell className="text-right font-bold tabular-nums bg-slate-50 text-[12px] px-6 py-2">{formatBRL(row.total)}</TableCell>
-                  </TableRow>
-                ))}
+                {crossTab
+                  .filter(row => Math.abs(row.total) > 0.01)
+                  .map((row, idx) => (
+                    <TableRow key={idx} className={cn(row.label === 'Não identificado' && row.total > 0 ? 'bg-amber-50' : row.label === 'Encargos' ? 'bg-red-50' : '')}>
+                      <TableCell className="font-medium text-[12px] px-6 py-2">{row.label}</TableCell>
+                      <TableCell className={cn("text-right tabular-nums text-[12px] px-6 py-2", row.Isabela < 0 ? "text-green-600" : "")}>{Math.abs(row.Isabela) > 0.01 ? formatBRL(row.Isabela) : '—'}</TableCell>
+                      <TableCell className={cn("text-right tabular-nums text-[12px] px-6 py-2", row.Claudio < 0 ? "text-green-600" : "")}>{Math.abs(row.Claudio) > 0.01 ? formatBRL(row.Claudio) : '—'}</TableCell>
+                      <TableCell className={cn("text-right tabular-nums text-[12px] px-6 py-2", row.Daniel < 0 ? "text-green-600" : "")}>{Math.abs(row.Daniel) > 0.01 ? formatBRL(row.Daniel) : '—'}</TableCell>
+                      <TableCell className="text-right font-bold tabular-nums bg-slate-50 text-[12px] px-6 py-2">{formatBRL(row.total)}</TableCell>
+                    </TableRow>
+                  ))}
                 <TableRow className="bg-slate-100 font-black">
                   <TableCell className="px-6 py-3 text-[12px]">TOTAL</TableCell>
                   <TableCell className="text-right tabular-nums text-[12px] px-6 py-3">{formatBRL(crossTab.reduce((acc, r) => acc + r.Isabela, 0))}</TableCell>
