@@ -35,7 +35,7 @@ import {
   
     // 1. SINGLE SOURCE OF TRUTH
     const [edits, setEdits] = useState<Record<string, {
-      titular?: string;
+      titulares?: string[];
       cidade?: string;
       destino?: string;
       clienteNome?: string;
@@ -75,11 +75,12 @@ import {
     const rows = useMemo(() =>
       TRANSACOES.map(t => {
         const e = edits[`${t.id}`] ?? {};
+        const titulares = e.titulares ?? [t.titular];
         return {
           ...t,
-          titular:     e.titular     ?? t.titular,
+          titulares,
           cidade:      e.cidade      ?? t.cidade,
-     destino:     e.destino     ?? t.destino ?? t.tipo,
+          destino:     e.destino     ?? t.destino ?? t.tipo,
           clienteNome: e.clienteNome ?? t.clienteNome ?? '',
           conferido:   e.conferido   ?? false,
           nome:        e.nome        ?? t.nome,
@@ -88,38 +89,19 @@ import {
     [edits]);
   
     // 3. CARD TOTALS — always from rows
-    const somaIsabela = useMemo(() => {
-      const total = rows
-        .filter(t => t.titular === 'Isabela')
-        .reduce((s, t) => {
-          if (t.tipo === 'Crédito' || t.tipo === 'Estorno') return s - Math.abs(t.valor);
-          return s + t.valor;
-        }, 0);
-      console.log('Soma Isabela:', total);
-      return total;
+    const getTitularSum = useCallback((titular: string) => {
+      return rows.reduce((s, t) => {
+        if (!t.titulares.includes(titular)) return s;
+        const splitFactor = t.titulares.length;
+        const val = t.valor / splitFactor;
+        if (t.tipo === 'Crédito' || t.tipo === 'Estorno') return s - Math.abs(val);
+        return s + val;
+      }, 0);
     }, [rows]);
 
-    const somaClaudio = useMemo(() => {
-      const total = rows
-        .filter(t => t.titular === 'Claudio')
-        .reduce((s, t) => {
-          if (t.tipo === 'Crédito' || t.tipo === 'Estorno') return s - Math.abs(t.valor);
-          return s + t.valor;
-        }, 0);
-      console.log('Soma Claudio:', total);
-      return total;
-    }, [rows]);
-
-    const somaDaniel = useMemo(() => {
-      const total = rows
-        .filter(t => t.titular === 'Daniel')
-        .reduce((s, t) => {
-          if (t.tipo === 'Crédito' || t.tipo === 'Estorno') return s - Math.abs(t.valor);
-          return s + t.valor;
-        }, 0);
-      console.log('Soma Daniel:', total);
-      return total;
-    }, [rows]);
+    const somaIsabela = useMemo(() => getTitularSum('Isabela'), [getTitularSum]);
+    const somaClaudio = useMemo(() => getTitularSum('Claudio'), [getTitularSum]);
+    const somaDaniel = useMemo(() => getTitularSum('Daniel'), [getTitularSum]);
   
     const totalConferidos = useMemo(() =>
       rows.filter(t => t.conferido).length,
