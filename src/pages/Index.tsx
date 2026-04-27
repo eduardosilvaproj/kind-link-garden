@@ -94,19 +94,24 @@ import {
       }),
     [edits]);
   
-    // 3. CARD TOTALS — always from rows
-    const getTitularSum = useCallback((titular: string) => {
-      return rows.reduce((s, t) => {
-        if (t.titular !== titular) return s;
+    // 3. AGGREGATED CALCULATIONS
+    const titularTotals = useMemo(() => {
+      const initial: Record<string, number> = { Isabela: 0, Claudio: 0, Daniel: 0 };
+      return rows.reduce((acc, t) => {
+        const titular = t.titular;
+        if (!acc.hasOwnProperty(titular)) acc[titular] = 0;
+        
         const val = t.valor;
-        if (t.tipo === 'Crédito' || t.tipo === 'Estorno') return s - Math.abs(val);
-        return s + val;
-      }, 0);
+        const isNegative = t.tipo === 'Crédito' || t.tipo === 'Estorno';
+        acc[titular] += isNegative ? -Math.abs(val) : val;
+        
+        return acc;
+      }, initial);
     }, [rows]);
 
-    const somaIsabela = useMemo(() => getTitularSum('Isabela'), [getTitularSum]);
-    const somaClaudio = useMemo(() => getTitularSum('Claudio'), [getTitularSum]);
-    const somaDaniel = useMemo(() => getTitularSum('Daniel'), [getTitularSum]);
+    const somaIsabela = titularTotals['Isabela'] || 0;
+    const somaClaudio = titularTotals['Claudio'] || 0;
+    const somaDaniel  = titularTotals['Daniel']  || 0;
   
     const totalConferidos = useMemo(() =>
       rows.filter(t => t.conferido).length,
@@ -141,26 +146,33 @@ import {
 
    const isValid = Math.abs(somaIsabela + somaClaudio + somaDaniel - 11019.68) < 500;
 
-   const crossTab = useMemo(() => {
-     const CIDADES = ['Araraquara','Bauru','Ribeirão Preto','São Carlos','Online','Não identificado'];
-     const result: Record<string, any> = {};
-     for (const cidade of [...CIDADES, 'Encargos']) {
-       result[cidade] = { Isabela: 0, Claudio: 0, Daniel: 0, label: cidade };
-       for (const titular of ['Isabela','Claudio','Daniel']) {
-         result[cidade][titular] = rows
-           .filter(t => {
-             if (t.tipo === 'Crédito' || t.tipo === 'Estorno') return false;
-             if (t.valor <= 0) return false;
-              if (t.titular !== titular) return false;
-             if (cidade === 'Encargos') return t.tipo === 'Encargo Bancário';
-              return t.cidade === cidade;
-            })
-              .reduce((s, t) => s + t.valor, 0);
-       }
-       result[cidade].total = result[cidade].Isabela + result[cidade].Claudio + result[cidade].Daniel;
-     }
-     return Object.values(result);
-   }, [rows]);
+    const crossTab = useMemo(() => {
+      const CIDADES = ['Araraquara', 'Bauru', 'Ribeirão Preto', 'São Carlos', 'Online', 'Não identificado'];
+      const categories = [...CIDADES, 'Encargos'];
+      const result: Record<string, any> = {};
+
+      categories.forEach(cat => {
+        result[cat] = { Isabela: 0, Claudio: 0, Daniel: 0, label: cat, total: 0 };
+      });
+
+      rows.forEach(t => {
+        if (t.tipo === 'Crédito' || t.tipo === 'Estorno' || t.valor <= 0) return;
+        
+        let category = t.cidade;
+        if (t.tipo === 'Encargo Bancário') category = 'Encargos';
+        if (!category || !categories.includes(category)) category = 'Não identificado';
+
+        if (result[category]) {
+          const titular = t.titular;
+          if (result[category].hasOwnProperty(titular)) {
+            result[category][titular] += t.valor;
+            result[category].total += t.valor;
+          }
+        }
+      });
+
+      return Object.values(result);
+    }, [rows]);
 
    const filteredTransacoes = useMemo(() => {
      return rows.filter(t => {
