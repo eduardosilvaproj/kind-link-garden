@@ -17,91 +17,96 @@ import { Label } from "@/components/ui/label";
  import jsPDF from 'jspdf';
  import autoTable from 'jspdf-autotable';
 
- type RowEdit = {
-   titular?: string;
-   cidade?: string;
-   destino?: string;
-   clienteNome?: string;
-   conferido?: boolean;
-   nome?: string;
- };
- 
- const Index = () => {
-   const { config } = useAppContext();
-   const [filterTitular, setFilterTitular] = useState<string>("Todos");
-   const [showOnlyUnidentified, setShowOnlyUnidentified] = useState(false);
-   const [showPayments, setShowPayments] = useState(false);
- 
-    const [rowEdits, setRowEdits] = useState<Record<number, RowEdit>>(() => {
+  const Index = () => {
+    const { config } = useAppContext();
+    const [filterTitular, setFilterTitular] = useState<string>("Todos");
+    const [showOnlyUnidentified, setShowOnlyUnidentified] = useState(false);
+    const [showPayments, setShowPayments] = useState(false);
+  
+    // 1. SINGLE SOURCE OF TRUTH
+    const [edits, setEdits] = useState<Record<string, {
+      titular?: string;
+      cidade?: string;
+      destino?: string;
+      clienteNome?: string;
+      conferido?: boolean;
+      nome?: string;
+    }>>(() => {
       try {
-        const saved = localStorage.getItem('faturaRowEdits');
-        if (!saved) return {};
-        const parsed = JSON.parse(saved);
-        // Ensure keys are numbers to match transaction IDs
-        return Object.fromEntries(
-          Object.entries(parsed).map(([k, v]) => [Number(k), v as RowEdit])
-        );
-      } catch (e) {
-        return {};
-      }
+        const raw = localStorage.getItem('fatura_edits');
+        return raw ? JSON.parse(raw) : {};
+      } catch { return {}; }
     });
- 
-   useEffect(() => {
-     localStorage.setItem('faturaRowEdits', JSON.stringify(rowEdits));
-   }, [rowEdits]);
- 
-   const transacoesEfetivas = useMemo(() => {
-     return TRANSACOES.map(t => ({
-       ...t,
-       titular: rowEdits[t.id]?.titular ?? t.titular,
-       cidade: rowEdits[t.id]?.cidade ?? t.cidade,
-       destino: rowEdits[t.id]?.destino ?? t.destino,
-       clienteNome: rowEdits[t.id]?.clienteNome ?? t.clienteNome,
-       conferido: rowEdits[t.id]?.conferido ?? false,
-       nome: rowEdits[t.id]?.nome ?? t.nome,
-     }));
-   }, [rowEdits]);
- 
-   const updateRow = (id: number, changes: Partial<RowEdit>) => {
-     setRowEdits(prev => ({
-       ...prev,
-       [id]: { ...prev[id], ...changes }
-     }));
-   };
- 
-   const updateBatchRows = (ids: number[], changes: Partial<RowEdit>) => {
-     setRowEdits(prev => {
-       const next = { ...prev };
-       ids.forEach(id => {
-         next[id] = { ...next[id], ...changes };
-       });
-       return next;
-     });
-   };
- 
-    const checkedCount = useMemo(() => transacoesEfetivas.filter(t => t.conferido).length, [transacoesEfetivas]);
- 
-   const totals = useMemo(() => {
-     const compras = transacoesEfetivas.filter(t => !['Crédito', 'Estorno', 'Pagamento', 'Encargo Bancário'].includes(t.tipo)).reduce((acc, t) => acc + t.valor, 0);
-     const encargos = transacoesEfetivas.filter(t => t.tipo === 'Encargo Bancário').reduce((acc, t) => acc + t.valor, 0);
-     const creditos = transacoesEfetivas.filter(t => t.tipo === 'Crédito').reduce((acc, t) => acc + t.valor, 0);
-     const estornos = transacoesEfetivas.filter(t => t.tipo === 'Estorno').reduce((acc, t) => acc + Math.abs(t.valor), 0);
-     
-      const isabelaTotal = transacoesEfetivas.filter(t => t.titular === 'Isabela' && t.tipo !== 'Crédito' && t.tipo !== 'Estorno' && t.valor > 0).reduce((acc, t) => acc + t.valor, 0);
-      const claudioTotal = transacoesEfetivas.filter(t => t.titular === 'Claudio' && t.tipo !== 'Crédito' && t.tipo !== 'Estorno' && t.valor > 0).reduce((acc, t) => acc + t.valor, 0);
-      const danielTotal = transacoesEfetivas.filter(t => t.titular === 'Daniel' && t.tipo !== 'Crédito' && t.tipo !== 'Estorno' && t.valor > 0).reduce((acc, t) => acc + t.valor, 0);
-
-    return {
-      compras,
-      encargos,
-      creditos,
-      estornos,
-      totalCalculado: TOTAL_FATURA,
-      isabela: isabelaTotal,
-      claudio: claudioTotal,
-      daniel: danielTotal
+  
+    // Save to localStorage on every change
+    useEffect(() => {
+      localStorage.setItem('fatura_edits', JSON.stringify(edits));
+    }, [edits]);
+  
+    // Update a single row
+    const updateRow = (id: number, patch: object) => {
+      setEdits(prev => ({
+        ...prev,
+        [`${id}`]: { ...prev[`${id}`], ...patch }
+      }));
     };
-   }, [transacoesEfetivas]);
+  
+    const updateBatchRows = (ids: number[], patch: object) => {
+      setEdits(prev => {
+        const next = { ...prev };
+        ids.forEach(id => {
+          next[`${id}`] = { ...next[`${id}`], ...patch };
+        });
+        return next;
+      });
+    };
+  
+    // 2. EFFECTIVE LIST — merge edits over base data
+    const rows = useMemo(() =>
+      TRANSACOES.map(t => {
+        const e = edits[`${t.id}`] ?? {};
+        return {
+          ...t,
+          titular:     e.titular     ?? t.titular,
+          cidade:      e.cidade      ?? t.cidade,
+          destino:     e.destino     ?? t.destino,
+          clienteNome: e.clienteNome ?? t.clienteNome ?? '',
+          conferido:   e.conferido   ?? false,
+          nome:        e.nome        ?? t.nome,
+        };
+      }),
+    [edits]);
+  
+    // 3. CARD TOTALS — always from rows
+    const somaIsabela = useMemo(() =>
+      rows
+        .filter(t => t.titular === 'Isabela' && t.tipo !== 'Crédito' && t.tipo !== 'Estorno' && t.valor > 0)
+        .reduce((s, t) => s + t.valor, 0),
+    [rows]);
+  
+    const somaClaudio = useMemo(() =>
+      rows
+        .filter(t => t.titular === 'Claudio' && t.tipo !== 'Crédito' && t.tipo !== 'Estorno' && t.valor > 0)
+        .reduce((s, t) => s + t.valor, 0),
+    [rows]);
+  
+    const somaDaniel = useMemo(() =>
+      rows
+        .filter(t => t.titular === 'Daniel' && t.tipo !== 'Crédito' && t.tipo !== 'Estorno' && t.valor > 0)
+        .reduce((s, t) => s + t.valor, 0),
+    [rows]);
+  
+    const totalConferidos = useMemo(() =>
+      rows.filter(t => t.conferido).length,
+    [rows]);
+  
+    const totals = useMemo(() => ({
+      isabela: somaIsabela,
+      claudio: somaClaudio,
+      daniel: somaDaniel,
+      totalCalculado: TOTAL_FATURA,
+      conferidos: totalConferidos
+    }), [somaIsabela, somaClaudio, somaDaniel, totalConferidos]);
 
   const isValid = Math.abs(totals.totalCalculado - 11019.68) < 0.01;
 
