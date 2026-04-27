@@ -1,607 +1,128 @@
-import { useState, useMemo, useEffect, useCallback } from 'react';
-import { useAppContext } from '../hooks/useAppContext';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { useState, useEffect, useMemo } from 'react';
 import { TRANSACOES, TOTAL_FATURA } from '../data/transactions';
-import { Download, FileText, Filter } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { 
-  DropdownMenu, 
-  DropdownMenuCheckboxItem, 
-  DropdownMenuContent, 
-  DropdownMenuTrigger 
-} from "@/components/ui/dropdown-menu";
-import { Transacao } from "../types/index";
-import { processTransactions, getAggregatedData } from "../lib/financeCalculations";
-import { cn } from "@/lib/utils";
-import { exportToXLSX } from "../lib/exportUtils";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
- import jsPDF from 'jspdf';
- import autoTable from 'jspdf-autotable';
-import { 
-  BarChart, 
-  Bar, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip as RechartsTooltip, 
-  ResponsiveContainer, 
-  Cell 
-} from 'recharts';
+import { DEFAULT_CONFIG } from '../data/defaultConfig';
+import { exportToXLSX } from '../lib/exportUtils';
+import { Download, FileText, Filter } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip, Cell, CartesianGrid } from 'recharts';
 
-  const Index = () => {
-    const { config } = useAppContext();
-    const [filterTitular, setFilterTitular] = useState<string>("Todos");
-    const [showOnlyUnidentified, setShowOnlyUnidentified] = useState(false);
-    const [showPayments, setShowPayments] = useState(false);
+type RowEdit = { titular?: string; cidade?: string; destino?: string; clienteNome?: string; conferido?: boolean; nome?: string; valor?: number; };
+const CIDADES_FIXAS = ['Araraquara','Bauru','Ribeirão Preto','São Carlos','Online','Não identificado'];
+const TITULARES_FIXOS = ['Isabela','Claudio','Daniel'];
+const brl = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+const fmt = (v: number) => v > 0.009 || v < -0.009 ? brl(v) : '—';
+const titularBg = (t: string) => { if (t === 'Isabela') return 'bg-amber-500'; if (t === 'Claudio') return 'bg-blue-500'; return 'bg-teal-500'; };
+const titularInitials = (t: string) => { if (t === 'Isabela') return 'IS'; if (t === 'Claudio') return 'CL'; return 'DN'; };
+
+export default function Index() {
+  const config = DEFAULT_CONFIG;
+  const [filterTitular, setFilterTitular] = useState('Todos');
+  const [showPendentes, setShowPendentes] = useState(false);
+  const [showPagamentos, setShowPagamentos] = useState(false);
+  const [edits, setEdits] = useState<Record<string, RowEdit>>(() => { try { const raw = localStorage.getItem('fatura_edits_v3'); return raw ? JSON.parse(raw) : {}; } catch { return {}; } });
   
-    // 1. STATE MANAGEMENT — Centralized store for all edits
-    // We use a single state object to ensure all components react to any data change
-    const [edits, setEdits] = useState<Record<string, any>>(() => {
-      try {
-        const raw = localStorage.getItem('fatura_edits');
-        return raw ? JSON.parse(raw) : {};
-      } catch { return {}; }
+  useEffect(() => { localStorage.setItem('fatura_edits_v3', JSON.stringify(edits)); }, [edits]);
+  
+  const updateRow = (id: number, patch: Partial<RowEdit>) => { setEdits(prev => { const key = String(id); return { ...prev, [key]: { ...prev[key], ...patch } }; }); };
+  const updateBatch = (ids: number[], patch: Partial<RowEdit>) => { setEdits(prev => { const next = { ...prev }; ids.forEach(id => { const key = String(id); next[key] = { ...next[key], ...patch }; }); return next; }); };
+  
+  const rows = useMemo(() => {
+    const raw = TRANSACOES.map(t => {
+      const e = edits[String(t.id)] ?? {};
+      return { 
+        ...t, 
+        titular: e.titular !== undefined ? e.titular : t.titular,
+        cidade: e.cidade !== undefined ? e.cidade : t.cidade,
+        destino: e.destino !== undefined ? e.destino : (t.destino ?? t.tipo),
+        clienteNome: e.clienteNome !== undefined ? e.clienteNome : (t.clienteNome ?? ''),
+        conferido: e.conferido !== undefined ? e.conferido : false,
+        nome: e.nome !== undefined ? e.nome : t.nome,
+        valor: e.valor !== undefined ? e.valor : t.valor
+      };
     });
+    
+    // Sort by titular to make accumulation work
+    const sorted = [...raw].sort((a,b) => a.titular.localeCompare(b.titular) || a.id - b.id);
+    
+    let currentTitular = '';
+    let accumulated = 0;
+    
+    return sorted.map(t => {
+      if (t.titular !== currentTitular) {
+        currentTitular = t.titular;
+        accumulated = 0;
+      }
+      const isNegative = t.tipo === 'Crédito' || t.tipo === 'Estorno' || t.tipo === 'Pagamento';
+      accumulated += (isNegative ? -Math.abs(t.valor) : t.valor);
+      return { ...t, saldoAcumulado: accumulated };
+    });
+  }, [edits]);
 
-    // Sync edits to localStorage whenever they change
-    useEffect(() => {
-      localStorage.setItem('fatura_edits', JSON.stringify(edits));
-    }, [edits]);
-
-    // Functional update to ensure we always work with the latest state
-    const updateRow = useCallback((id: number, patch: object) => {
-      setEdits(prev => ({
-        ...prev,
-        [`${id}`]: { ...(prev[`${id}`] || {}), ...patch }
-      }));
-    }, []);
-
-    const updateBatchRows = useCallback((ids: number[], patch: object) => {
-      setEdits(prev => {
-        const next = { ...prev };
-        ids.forEach(id => {
-          next[`${id}`] = { ...(next[`${id}`] || {}), ...patch };
-        });
-        return next;
-      });
-    }, []);
-
-    // 2. COMPUTED DATA — Deriving the effective transaction list with Per-Titular Grouping and Resets
-    const rows = useMemo(() => processTransactions(TRANSACOES, edits), [edits]);
+  const somaIsabela = useMemo(() => rows.filter(t => t.titular === 'Isabela' && t.tipo !== 'Crédito' && t.tipo !== 'Estorno' && t.valor > 0).reduce((s, t) => s + t.valor, 0), [rows]);
+  const somaClaudio = useMemo(() => rows.filter(t => t.titular === 'Claudio' && t.tipo !== 'Crédito' && t.tipo !== 'Estorno' && t.valor > 0).reduce((s, t) => s + t.valor, 0), [rows]);
+  const somaDaniel = useMemo(() => rows.filter(t => t.titular === 'Daniel' && t.tipo !== 'Crédito' && t.tipo !== 'Estorno' && t.valor > 0).reduce((s, t) => s + t.valor, 0), [rows]);
+  const totalConferidos = useMemo(() => rows.filter(t => t.conferido).length, [rows]);
   
-    // 3. AGGREGATED CALCULATIONS — Centralized logic for all components
-    const aggregatedData = useMemo(() => getAggregatedData(rows), [rows]);
+  const crossTab = useMemo(() => [...CIDADES_FIXAS, 'Encargos'].map(label => {
+    const cols: Record<string, number> = {};
+    TITULARES_FIXOS.forEach(tit => {
+      cols[tit] = rows.filter(t => {
+        if (t.titular !== tit) return false;
+        if (t.tipo === 'Crédito' || t.tipo === 'Estorno') return false;
+        if (label === 'Encargos') return t.tipo === 'Encargo Bancário';
+        return t.cidade === label && t.tipo !== 'Encargo Bancário';
+      }).reduce((s, t) => s + t.valor, 0);
+    });
+    return { label, ...cols, total: TITULARES_FIXOS.reduce((s, tit) => s + cols[tit], 0) };
+  }), [rows]);
 
-    const { totals: titularTotals, crossTab } = aggregatedData;
-    const somaIsabela = titularTotals['Isabela'] || 0;
-    const somaClaudio = titularTotals['Claudio'] || 0;
-    const somaDaniel  = titularTotals['Daniel']  || 0;
-  
-    const totalConferidos = useMemo(() =>
-      rows.filter(t => t.conferido).length,
-    [rows]);
-  
-    const totals = useMemo(() => ({
-      isabela: somaIsabela,
-      claudio: somaClaudio,
-      daniel: somaDaniel,
-      totalCalculado: TOTAL_FATURA,
-      conferidos: totalConferidos
-    }), [somaIsabela, somaClaudio, somaDaniel, totalConferidos]);
-
-    const chartData = useMemo(() => {
-      const filtered = rows.filter(t => {
-        if (filterTitular !== "Todos" && t.titular !== filterTitular) return false;
-        if (t.tipo === 'Crédito' || t.tipo === 'Estorno' || t.tipo === 'Pagamento') return false;
-        if (t.valor <= 0) return false;
-        return true;
-      });
-
-      const cityMap: Record<string, number> = {};
-      filtered.forEach(t => {
-        const cidade = t.cidade || "Não identificado";
-        cityMap[cidade] = (cityMap[cidade] || 0) + t.valor;
-      });
-
-      return Object.entries(cityMap)
-        .map(([name, value]) => ({ name, value }))
-        .sort((a, b) => b.value - a.value);
-    }, [rows, filterTitular]);
-
-   const isValid = Math.abs(somaIsabela + somaClaudio + somaDaniel - 11019.68) < 500;
-
-
-    const filteredData = useMemo(() => {
-      const filtered = rows.filter(t => {
-        if (filterTitular !== "Todos" && t.titular !== filterTitular) return false;
-        if (showOnlyUnidentified && t.cidade !== "Não identificado") return false;
-        if (!showPayments && (t.tipo === "Pagamento" || t.tipo === "Crédito")) return false;
-        return true;
-      });
-      
-      const sum = filtered.reduce((acc, t) => {
-        const isNegative = t.tipo === 'Crédito' || t.tipo === 'Estorno' || t.tipo === 'Pagamento';
-        return acc + (isNegative ? -Math.abs(t.valor) : t.valor);
-      }, 0);
-
-      return { items: filtered, totalSum: sum };
-    }, [rows, filterTitular, showOnlyUnidentified, showPayments]);
-
-    const filteredTransacoes = filteredData.items;
-    const totalTransacoesFiltradas = filteredData.totalSum;
-
-  const getTitularColor = (id: string) => {
-    const lower = id.toLowerCase();
-    if (lower === "isabela") return "bg-amber-500 text-white";
-    if (lower === "claudio") return "bg-blue-500 text-white";
-    if (lower === "daniel") return "bg-teal-500 text-white";
-    return "bg-slate-500 text-white";
-  };
-
-   const getTitularInitials = (id: string) => {
-     const lower = id.toLowerCase();
-     if (lower === "isabela") return "IS";
-     if (lower === "claudio") return "CL";
-     if (lower === "daniel") return "DN";
-     return "??";
-   };
-
-  const getRowColor = (t: Transacao) => {
-    const isUnidentified = t.cidade === "Não identificado";
-    if (t.tipo === "Encargo Bancário") return "bg-red-50 text-red-700";
-    if (isUnidentified) return "bg-amber-50 text-amber-700";
-    if (t.tipo === "Crédito") return "bg-blue-50 text-blue-700";
-    if (t.tipo === "Estorno") return "bg-green-50 text-green-700";
-    return "";
-  };
-
-  const formatBRL = (val: number) => {
-    return val.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-  };
-
-   const fmt = (v: number) =>
-     v > 0 ? `R$ ${v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—';
- 
-   const exportPDF = async () => {
-     const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
-     
-     pdf.setFontSize(14);
-     pdf.setFont('helvetica', 'bold');
-     pdf.text('Classificador de Fatura C6 Bank — Abril 2026', 14, 16);
-     pdf.setFontSize(10);
-     pdf.setFont('helvetica', 'normal');
-     pdf.text(`Total Fatura: R$ ${totals.totalCalculado.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, 14, 23);
-     pdf.text(`Isabela: ${fmt(totals.isabela)}   Claudio: ${fmt(totals.claudio)}   Daniel: ${fmt(totals.daniel)}`, 14, 29);
- 
-      autoTable(pdf, {
-        startY: 34,
-        head: [['Cidade', 'Isabela', 'Claudio', 'Daniel', 'Total']],
-        body: crossTab.map(row => [
-          row.label,
-          fmt(row.Isabela),
-          fmt(row.Claudio),
-          fmt(row.Daniel),
-          fmt(row.total)
-        ]),
-        foot: [['TOTAL', fmt(crossTab.reduce((acc, r) => acc + r.Isabela, 0)), fmt(crossTab.reduce((acc, r) => acc + r.Claudio, 0)), fmt(crossTab.reduce((acc, r) => acc + r.Daniel, 0)), fmt(crossTab.reduce((acc, r) => acc + r.total, 0))]],
-       styles: { fontSize: 9, cellPadding: 3 },
-       headStyles: { fillColor: [31, 56, 100], textColor: 255, fontStyle: 'bold' },
-       footStyles: { fillColor: [220, 220, 220], fontStyle: 'bold' },
-       columnStyles: {
-         0: { cellWidth: 45 },
-         1: { halign: 'right' },
-         2: { halign: 'right' },
-         3: { halign: 'right' },
-         4: { halign: 'right', fontStyle: 'bold' },
-       },
-     });
- 
-      const tableBody = rows
-       .filter(t => t.tipo !== 'Crédito' && t.tipo !== 'Pagamento')
-       .map(t => [
-         String(t.id),
-         t.conferido ? '✓' : '',
-          t.titular,
-         t.data,
-         t.nome,
-         t.cidade,
-         t.destino || t.tipo,
-         t.parcela || '—',
-         `R$ ${Math.abs(t.valor).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
-       ]);
- 
-     autoTable(pdf, {
-       startY: (pdf as any).lastAutoTable.finalY + 8,
-       head: [['#', '✓', 'Titular', 'Data', 'Estabelecimento', 'Cidade', 'Destino', 'Parc.', 'Valor']],
-       body: tableBody,
-       styles: { 
-         fontSize: 8, 
-         cellPadding: 2, 
-         overflow: 'linebreak',
-         cellWidth: 'wrap',
-       },
-       rowPageBreak: 'avoid',
-       pageBreak: 'auto',
-       headStyles: { fillColor: [31, 56, 100], textColor: 255, fontStyle: 'bold' },
-       alternateRowStyles: { fillColor: [248, 248, 248] },
-       columnStyles: {
-         0: { cellWidth: 8,  halign: 'center' },
-         1: { cellWidth: 8,  halign: 'center' },
-         2: { cellWidth: 22 },
-         3: { cellWidth: 16 },
-         4: { cellWidth: 60 },
-         5: { cellWidth: 32 },
-         6: { cellWidth: 28 },
-         7: { cellWidth: 14, halign: 'center' },
-         8: { cellWidth: 24, halign: 'right', fontStyle: 'bold' },
-       },
-       didParseCell: (data) => {
-         const row = tableBody[data.row.index];
-         if (!row) return;
-         const titular = row[2];
-         if (data.section === 'body') {
-           if (titular === 'Isabela') data.cell.styles.textColor = [180, 100, 0];
-           if (titular === 'Claudio') data.cell.styles.textColor = [0, 80, 160];
-           if (titular === 'Daniel')  data.cell.styles.textColor = [0, 120, 80];
-         }
-       },
-       didDrawPage: (data) => {
-         const pageCount = pdf.getNumberOfPages();
-         pdf.setFontSize(8);
-         pdf.text(
-           `Página ${data.pageNumber} de ${pageCount}`,
-           pdf.internal.pageSize.getWidth() - 30,
-           pdf.internal.pageSize.getHeight() - 5
-         );
-       },
-     });
- 
-     pdf.save('Fatura_C6_Abril_2026.pdf');
-   };
+  const filtradas = useMemo(() => rows.filter(t => {
+    if (filterTitular !== 'Todos' && t.titular !== filterTitular) return false;
+    if (showPendentes && t.cidade !== 'Não identificado') return false;
+    if (!showPagamentos && (t.tipo === 'Crédito' || t.tipo === 'Pagamento')) return false;
+    return true;
+  }), [rows, filterTitular, showPendentes, showPagamentos]);
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 pb-12">
-      <div id="pdf-content" className="p-6 max-w-[1400px] mx-auto flex flex-col gap-6">
-        {/* HEADER */}
-        <header className="py-4 flex justify-between items-center bg-white border b rounded-xl px-6 shadow-sm">
-          <div className="flex items-center gap-4">
-            <h1 className="text-xl font-bold">Classificador de Fatura C6 Bank</h1>
-            <Badge className={cn("text-[10px] font-bold uppercase px-3 py-1", isValid ? "bg-green-100 text-green-700 border-green-200" : "bg-red-100 text-red-700 border-red-200")}>
-               Total calculado: {formatBRL(totals.totalCalculado)} {isValid ? '✓' : '✗'}
-             </Badge>
-              <Badge variant="outline" className="text-[10px] font-bold uppercase px-3 py-1 bg-white border-slate-200 text-slate-600">
-                ✓ Conferidos: {totalConferidos} / {rows.length}
-              </Badge>
-          </div>
-          <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" onClick={() => exportToXLSX(rows, config)} className="flex gap-2 no-print">
-              <Download className="w-4 h-4" /> Exportar Excel
-            </Button>
-             <Button variant="outline" size="sm" onClick={exportPDF} className="flex gap-2 no-print">
-              <FileText className="w-4 h-4" /> Exportar PDF
-            </Button>
-          </div>
-        </header>
-
-        {/* TITULAR CARDS — Improved UI */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {[
-            { id: 'Isabela', name: 'Isabela', val: somaIsabela, color: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-100', iconColor: 'bg-amber-500' },
-            { id: 'Claudio', name: 'Claudio', val: somaClaudio, color: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-100', iconColor: 'bg-blue-500' },
-            { id: 'Daniel', name: 'Daniel', val: somaDaniel, color: 'text-teal-600', bg: 'bg-teal-50', border: 'border-teal-100', iconColor: 'bg-teal-500' }
-          ].map(tit => (
-            <Card key={tit.id} className={cn("border-2 shadow-sm transition-all hover:shadow-md", tit.border, tit.bg)}>
-              <CardContent className="p-5 flex items-center gap-4">
-                <div className={cn("w-12 h-12 rounded-full flex items-center justify-center text-white font-black text-lg shadow-inner", tit.iconColor)}>
-                  {getTitularInitials(tit.id)}
-                </div>
-                <div>
-                  <p className="text-[10px] font-black text-slate-500 uppercase tracking-wider mb-0.5">Total {tit.name}</p>
-                  <p className={cn("text-xl font-black tabular-nums", tit.color)}>{formatBRL(tit.val)}</p>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-          
-          <Card className="bg-slate-900 border-slate-800 shadow-lg lg:col-span-1 sm:col-span-2">
-            <CardContent className="p-5 flex items-center gap-4">
-              <div className="w-12 h-12 rounded-full bg-slate-800 flex items-center justify-center text-white">
-                <FileText className="w-6 h-6 text-slate-400" />
-              </div>
-              <div>
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-0.5">Total Fatura</p>
-                <p className="text-xl font-black text-white tabular-nums">{formatBRL(totals.totalCalculado)}</p>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* SUMMARY TABLE */}
-          <Card className="shadow-sm lg:col-span-2">
-            <CardHeader className="py-3 px-6 border-b bg-slate-50/50">
-              <CardTitle className="text-sm font-bold uppercase text-slate-500">Distribuição Cidade × Titular</CardTitle>
-            </CardHeader>
-            <Table className="w-full table-fixed">
-              <TableHeader>
-                <TableRow className="bg-slate-50/50">
-                  <TableHead className="font-bold text-[11px] uppercase px-6 h-10">Cidade</TableHead>
-                  <TableHead className="text-right font-bold text-[11px] uppercase px-6 h-10">Isabela</TableHead>
-                  <TableHead className="text-right font-bold text-[11px] uppercase px-6 h-10">Claudio</TableHead>
-                  <TableHead className="text-right font-bold text-[11px] uppercase px-6 h-10">Daniel</TableHead>
-                  <TableHead className="text-right font-bold bg-slate-100/50 text-[11px] uppercase px-6 h-10">Total</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {crossTab
-                  .filter(row => Math.abs(row.total) > 0.01)
-                  .map((row, idx) => (
-                    <TableRow key={idx} className={cn(row.label === 'Não identificado' && row.total > 0 ? 'bg-amber-50' : row.label === 'Encargos' ? 'bg-red-50' : '')}>
-                      <TableCell className="font-medium text-[12px] px-6 py-2">{row.label}</TableCell>
-                      <TableCell className={cn("text-right tabular-nums text-[12px] px-6 py-2", row.Isabela < 0 ? "text-green-600" : "")}>{Math.abs(row.Isabela) > 0.01 ? formatBRL(row.Isabela) : '—'}</TableCell>
-                      <TableCell className={cn("text-right tabular-nums text-[12px] px-6 py-2", row.Claudio < 0 ? "text-green-600" : "")}>{Math.abs(row.Claudio) > 0.01 ? formatBRL(row.Claudio) : '—'}</TableCell>
-                      <TableCell className={cn("text-right tabular-nums text-[12px] px-6 py-2", row.Daniel < 0 ? "text-green-600" : "")}>{Math.abs(row.Daniel) > 0.01 ? formatBRL(row.Daniel) : '—'}</TableCell>
-                      <TableCell className="text-right font-bold tabular-nums bg-slate-50 text-[12px] px-6 py-2">{formatBRL(row.total)}</TableCell>
-                    </TableRow>
-                  ))}
-                <TableRow className="bg-slate-100 font-black">
-                  <TableCell className="px-6 py-3 text-[12px]">TOTAL</TableCell>
-                  <TableCell className="text-right tabular-nums text-[12px] px-6 py-3">{formatBRL(crossTab.reduce((acc, r) => acc + r.Isabela, 0))}</TableCell>
-                  <TableCell className="text-right tabular-nums text-[12px] px-6 py-3">{formatBRL(crossTab.reduce((acc, r) => acc + r.Claudio, 0))}</TableCell>
-                  <TableCell className="text-right tabular-nums text-[12px] px-6 py-3">{formatBRL(crossTab.reduce((acc, r) => acc + r.Daniel, 0))}</TableCell>
-                  <TableCell className="text-right tabular-nums bg-slate-200 text-[12px] px-6 py-3">{formatBRL(crossTab.reduce((acc, r) => acc + r.total, 0))}</TableCell>
-                </TableRow>
-              </TableBody>
-            </Table>
-          </Card>
-
-          {/* CHART */}
-          <Card className="shadow-sm">
-            <CardHeader className="py-3 px-6 border-b bg-slate-50/50">
-              <CardTitle className="text-sm font-bold uppercase text-slate-500">
-                Gastos por Cidade {filterTitular !== "Todos" ? `(${filterTitular})` : ""}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-6 h-[300px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={chartData} layout="vertical" margin={{ left: 30, right: 30, top: 10, bottom: 10 }}>
-                  <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} />
-                  <XAxis type="number" hide />
-                  <YAxis dataKey="name" type="category" width={80} style={{ fontSize: '10px', fontWeight: 'bold' }} />
-                  <RechartsTooltip 
-                    formatter={(value: number) => [formatBRL(value), 'Valor']}
-                    contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                  />
-                  <Bar dataKey="value" radius={[0, 4, 4, 0]}>
-                    {chartData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={['#f59e0b', '#3b82f6', '#14b8a6', '#ef4444', '#6366f1'][index % 5]} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* TRANSACTION LIST */}
-        <div className="flex flex-col gap-4">
-          <Card className="shadow-sm">
-            <CardHeader className="py-3 px-6 border-b bg-slate-50/50 flex flex-row items-center justify-between space-y-0">
-              <div className="flex items-center gap-4">
-                <Select value={filterTitular} onValueChange={setFilterTitular}>
-                  <SelectTrigger className="h-8 w-[140px] bg-white">
-                    <Filter className="w-3 h-3 mr-2" />
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Todos">Todos Titulares</SelectItem>
-                    {config.titulares.map(t => <SelectItem key={t.id} value={t.id}>{t.nome}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-                
-                <div className="flex items-center gap-2 bg-white px-3 py-1 rounded-md border h-8">
-                  <Switch id="unidentified" checked={showOnlyUnidentified} onCheckedChange={setShowOnlyUnidentified} className="scale-75" />
-                  <Label htmlFor="unidentified" className="text-[11px] font-bold uppercase cursor-pointer">Pendentes</Label>
-                </div>
-
-                <div className="flex items-center gap-2 bg-white px-3 py-1 rounded-md border h-8">
-                  <Switch id="payments" checked={showPayments} onCheckedChange={setShowPayments} className="scale-75" />
-                  <Label htmlFor="payments" className="text-[11px] font-bold uppercase cursor-pointer">Pagamentos</Label>
-                </div>
-              </div>
-              <span className="text-[11px] font-bold text-slate-400 uppercase">{filteredTransacoes.length} transações</span>
-            </CardHeader>
-            <Table>
-              <TableHeader>
-                <TableRow className="text-[11px] uppercase text-slate-500 bg-slate-50/50">
-                   <TableHead className="w-[36px] px-2 text-center text-[10px]">#</TableHead>
-                   <TableHead className="w-[40px] px-2 text-center">
-                     <input 
-                       type="checkbox" 
-                       className="w-4 h-4 rounded border-slate-300"
-                       checked={filteredTransacoes.length > 0 && filteredTransacoes.every(t => t.conferido)}
-                       onChange={(e) => {
-                         const checked = e.target.checked;
-                         const ids = filteredTransacoes.map(t => t.id);
-                          updateBatchRows(ids, { conferido: checked });
-                       }}
-                     />
-                   </TableHead>
-                  <TableHead className="w-[110px] px-6">Titular</TableHead>
-                  <TableHead className="w-[100px] px-6">Data</TableHead>
-                  <TableHead className="px-6">Estabelecimento</TableHead>
-                  <TableHead className="px-6 w-[130px]">Cidade</TableHead>
-                  <TableHead className="px-6 w-[110px]">Destino</TableHead>
-                  <TableHead className="text-right px-6 w-[110px]">Valor</TableHead>
-                  <TableHead className="text-right px-6 w-[130px] bg-slate-50/80">Saldo Titular</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                 {filteredTransacoes.map((t, idx) => {
-                   const prevT = idx > 0 ? filteredTransacoes[idx-1] : null;
-                   const isFirstOfTitular = !prevT || prevT.titular !== t.titular;
-                   
-                   return (
-                   <TableRow 
-                    key={t.id} 
-                    className={cn(
-                      "group text-sm transition-colors", 
-                      getRowColor(t), 
-                      t.conferido && "border-l-[3px] border-l-[#198754]",
-                      isFirstOfTitular && idx !== 0 && "border-t-2 border-slate-200"
-                    )}
-                   >
-                     <TableCell className="px-2 py-3 text-center text-[11px] text-slate-400 font-mono">
-                       {t.id}
-                     </TableCell>
-                     <TableCell className="px-2 py-3 text-center">
-                       <input 
-                         type="checkbox" 
-                         className="w-4 h-4 rounded border-slate-300 accent-[#198754]"
-                         checked={!!t.conferido}
-                          onChange={(e) => updateRow(t.id, { conferido: e.target.checked })}
-                       />
-                     </TableCell>
-                      <TableCell className="px-6 py-3">
-                        <Select value={t.titular} onValueChange={(v) => updateRow(t.id, { titular: v })}>
-                          <SelectTrigger className="h-8 w-fit gap-1.5 border-slate-200 bg-white hover:bg-slate-50 px-2 text-xs">
-                            <div className={cn("w-5 h-5 rounded-full flex items-center justify-center font-bold text-[9px]", getTitularColor(t.titular))}>
-                              {getTitularInitials(t.titular)}
-                            </div>
-                            <span className="font-medium text-slate-700">{t.titular}</span>
-                          </SelectTrigger>
-                          <SelectContent>
-                            {config.titulares.map(tit => (
-                              <SelectItem key={tit.id} value={tit.id} className="text-xs">
-                                <div className="flex items-center gap-2">
-                                  <div className={cn("w-4 h-4 rounded-full flex items-center justify-center text-[7px] font-bold", getTitularColor(tit.id))}>
-                                    {getTitularInitials(tit.id)}
-                                  </div>
-                                  {tit.nome}
-                                </div>
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </TableCell>
-                    <TableCell className="px-6 py-3 font-medium text-slate-500">{t.data}</TableCell>
-                    <TableCell className="px-6 py-3">
-                      <Input 
-                        value={t.nome} 
-                        onChange={(e) => updateRow(t.id, { nome: e.target.value })}
-                        className="h-8 text-sm border-slate-200 shadow-none bg-white hover:border-slate-300 focus:border-blue-500 font-bold w-full max-w-md"
-                      />
-                    </TableCell>
-                    <TableCell className="px-6 py-3">
-                      <Select value={t.cidade} onValueChange={(v) => updateRow(t.id, { cidade: v })}>
-                        <SelectTrigger className="h-8 text-[11px] bg-white border border-slate-200 rounded-md px-2 w-[120px] text-slate-600 font-medium">
-                          <SelectValue placeholder="Cidade" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {["Araraquara", "Bauru", "Ribeirão Preto", "São Carlos", "Online", "Não identificado", "—"].map(c => (
-                            <SelectItem key={c} value={c} className="text-[11px]">{c}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </TableCell>
-                    <TableCell className="px-6 py-3">
-                      <Select value={t.destino || ""} onValueChange={(v) => updateRow(t.id, { destino: v })}>
-                        <SelectTrigger className="h-8 text-[11px] bg-white border border-slate-200 rounded-md px-2 w-[100px] text-slate-600 font-medium">
-                          <SelectValue placeholder="Destino" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {["Loja", "Depósito", "Cliente", "Aluguel", "IPTU", "Condomínio", "Seguro", "Outros"].map(opt => (
-                            <SelectItem key={opt} value={opt} className="text-[11px]">{opt}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </TableCell>
-                    <TableCell className="px-6 py-3 text-right">
-                      <div className="flex justify-end">
-                        <Input 
-                          type="text"
-                          defaultValue={t.valor}
-                          onBlur={(e) => {
-                            const val = parseFloat(e.target.value.replace(/[R$\s.]/g, '').replace(',', '.'));
-                            if (!isNaN(val)) updateRow(t.id, { valor: val });
-                          }}
-                          className={cn(
-                            "h-8 text-right font-bold border-slate-200 bg-white w-[100px] px-2", 
-                            (t.tipo === "Estorno" || t.tipo === "Crédito") ? "text-green-600" : "text-slate-900"
-                          )}
-                        />
-                      </div>
-                    </TableCell>
-                    <TableCell className="px-6 py-3 text-right font-mono text-[12px] tabular-nums bg-slate-50/30 text-slate-500">
-                      {formatBRL((t as any).saldoAcumulado)}
-                    </TableCell>
-                   </TableRow>
-                   );
-                 })}
-                
-                {/* TOTAL ROW FOR TRANSACTIONS */}
-                <TableRow className="bg-slate-50 font-black border-t-2">
-                  <TableCell className="px-2 py-4" colSpan={2}></TableCell>
-                  <TableCell className="px-6 py-4 text-[11px] uppercase text-slate-400">Total Exibido</TableCell>
-                  <TableCell className="px-6 py-4" colSpan={3}>
-                    <Badge variant="outline" className="text-[10px] font-bold bg-white text-slate-500 border-slate-200">
-                      {filteredTransacoes.length} Itens
-                    </Badge>
-                  </TableCell>
-                  <TableCell className={cn("px-6 py-4 text-right tabular-nums text-lg", totalTransacoesFiltradas < 0 ? "text-green-600" : "text-slate-900")}>
-                    {formatBRL(totalTransacoesFiltradas)}
-                  </TableCell>
-                </TableRow>
-              </TableBody>
-            </Table>
-          </Card>
-        </div>
-        {/* PARTICIPATION TABLE */}
-        <Card className="shadow-sm">
-          <CardHeader className="py-3 px-6 border-b bg-slate-50/50">
-            <CardTitle className="text-sm font-bold uppercase text-slate-500">Distribuição Final e Participação</CardTitle>
-          </CardHeader>
-          <Table>
-            <TableHeader>
-              <TableRow className="bg-slate-50/50">
-                <TableHead className="font-bold text-[11px] uppercase px-6">Titular</TableHead>
-                <TableHead className="text-right font-bold text-[11px] uppercase px-6">Total Acumulado</TableHead>
-                <TableHead className="text-right font-bold text-[11px] uppercase px-6">Participação %</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {[
-                { name: 'Isabela', val: somaIsabela, color: 'text-amber-600' },
-                { name: 'Claudio', val: somaClaudio, color: 'text-blue-600' },
-                { name: 'Daniel', val: somaDaniel, color: 'text-teal-600' }
-              ].map(tit => {
-                const total = somaIsabela + somaClaudio + somaDaniel;
-                const percentage = total > 0 ? (tit.val / total) * 100 : 0;
-                return (
-                  <TableRow key={tit.name}>
-                    <TableCell className="font-bold text-[12px] px-6 py-3">{tit.name}</TableCell>
-                    <TableCell className={cn("text-right font-black tabular-nums text-[14px] px-6 py-3", tit.color)}>
-                      {formatBRL(tit.val)}
-                    </TableCell>
-                    <TableCell className="text-right font-medium text-slate-500 text-[12px] px-6 py-3">
-                      {percentage.toFixed(1)}%
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        </Card>
-
+    <div className="p-6">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <Card><CardHeader><CardTitle className="text-sm">Isabela</CardTitle></CardHeader><CardContent className="text-xl font-bold">{brl(somaIsabela)}</CardContent></Card>
+        <Card><CardHeader><CardTitle className="text-sm">Claudio</CardTitle></CardHeader><CardContent className="text-xl font-bold">{brl(somaClaudio)}</CardContent></Card>
+        <Card><CardHeader><CardTitle className="text-sm">Daniel</CardTitle></CardHeader><CardContent className="text-xl font-bold">{brl(somaDaniel)}</CardContent></Card>
+        <Card><CardHeader><CardTitle className="text-sm">Conferidos</CardTitle></CardHeader><CardContent className="text-xl font-bold">{totalConferidos}/{rows.length}</CardContent></Card>
       </div>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Titular</TableHead>
+            <TableHead>Estabelecimento</TableHead>
+            <TableHead>Valor</TableHead>
+            <TableHead>Acumulado</TableHead>
+            <TableHead>Conferido</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {filtradas.map(t => (
+            <TableRow key={t.id}>
+              <TableCell>{t.titular}</TableCell>
+              <TableCell>{t.nome}</TableCell>
+              <TableCell>{brl(t.valor)}</TableCell>
+              <TableCell>{brl(t.saldoAcumulado)}</TableCell>
+              <TableCell><input type="checkbox" checked={t.conferido} onChange={(e) => updateRow(t.id, { conferido: e.target.checked })} /></TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
     </div>
   );
-};
-
-export default Index;
+}
