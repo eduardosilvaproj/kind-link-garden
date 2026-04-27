@@ -118,35 +118,6 @@ import {
       conferidos: totalConferidos
     }), [somaIsabela, somaClaudio, somaDaniel, totalConferidos]);
 
-    const CATEGORIAS_FINANCEIRAS = ["Aluguel", "IPTU", "Condomínio", "Seguro"];
-
-    const somaCategorias = useMemo(() => {
-      const result: Record<string, number> = {
-        "Aluguel": 0,
-        "IPTU": 0,
-        "Condomínio": 0,
-        "Seguro": 0,
-        "Outros": 0
-      };
-      
-      const filtered = rows.filter(t => {
-        if (filterTitular !== "Todos" && t.titular !== filterTitular) return false;
-        if (t.tipo === 'Crédito' || t.tipo === 'Estorno' || t.tipo === 'Pagamento') return false;
-        if (t.valor <= 0) return false;
-        return true;
-      });
-
-      filtered.forEach(t => {
-        if (CATEGORIAS_FINANCEIRAS.includes(t.destino)) {
-          result[t.destino] += t.valor;
-        } else {
-          result["Outros"] += t.valor;
-        }
-      });
-
-      return result;
-    }, [rows, filterTitular]);
-
     const chartData = useMemo(() => {
       const filtered = rows.filter(t => {
         if (filterTitular !== "Todos" && t.titular !== filterTitular) return false;
@@ -377,19 +348,6 @@ import {
               <p className="text-2xl font-black">{formatBRL(totals.totalCalculado)}</p>
             </CardContent>
           </Card>
-        </div>
-
-
-        {/* CATEGORY CARDS */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-          {Object.entries(somaCategorias).map(([cat, val]) => (
-            <Card key={cat} className="border-slate-200">
-              <CardContent className="p-4">
-                <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">{cat}</p>
-                <p className="text-xl font-bold text-slate-700">{formatBRL(val)}</p>
-              </CardContent>
-            </Card>
-          ))}
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
