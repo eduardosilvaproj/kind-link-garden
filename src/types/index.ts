@@ -31,7 +31,7 @@ export type Cidade =
  export type Transacao = {
    id: number;
     titular: string;
-    titulares: string[];
+    titulares?: string[];
    cartao: string;
    data: string;
    raw: string;
