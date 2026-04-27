@@ -505,18 +505,30 @@ import {
                        }}
                      />
                    </TableHead>
-                   <TableHead className="w-[100px] px-6">Titular</TableHead>
+                  <TableHead className="w-[110px] px-6">Titular</TableHead>
                   <TableHead className="w-[100px] px-6">Data</TableHead>
-                    <TableHead className="px-6">Estabelecimento</TableHead>
-                    <TableHead className="px-6 w-[130px]">Cidade</TableHead>
-                    <TableHead className="px-6 w-[110px]">Destino</TableHead>
-                    <TableHead className="text-right px-6 w-[110px]">Valor</TableHead>
-                    <TableHead className="text-right px-6 w-[130px] bg-slate-50/80">Saldo</TableHead>
+                  <TableHead className="px-6">Estabelecimento</TableHead>
+                  <TableHead className="px-6 w-[130px]">Cidade</TableHead>
+                  <TableHead className="px-6 w-[110px]">Destino</TableHead>
+                  <TableHead className="text-right px-6 w-[110px]">Valor</TableHead>
+                  <TableHead className="text-right px-6 w-[130px] bg-slate-50/80">Saldo Titular</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                 {filteredTransacoes.map((t) => (
-                   <TableRow key={t.id} className={cn("group text-sm transition-colors", getRowColor(t), t.conferido && "border-l-[3px] border-l-[#198754]")}>
+                 {filteredTransacoes.map((t, idx) => {
+                   const prevT = idx > 0 ? filteredTransacoes[idx-1] : null;
+                   const isFirstOfTitular = !prevT || prevT.titular !== t.titular;
+                   
+                   return (
+                   <TableRow 
+                    key={t.id} 
+                    className={cn(
+                      "group text-sm transition-colors", 
+                      getRowColor(t), 
+                      t.conferido && "border-l-[3px] border-l-[#198754]",
+                      isFirstOfTitular && idx !== 0 && "border-t-2 border-slate-200"
+                    )}
+                   >
                      <TableCell className="px-2 py-3 text-center text-[11px] text-slate-400 font-mono">
                        {t.id}
                      </TableCell>
@@ -579,25 +591,9 @@ import {
                           {["Loja", "Depósito", "Cliente", "Aluguel", "IPTU", "Condomínio", "Seguro", "Outros"].map(opt => (
                             <SelectItem key={opt} value={opt} className="text-[11px]">{opt}</SelectItem>
                           ))}
-                        </SelectContent>
-                      </Select>
-                    </TableCell>
-                    <TableCell className={cn("px-6 py-3 text-right font-bold tabular-nums text-sm")}>
-                      <Input 
-                        type="text"
-                        defaultValue={t.valor}
-                        onBlur={(e) => {
-                          const val = parseFloat(e.target.value.replace(/[R$\s.]/g, '').replace(',', '.'));
-                          if (!isNaN(val)) updateRow(t.id, { valor: val });
-                        }}
-                        className={cn("h-8 text-right font-bold border-slate-200 bg-white w-[100px] ml-auto px-2", (t.tipo === "Estorno" || t.tipo === "Crédito") ? "text-green-600" : "text-slate-900")}
-                      />
-                    </TableCell>
-                    <TableCell className="px-6 py-3 text-right font-mono text-[12px] tabular-nums bg-slate-50/30 text-slate-500">
-                      {formatBRL((t as any).saldoAcumulado)}
-                    </TableCell>
-                  </TableRow>
-                ))}
+                   </TableRow>
+                   );
+                 })}
                 
                 {/* TOTAL ROW FOR TRANSACTIONS */}
                 <TableRow className="bg-slate-50 font-black border-t-2">
