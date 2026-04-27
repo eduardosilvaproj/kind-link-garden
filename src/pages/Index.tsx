@@ -483,42 +483,64 @@ import {
                           onChange={(e) => updateRow(t.id, { conferido: e.target.checked })}
                        />
                      </TableCell>
-                     <TableCell className="px-6 py-3">
+                      <TableCell className="px-6 py-3">
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" className="h-8 p-0 flex -space-x-1 items-center hover:bg-transparent">
-                              {((t as any).titulares as string[]).map(tit => (
-                                <div 
-                                  key={tit} 
-                                  className={cn("w-6 h-6 rounded-full flex items-center justify-center font-bold text-[9px] border-2 border-white shadow-sm", getTitularColor(tit))}
-                                >
-                                  {getTitularInitials(tit)}
-                                </div>
-                              ))}
-                              <span className="ml-1 text-slate-400 text-[10px]">▾</span>
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              className="h-8 px-2 flex items-center gap-1.5 border-slate-200 bg-white hover:bg-slate-50 transition-all rounded-md"
+                            >
+                              <div className="flex -space-x-1.5 overflow-hidden">
+                                {((t as any).titulares as string[]).map(tit => (
+                                  <div 
+                                    key={tit} 
+                                    className={cn(
+                                      "w-5 h-5 rounded-full flex items-center justify-center font-bold text-[8px] border-2 border-white shadow-sm ring-1 ring-slate-100", 
+                                      getTitularColor(tit)
+                                    )}
+                                    title={tit}
+                                  >
+                                    {getTitularInitials(tit)}
+                                  </div>
+                                ))}
+                              </div>
+                              <Badge variant="secondary" className="h-4 px-1 text-[9px] font-bold bg-slate-100 text-slate-600 border-none">
+                                {((t as any).titulares as string[]).length}
+                              </Badge>
+                              <span className="text-slate-400 text-[10px]">▾</span>
                             </Button>
                           </DropdownMenuTrigger>
-                          <DropdownMenuContent align="start">
-                            {config.titulares.map(tit => (
-                              <DropdownMenuCheckboxItem
-                                key={tit.id}
-                                checked={((t as any).titulares as string[]).includes(tit.id)}
-                                onCheckedChange={(checked) => {
-                                  let newTitulares = [...((t as any).titulares as string[])];
-                                  if (checked) {
-                                    if (!newTitulares.includes(tit.id)) newTitulares.push(tit.id);
-                                  } else {
-                                    // Impedir ficar sem nenhum titular se quiser
-                                    if (newTitulares.length > 1) {
-                                      newTitulares = newTitulares.filter(id => id !== tit.id);
+                          <DropdownMenuContent align="start" className="min-w-[140px] p-2">
+                            <p className="text-[10px] font-bold text-slate-400 uppercase px-2 py-1.5 mb-1 border-b">Responsáveis</p>
+                            {config.titulares.map(tit => {
+                              const isSelected = ((t as any).titulares as string[]).includes(tit.id);
+                              return (
+                                <DropdownMenuCheckboxItem
+                                  key={tit.id}
+                                  checked={isSelected}
+                                  onCheckedChange={(checked) => {
+                                    let newTitulares = [...((t as any).titulares as string[])];
+                                    if (checked) {
+                                      if (!newTitulares.includes(tit.id)) newTitulares.push(tit.id);
+                                    } else {
+                                      if (newTitulares.length > 1) {
+                                        newTitulares = newTitulares.filter(id => id !== tit.id);
+                                      }
                                     }
-                                  }
-                                  updateRow(t.id, { titulares: newTitulares });
-                                }}
-                              >
-                                {tit.nome}
-                              </DropdownMenuCheckboxItem>
-                            ))}
+                                    updateRow(t.id, { titulares: newTitulares });
+                                  }}
+                                  className="flex items-center gap-2 py-2 cursor-pointer"
+                                >
+                                  <div className={cn("w-4 h-4 rounded-full flex items-center justify-center text-[7px] font-bold text-white", getTitularColor(tit.id))}>
+                                    {getTitularInitials(tit.id)}
+                                  </div>
+                                  <span className={cn("text-xs", isSelected ? "font-bold" : "font-normal")}>
+                                    {tit.nome}
+                                  </span>
+                                </DropdownMenuCheckboxItem>
+                              );
+                            })}
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </TableCell>
