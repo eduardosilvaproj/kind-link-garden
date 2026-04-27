@@ -338,30 +338,35 @@ import {
           </div>
         </header>
 
-        {/* TITULAR CARDS */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-           <Card>
-             <CardContent className="p-4">
-               <p className="text-xs font-bold text-slate-500 uppercase mb-1">Isabela (Líquido)</p>
-               <p className="text-2xl font-black text-amber-600">{formatBRL(somaIsabela)}</p>
-             </CardContent>
-           </Card>
-           <Card>
-             <CardContent className="p-4">
-               <p className="text-xs font-bold text-slate-500 uppercase mb-1">Claudio (Líquido)</p>
-               <p className="text-2xl font-black text-blue-600">{formatBRL(somaClaudio)}</p>
-             </CardContent>
-           </Card>
-           <Card>
-             <CardContent className="p-4">
-               <p className="text-xs font-bold text-slate-500 uppercase mb-1">Daniel (Adicional)</p>
-               <p className="text-2xl font-black text-teal-600">{formatBRL(somaDaniel)}</p>
-             </CardContent>
-           </Card>
-          <Card className="bg-slate-900 text-white">
-            <CardContent className="p-4">
-              <p className="text-xs font-bold text-slate-400 uppercase mb-1">TOTAL FATURA</p>
-              <p className="text-2xl font-black">{formatBRL(totals.totalCalculado)}</p>
+        {/* TITULAR CARDS — Improved UI */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {[
+            { id: 'Isabela', name: 'Isabela', val: somaIsabela, color: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-100', iconColor: 'bg-amber-500' },
+            { id: 'Claudio', name: 'Claudio', val: somaClaudio, color: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-100', iconColor: 'bg-blue-500' },
+            { id: 'Daniel', name: 'Daniel', val: somaDaniel, color: 'text-teal-600', bg: 'bg-teal-50', border: 'border-teal-100', iconColor: 'bg-teal-500' }
+          ].map(tit => (
+            <Card key={tit.id} className={cn("border-2 shadow-sm transition-all hover:shadow-md", tit.border, tit.bg)}>
+              <CardContent className="p-5 flex items-center gap-4">
+                <div className={cn("w-12 h-12 rounded-full flex items-center justify-center text-white font-black text-lg shadow-inner", tit.iconColor)}>
+                  {getTitularInitials(tit.id)}
+                </div>
+                <div>
+                  <p className="text-[10px] font-black text-slate-500 uppercase tracking-wider mb-0.5">Total {tit.name}</p>
+                  <p className={cn("text-xl font-black tabular-nums", tit.color)}>{formatBRL(tit.val)}</p>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+          
+          <Card className="bg-slate-900 border-slate-800 shadow-lg lg:col-span-1 sm:col-span-2">
+            <CardContent className="p-5 flex items-center gap-4">
+              <div className="w-12 h-12 rounded-full bg-slate-800 flex items-center justify-center text-white">
+                <FileText className="w-6 h-6 text-slate-400" />
+              </div>
+              <div>
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-0.5">Total Fatura</p>
+                <p className="text-xl font-black text-white tabular-nums">{formatBRL(totals.totalCalculado)}</p>
+              </div>
             </CardContent>
           </Card>
         </div>
