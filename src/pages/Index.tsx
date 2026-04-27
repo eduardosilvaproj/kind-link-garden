@@ -32,14 +32,19 @@ import { Label } from "@/components/ui/label";
    const [showOnlyUnidentified, setShowOnlyUnidentified] = useState(false);
    const [showPayments, setShowPayments] = useState(false);
  
-   const [rowEdits, setRowEdits] = useState<Record<number, RowEdit>>(() => {
-     try {
-       const saved = localStorage.getItem('faturaRowEdits');
-       return saved ? JSON.parse(saved) : {};
-     } catch (e) {
-       return {};
-     }
-   });
+    const [rowEdits, setRowEdits] = useState<Record<number, RowEdit>>(() => {
+      try {
+        const saved = localStorage.getItem('faturaRowEdits');
+        if (!saved) return {};
+        const parsed = JSON.parse(saved);
+        // Ensure keys are numbers to match transaction IDs
+        return Object.fromEntries(
+          Object.entries(parsed).map(([k, v]) => [Number(k), v as RowEdit])
+        );
+      } catch (e) {
+        return {};
+      }
+    });
  
    useEffect(() => {
      localStorage.setItem('faturaRowEdits', JSON.stringify(rowEdits));
