@@ -39,57 +39,52 @@ import {
     const [showOnlyUnidentified, setShowOnlyUnidentified] = useState(false);
     const [showPayments, setShowPayments] = useState(false);
   
-    // 1. SINGLE SOURCE OF TRUTH
-    const [edits, setEdits] = useState<Record<string, {
-      titular?: string;
-      cidade?: string;
-      destino?: string;
-      clienteNome?: string;
-      conferido?: boolean;
-      nome?: string;
-    }>>(() => {
+    // 1. STATE MANAGEMENT — Centralized store for all edits
+    // We use a single state object to ensure all components react to any data change
+    const [edits, setEdits] = useState<Record<string, any>>(() => {
       try {
         const raw = localStorage.getItem('fatura_edits');
         return raw ? JSON.parse(raw) : {};
       } catch { return {}; }
     });
-  
-    // Save to localStorage on every change
+
+    // Sync edits to localStorage whenever they change
     useEffect(() => {
       localStorage.setItem('fatura_edits', JSON.stringify(edits));
     }, [edits]);
-  
-    // Update a single row
-    const updateRow = (id: number, patch: object) => {
+
+    // Functional update to ensure we always work with the latest state
+    const updateRow = useCallback((id: number, patch: object) => {
       setEdits(prev => ({
         ...prev,
-        [`${id}`]: { ...prev[`${id}`], ...patch }
+        [`${id}`]: { ...(prev[`${id}`] || {}), ...patch }
       }));
-    };
-  
-    const updateBatchRows = (ids: number[], patch: object) => {
+    }, []);
+
+    const updateBatchRows = useCallback((ids: number[], patch: object) => {
       setEdits(prev => {
         const next = { ...prev };
         ids.forEach(id => {
-          next[`${id}`] = { ...next[`${id}`], ...patch };
+          next[`${id}`] = { ...(next[`${id}`] || {}), ...patch };
         });
         return next;
       });
-    };
-  
-    // 2. EFFECTIVE LIST — merge edits over base data
+    }, []);
+
+    // 2. COMPUTED DATA — Deriving the effective transaction list
+    // This is the core reactive layer: any change to 'edits' triggers a full recalculation
     const rows = useMemo(() =>
       TRANSACOES.map(t => {
-        const e = edits[`${t.id}`] ?? {};
-        const rowTitular = e.titular ?? t.titular;
+        const e = edits[`${t.id}`] || {};
         return {
           ...t,
-          titular: rowTitular,
+          titular:     e.titular     ?? t.titular,
           cidade:      e.cidade      ?? t.cidade,
           destino:     e.destino     ?? t.destino ?? t.tipo,
           clienteNome: e.clienteNome ?? t.clienteNome ?? '',
           conferido:   e.conferido   ?? false,
           nome:        e.nome        ?? t.nome,
+          valor:       e.valor !== undefined ? Number(e.valor) : t.valor, // Allow editing values in the future
         };
       }),
     [edits]);
