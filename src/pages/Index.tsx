@@ -193,8 +193,8 @@ const Index = () => {
 
       {/* MAIN CONTENT AREA */}
       <div className="flex-1 flex overflow-hidden px-6 pb-6 gap-6">
-        {/* LEFT COLUMN: Cross Table */}
-        <div className="w-[55%] flex flex-col gap-6 overflow-hidden">
+        {/* LEFT COLUMN: Cross Table (fixed width for better balance) */}
+        <div className="w-[420px] shrink-0 flex flex-col gap-6 overflow-hidden">
           <Card className="flex-1 overflow-hidden flex flex-col">
             <CardHeader className="py-3 px-4 shrink-0 border-b bg-slate-50/50">
               <CardTitle className="text-sm font-bold uppercase text-slate-500">Distribuição Cidade × Titular</CardTitle>
@@ -213,11 +213,11 @@ const Index = () => {
                  <TableBody>
                    {crossTable.map((row, idx) => (
                      <TableRow key={idx} className={cn(row.label === 'Não identificado' && row.total > 0 ? 'bg-amber-50' : row.label === 'Encargos' ? 'bg-red-50' : '')}>
-                        <TableCell className="font-medium text-[11px] whitespace-normal leading-tight py-2">{row.label}</TableCell>
-                        <TableCell className="text-right tabular-nums text-[11px] py-1">{row.Isabela > 0.01 ? formatBRL(row.Isabela).replace("R$", "").trim() : '—'}</TableCell>
-                        <TableCell className="text-right tabular-nums text-[11px] py-1">{row.Claudio > 0.01 ? formatBRL(row.Claudio).replace("R$", "").trim() : '—'}</TableCell>
-                        <TableCell className="text-right tabular-nums text-[11px] py-1">{row.Daniel > 0.01 ? formatBRL(row.Daniel).replace("R$", "").trim() : '—'}</TableCell>
-                        <TableCell className="text-right font-bold tabular-nums bg-slate-50 text-[11px] py-1">{formatBRL(row.total).replace("R$", "").trim()}</TableCell>
+                        <TableCell className="font-medium text-[12px] whitespace-normal leading-tight py-2">{row.label}</TableCell>
+                        <TableCell className="text-right tabular-nums text-[12px] py-1">{row.Isabela > 0.01 ? formatBRL(row.Isabela).replace("R$", "").trim() : '—'}</TableCell>
+                        <TableCell className="text-right tabular-nums text-[12px] py-1">{row.Claudio > 0.01 ? formatBRL(row.Claudio).replace("R$", "").trim() : '—'}</TableCell>
+                        <TableCell className="text-right tabular-nums text-[12px] py-1">{row.Daniel > 0.01 ? formatBRL(row.Daniel).replace("R$", "").trim() : '—'}</TableCell>
+                        <TableCell className="text-right font-bold tabular-nums bg-slate-50 text-[12px] py-1">{formatBRL(row.total).replace("R$", "").trim()}</TableCell>
                      </TableRow>
                    ))}
                    <TableRow className="bg-slate-100 font-black text-[11px]">
@@ -273,8 +273,8 @@ const Index = () => {
           </Card>
         </div>
 
-        {/* RIGHT COLUMN: Transactions Table */}
-        <div className="w-[45%] flex flex-col gap-4 overflow-hidden">
+        {/* RIGHT COLUMN: Transactions Table (expands to fill) */}
+        <div className="flex-1 flex flex-col gap-4 overflow-hidden">
           <Card className="flex-1 overflow-hidden flex flex-col">
             <CardHeader className="py-3 px-4 shrink-0 border-b bg-slate-50/50 flex flex-row items-center justify-between space-y-0">
               <div className="flex items-center gap-2">
