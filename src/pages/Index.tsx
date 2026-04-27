@@ -41,7 +41,7 @@ import {
   
     // 1. SINGLE SOURCE OF TRUTH
     const [edits, setEdits] = useState<Record<string, {
-      titulares?: string[];
+      titular?: string;
       cidade?: string;
       destino?: string;
       clienteNome?: string;
