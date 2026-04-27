@@ -243,7 +243,7 @@ import {
        .map(t => [
          String(t.id),
          t.conferido ? '✓' : '',
-         t.titular,
+          t.titulares.join(', '),
          t.data,
          t.nome,
          t.cidade,
