@@ -85,10 +85,8 @@ export default function Index() {
       const get = (tit: string) => effective
         .filter(t => {
           if (t.titular !== tit) return false;
-          if (t.tipo === 'Crédito' || t.tipo === 'Estorno') return false;
-          if (t.valor <= 0) return false;
           if (label === 'Encargos') return t.tipo === 'Encargo Bancário';
-          return t.cidade === label && t.tipo !== 'Encargo Bancário';
+          return t.cidade === label;
         })
         .reduce((s, t) => s + t.valor, 0);
       const Isabela = get('Isabela');
