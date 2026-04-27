@@ -71,8 +71,18 @@ export default function Index() {
   
   const crossTab = useMemo(() => {
     const CIDADES = ['Araraquara','Bauru','Ribeirão Preto','São Carlos','Online','Não identificado'];
+    const effective = TRANSACOES.map(t => {
+      const e = edits[String(t.id)] ?? {};
+      return {
+        id: t.id,
+        titular: e.titular !== undefined ? e.titular : t.titular,
+        cidade:  e.cidade  !== undefined ? e.cidade  : t.cidade,
+        tipo:    t.tipo,
+        valor:   t.valor,
+      };
+    });
     return [...CIDADES, 'Encargos'].map(label => {
-      const get = (tit: string) => rows
+      const get = (tit: string) => effective
         .filter(t => {
           if (t.titular !== tit) return false;
           if (t.tipo === 'Crédito' || t.tipo === 'Estorno') return false;
@@ -86,7 +96,7 @@ export default function Index() {
       const Daniel  = get('Daniel');
       return { label, Isabela, Claudio, Daniel, total: Isabela + Claudio + Daniel };
     });
-  }, [rows]);
+  }, [edits]);
 
   const filtradas = useMemo(() => rows.filter(t => {
     if (filterTitular !== 'Todos' && t.titular !== filterTitular) return false;
@@ -149,7 +159,7 @@ export default function Index() {
           <div className="bg-white rounded-xl border shadow-sm p-4"><p className="text-xs font-bold text-slate-500 uppercase mb-1">Daniel (Adicional)</p><p className="text-2xl font-black text-teal-600">{brl(somaDaniel)}</p></div>
           <div className="bg-slate-900 rounded-xl shadow-sm p-4"><p className="text-xs font-bold text-slate-400 uppercase mb-1">Total Fatura</p><p className="text-2xl font-black text-white">{brl(TOTAL_FATURA)}</p></div>
         </div>
-        <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
+        <div key={`crosstab-${crossTab.map(r => r.total).join('-')}`} className="bg-white rounded-xl border shadow-sm overflow-hidden">
           <div className="px-6 py-3 border-b bg-slate-50">
             <p className="text-xs font-bold uppercase text-slate-500">Distribuição Cidade × Titular</p>
           </div>
