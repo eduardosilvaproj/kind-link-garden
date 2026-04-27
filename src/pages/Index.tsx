@@ -551,14 +551,16 @@ import {
                             </SelectContent>
                           </Select>
 
-                           <Select value={t.destino || ""} onValueChange={(v) => updateRow(t.id, { destino: v })}>
+                            <Select value={t.destino || ""} onValueChange={(v) => {
+                              updateRow(t.id, { destino: v });
+                            }}>
                             <SelectTrigger className="h-6 text-[11px] bg-white border border-slate-200 rounded-md px-2 w-fit gap-1 text-slate-600 font-medium">
                               <span>{t.destino === "Cliente" && t.clienteNome ? `Cliente — ${t.clienteNome}` : (t.destino || "Destino")}</span>
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="Loja" className="text-[11px]">Loja</SelectItem>
-                              <SelectItem value="Depósito" className="text-[11px]">Depósito</SelectItem>
-                              <SelectItem value="Cliente" className="text-[11px]">Cliente</SelectItem>
+                                {["Loja", "Depósito", "Cliente", "Aluguel", "IPTU", "Condomínio", "Seguro", "Outros"].map(opt => (
+                                  <SelectItem key={opt} value={opt} className="text-[11px]">{opt}</SelectItem>
+                                ))}
                             </SelectContent>
                           </Select>
 
