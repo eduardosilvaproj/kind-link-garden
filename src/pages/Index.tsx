@@ -69,18 +69,24 @@ export default function Index() {
   const somaDaniel = useMemo(() => rows.filter(t => t.titular === 'Daniel' && t.tipo !== 'Crédito' && t.tipo !== 'Estorno' && t.tipo !== 'Pagamento').reduce((s, t) => s + t.valor, 0), [rows]);
   const totalConferidos = useMemo(() => rows.filter(t => t.conferido).length, [rows]);
   
-  const crossTab = useMemo(() => [...CIDADES_FIXAS, 'Encargos'].map(label => {
-    const cols: Record<string, number> = {};
-    TITULARES_FIXOS.forEach(tit => {
-      cols[tit] = rows.filter(t => {
-        if (t.titular !== tit) return false;
-        if (t.tipo === 'Crédito' || t.tipo === 'Estorno' || t.tipo === 'Pagamento') return false;
-        if (label === 'Encargos') return t.tipo === 'Encargo Bancário';
-        return t.cidade === label && t.tipo !== 'Encargo Bancário';
-      }).reduce((s, t) => s + t.valor, 0);
+  const crossTab = useMemo(() => {
+    const CIDADES = ['Araraquara','Bauru','Ribeirão Preto','São Carlos','Online','Não identificado'];
+    return [...CIDADES, 'Encargos'].map(label => {
+      const get = (tit: string) => rows
+        .filter(t => {
+          if (t.titular !== tit) return false;
+          if (t.tipo === 'Crédito' || t.tipo === 'Estorno') return false;
+          if (t.valor <= 0) return false;
+          if (label === 'Encargos') return t.tipo === 'Encargo Bancário';
+          return t.cidade === label && t.tipo !== 'Encargo Bancário';
+        })
+        .reduce((s, t) => s + t.valor, 0);
+      const Isabela = get('Isabela');
+      const Claudio = get('Claudio');
+      const Daniel  = get('Daniel');
+      return { label, Isabela, Claudio, Daniel, total: Isabela + Claudio + Daniel };
     });
-    return { label, ...cols, total: TITULARES_FIXOS.reduce((s, tit) => s + cols[tit], 0) };
-  }), [rows]);
+  }, [rows]);
 
   const filtradas = useMemo(() => rows.filter(t => {
     if (filterTitular !== 'Todos' && t.titular !== filterTitular) return false;
@@ -168,17 +174,17 @@ export default function Index() {
                   }
                 >
                   <td className="px-6 py-2 font-medium">{row.label}</td>
-                  <td className="text-right px-6 py-2 tabular-nums">{(row as any).Isabela > 0.009 ? brl((row as any).Isabela) : '—'}</td>
-                  <td className="text-right px-6 py-2 tabular-nums">{(row as any).Claudio > 0.009 ? brl((row as any).Claudio) : '—'}</td>
-                  <td className="text-right px-6 py-2 tabular-nums">{(row as any).Daniel > 0.009 ? brl((row as any).Daniel) : '—'}</td>
+                  <td className="text-right px-6 py-2 tabular-nums">{row.Isabela > 0.009 ? brl(row.Isabela) : '—'}</td>
+                  <td className="text-right px-6 py-2 tabular-nums">{row.Claudio > 0.009 ? brl(row.Claudio) : '—'}</td>
+                  <td className="text-right px-6 py-2 tabular-nums">{row.Daniel > 0.009 ? brl(row.Daniel) : '—'}</td>
                   <td className="text-right px-6 py-2 tabular-nums font-bold bg-slate-50">{brl(row.total)}</td>
                 </tr>
               ))}
               <tr className="border-t bg-slate-100 font-bold">
                 <td className="px-6 py-3">TOTAL</td>
-                <td className="text-right px-6 py-3 tabular-nums">{brl(crossTab.reduce((s, r) => s + (r as any).Isabela, 0))}</td>
-                <td className="text-right px-6 py-3 tabular-nums">{brl(crossTab.reduce((s, r) => s + (r as any).Claudio, 0))}</td>
-                <td className="text-right px-6 py-3 tabular-nums">{brl(crossTab.reduce((s, r) => s + (r as any).Daniel, 0))}</td>
+                <td className="text-right px-6 py-3 tabular-nums">{brl(crossTab.reduce((s, r) => s + r.Isabela, 0))}</td>
+                <td className="text-right px-6 py-3 tabular-nums">{brl(crossTab.reduce((s, r) => s + r.Claudio, 0))}</td>
+                <td className="text-right px-6 py-3 tabular-nums">{brl(crossTab.reduce((s, r) => s + r.Daniel, 0))}</td>
                 <td className="text-right px-6 py-3 tabular-nums bg-slate-200">{brl(crossTab.reduce((s, r) => s + r.total, 0))}</td>
               </tr>
             </tbody>
