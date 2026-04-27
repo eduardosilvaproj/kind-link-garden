@@ -14,8 +14,8 @@ import { exportToXLSX } from "../lib/exportUtils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
+ import jsPDF from 'jspdf';
+ import autoTable from 'jspdf-autotable';
 
  type RowEdit = {
    titular?: string;
@@ -168,64 +168,96 @@ import html2canvas from 'html2canvas';
     return val.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   };
 
+   const fmt = (v: number) =>
+     v > 0 ? `R$ ${v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—';
+ 
    const exportPDF = async () => {
-     const buttons = document.querySelectorAll('.no-print');
-     buttons.forEach(b => (b as HTMLElement).style.display = 'none');
+     const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+     
+     pdf.setFontSize(14);
+     pdf.setFont('helvetica', 'bold');
+     pdf.text('Classificador de Fatura C6 Bank — Abril 2026', 14, 16);
+     pdf.setFontSize(10);
+     pdf.setFont('helvetica', 'normal');
+     pdf.text(`Total Fatura: R$ ${totals.totalCalculado.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, 14, 23);
+     pdf.text(`Isabela: ${fmt(totals.isabela)}   Claudio: ${fmt(totals.claudio)}   Daniel: ${fmt(totals.daniel)}`, 14, 29);
  
-     const element = document.getElementById('pdf-content');
-     if (!element) return;
- 
-     const scrollables = element.querySelectorAll('[style*="overflow"]');
-     const origStyles: string[] = [];
-     scrollables.forEach((el, i) => {
-       origStyles[i] = (el as HTMLElement).style.cssText;
-       (el as HTMLElement).style.overflow = 'visible';
-       (el as HTMLElement).style.height = 'auto';
-       (el as HTMLElement).style.maxHeight = 'none';
+     autoTable(pdf, {
+       startY: 34,
+       head: [['Cidade', 'Isabela', 'Claudio', 'Daniel', 'Total']],
+       body: crossTable.map(row => [
+         row.label,
+         fmt(row.Isabela),
+         fmt(row.Claudio),
+         fmt(row.Daniel),
+         fmt(row.total)
+       ]),
+       foot: [['TOTAL', fmt(crossTable.reduce((acc, r) => acc + r.Isabela, 0)), fmt(crossTable.reduce((acc, r) => acc + r.Claudio, 0)), fmt(crossTable.reduce((acc, r) => acc + r.Daniel, 0)), fmt(crossTable.reduce((acc, r) => acc + r.total, 0))]],
+       styles: { fontSize: 9, cellPadding: 3 },
+       headStyles: { fillColor: [31, 56, 100], textColor: 255, fontStyle: 'bold' },
+       footStyles: { fillColor: [220, 220, 220], fontStyle: 'bold' },
+       columnStyles: {
+         0: { cellWidth: 45 },
+         1: { halign: 'right' },
+         2: { halign: 'right' },
+         3: { halign: 'right' },
+         4: { halign: 'right', fontStyle: 'bold' },
+       },
      });
  
-     const canvas = await html2canvas(element, {
-       scale: 1.5,
-       useCORS: true,
-       logging: false,
-       windowWidth: 1400,
+     const tableBody = transacoesEfetivas
+       .filter(t => t.tipo !== 'Crédito' && t.tipo !== 'Pagamento')
+       .map(t => [
+         String(t.id),
+         t.conferido ? '✓' : '',
+         t.titular,
+         t.data,
+         t.nome,
+         t.cidade,
+         t.destino || t.tipo,
+         t.parcela || '—',
+         `R$ ${Math.abs(t.valor).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
+       ]);
+ 
+     autoTable(pdf, {
+       startY: (pdf as any).lastAutoTable.finalY + 8,
+       head: [['#', '✓', 'Titular', 'Data', 'Estabelecimento', 'Cidade', 'Destino', 'Parc.', 'Valor']],
+       body: tableBody,
+       styles: { fontSize: 8, cellPadding: 2, overflow: 'linebreak' },
+       headStyles: { fillColor: [31, 56, 100], textColor: 255, fontStyle: 'bold' },
+       alternateRowStyles: { fillColor: [248, 248, 248] },
+       columnStyles: {
+         0: { cellWidth: 8,  halign: 'center' },
+         1: { cellWidth: 8,  halign: 'center' },
+         2: { cellWidth: 22 },
+         3: { cellWidth: 16 },
+         4: { cellWidth: 60 },
+         5: { cellWidth: 32 },
+         6: { cellWidth: 28 },
+         7: { cellWidth: 14, halign: 'center' },
+         8: { cellWidth: 24, halign: 'right', fontStyle: 'bold' },
+       },
+       didParseCell: (data) => {
+         const row = tableBody[data.row.index];
+         if (!row) return;
+         const titular = row[2];
+         if (data.section === 'body') {
+           if (titular === 'Isabela') data.cell.styles.textColor = [180, 100, 0];
+           if (titular === 'Claudio') data.cell.styles.textColor = [0, 80, 160];
+           if (titular === 'Daniel')  data.cell.styles.textColor = [0, 120, 80];
+         }
+       },
+       didDrawPage: (data) => {
+         const pageCount = pdf.getNumberOfPages();
+         pdf.setFontSize(8);
+         pdf.text(
+           `Página ${data.pageNumber} de ${pageCount}`,
+           pdf.internal.pageSize.getWidth() - 30,
+           pdf.internal.pageSize.getHeight() - 5
+         );
+       },
      });
  
-     scrollables.forEach((el, i) => {
-       (el as HTMLElement).style.cssText = origStyles[i];
-     });
- 
-     buttons.forEach(b => (b as HTMLElement).style.display = '');
- 
-     const pdf = new jsPDF({
-       orientation: 'landscape',
-       unit: 'mm',
-       format: 'a4',
-     });
- 
-     const pageWidth = pdf.internal.pageSize.getWidth();
-     const pageHeight = pdf.internal.pageSize.getHeight();
-     const margin = 8;
-     const contentWidth = pageWidth - margin * 2;
-     const imgHeightMm = (canvas.height * contentWidth) / canvas.width;
- 
-     let yOffset = 0;
-     let pageNum = 0;
- 
-     while (yOffset < imgHeightMm) {
-       if (pageNum > 0) pdf.addPage();
-       const sourceY = (yOffset / imgHeightMm) * canvas.height;
-       const sourceH = (pageHeight / imgHeightMm) * canvas.height;
-       const tempCanvas = document.createElement('canvas');
-       tempCanvas.width = canvas.width;
-       tempCanvas.height = sourceH;
-       const ctx = tempCanvas.getContext('2d')!;
-       ctx.drawImage(canvas, 0, -sourceY);
-       const sliceData = tempCanvas.toDataURL('image/png');
-       pdf.addImage(sliceData, 'PNG', margin, margin, contentWidth, pageHeight - margin * 2);
-       yOffset += pageHeight;
-       pageNum++;
-     }
      pdf.save('Fatura_C6_Abril_2026.pdf');
    };
 
