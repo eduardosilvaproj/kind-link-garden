@@ -71,17 +71,13 @@ import {
       });
     }, []);
 
-    // 2. COMPUTED DATA — Deriving the effective transaction list with Running Totals
+    // 2. COMPUTED DATA — Deriving the effective transaction list with Per-Titular Grouping and Resets
     const rows = useMemo(() => {
-      let runningBalance = 0;
-      return TRANSACOES.map(t => {
+      const rawRows = TRANSACOES.map(t => {
         const e = edits[`${t.id}`] || {};
         const isNegative = t.tipo === 'Crédito' || t.tipo === 'Estorno' || t.tipo === 'Pagamento';
         const val = e.valor !== undefined ? Number(e.valor) : t.valor;
         const finalVal = isNegative ? -Math.abs(val) : val;
-        
-        runningBalance += finalVal;
-        
         return {
           ...t,
           titular:     e.titular     ?? t.titular,
@@ -91,7 +87,26 @@ import {
           conferido:   e.conferido   ?? false,
           nome:        e.nome        ?? t.nome,
           valor:       val,
-          saldoAcumulado: runningBalance
+          finalVal
+        };
+      });
+
+      // Group by titular then sort/process within group
+      // We sort by titular name first, then by data (date) or ID to keep consistent order
+      const grouped = [...rawRows].sort((a, b) => {
+        if (a.titular !== b.titular) return a.titular.localeCompare(b.titular);
+        return a.id - b.id; // Secondary sort to maintain stable running balance
+      });
+
+      const balances: Record<string, number> = {};
+      
+      return grouped.map(t => {
+        if (!balances[t.titular]) balances[t.titular] = 0;
+        balances[t.titular] += t.finalVal;
+        
+        return {
+          ...t,
+          saldoAcumulado: balances[t.titular]
         };
       });
     }, [edits]);
@@ -490,18 +505,30 @@ import {
                        }}
                      />
                    </TableHead>
-                   <TableHead className="w-[100px] px-6">Titular</TableHead>
+                  <TableHead className="w-[110px] px-6">Titular</TableHead>
                   <TableHead className="w-[100px] px-6">Data</TableHead>
-                    <TableHead className="px-6">Estabelecimento</TableHead>
-                    <TableHead className="px-6 w-[130px]">Cidade</TableHead>
-                    <TableHead className="px-6 w-[110px]">Destino</TableHead>
-                    <TableHead className="text-right px-6 w-[110px]">Valor</TableHead>
-                    <TableHead className="text-right px-6 w-[130px] bg-slate-50/80">Saldo</TableHead>
+                  <TableHead className="px-6">Estabelecimento</TableHead>
+                  <TableHead className="px-6 w-[130px]">Cidade</TableHead>
+                  <TableHead className="px-6 w-[110px]">Destino</TableHead>
+                  <TableHead className="text-right px-6 w-[110px]">Valor</TableHead>
+                  <TableHead className="text-right px-6 w-[130px] bg-slate-50/80">Saldo Titular</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                 {filteredTransacoes.map((t) => (
-                   <TableRow key={t.id} className={cn("group text-sm transition-colors", getRowColor(t), t.conferido && "border-l-[3px] border-l-[#198754]")}>
+                 {filteredTransacoes.map((t, idx) => {
+                   const prevT = idx > 0 ? filteredTransacoes[idx-1] : null;
+                   const isFirstOfTitular = !prevT || prevT.titular !== t.titular;
+                   
+                   return (
+                   <TableRow 
+                    key={t.id} 
+                    className={cn(
+                      "group text-sm transition-colors", 
+                      getRowColor(t), 
+                      t.conferido && "border-l-[3px] border-l-[#198754]",
+                      isFirstOfTitular && idx !== 0 && "border-t-2 border-slate-200"
+                    )}
+                   >
                      <TableCell className="px-2 py-3 text-center text-[11px] text-slate-400 font-mono">
                        {t.id}
                      </TableCell>
@@ -567,7 +594,7 @@ import {
                         </SelectContent>
                       </Select>
                     </TableCell>
-                    <TableCell className={cn("px-6 py-3 text-right font-bold tabular-nums text-sm")}>
+                    <TableCell className="px-6 py-3 text-right font-bold tabular-nums text-sm">
                       <Input 
                         type="text"
                         defaultValue={t.valor}
@@ -581,8 +608,9 @@ import {
                     <TableCell className="px-6 py-3 text-right font-mono text-[12px] tabular-nums bg-slate-50/30 text-slate-500">
                       {formatBRL((t as any).saldoAcumulado)}
                     </TableCell>
-                  </TableRow>
-                ))}
+                   </TableRow>
+                   );
+                 })}
                 
                 {/* TOTAL ROW FOR TRANSACTIONS */}
                 <TableRow className="bg-slate-50 font-black border-t-2">
