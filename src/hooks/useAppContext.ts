@@ -30,9 +30,13 @@ export const useAppContext = () => {
     localStorage.setItem('c6_transacoes', JSON.stringify(transacoes));
   }, [transacoes]);
 
-  const updateTransacao = (id: number, updates: Partial<Transacao>) => {
-    setTransacoes(prev => prev.map(t => t.id === id ? { ...t, ...updates } : t));
-  };
+   const updateTransacao = (id: number, updates: Partial<Transacao>) => {
+     setTransacoes(prev => prev.map(t => t.id === id ? { ...t, ...updates } : t));
+   };
+ 
+   const updateBatchTransacoes = (ids: number[], updates: Partial<Transacao>) => {
+     setTransacoes(prev => prev.map(t => ids.includes(t.id) ? { ...t, ...updates } : t));
+   };
 
   const updateConfig = (newConfig: Config) => {
     setConfig(newConfig);
