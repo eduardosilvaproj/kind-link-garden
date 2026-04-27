@@ -94,24 +94,53 @@ import {
       }),
     [edits]);
   
-    // 3. AGGREGATED CALCULATIONS
-    const titularTotals = useMemo(() => {
-      const initial: Record<string, number> = { Isabela: 0, Claudio: 0, Daniel: 0 };
-      return rows.reduce((acc, t) => {
+    // 3. AGGREGATED CALCULATIONS — Centralized logic for all components
+    const aggregatedData = useMemo(() => {
+      const totals: Record<string, number> = { Isabela: 0, Claudio: 0, Daniel: 0 };
+      const CIDADES = ['Araraquara', 'Bauru', 'Ribeirão Preto', 'São Carlos', 'Online', 'Não identificado'];
+      const categories = [...CIDADES, 'Encargos'];
+      const crossTab: Record<string, any> = {};
+      
+      categories.forEach(cat => {
+        crossTab[cat] = { Isabela: 0, Claudio: 0, Daniel: 0, label: cat, total: 0 };
+      });
+
+      rows.forEach(t => {
         const titular = t.titular;
-        if (!acc.hasOwnProperty(titular)) acc[titular] = 0;
-        
         const val = t.valor;
         const isNegative = t.tipo === 'Crédito' || t.tipo === 'Estorno';
-        acc[titular] += isNegative ? -Math.abs(val) : val;
-        
-        return acc;
-      }, initial);
+        const finalVal = isNegative ? -Math.abs(val) : val;
+
+        // Update Titular Totals (for Cards and Participation table)
+        if (totals.hasOwnProperty(titular)) {
+          totals[titular] += finalVal;
+        }
+
+        // Update CrossTab (Distribution Table)
+        // We only sum positive expenses for distribution, excluding credits/estornos from the city breakdown 
+        // to maintain consistency with previous logic, unless they are specific costs.
+        if (!isNegative && val > 0) {
+          let category = t.cidade;
+          if (t.tipo === 'Encargo Bancário') category = 'Encargos';
+          if (!category || !categories.includes(category)) category = 'Não identificado';
+
+          if (crossTab[category] && crossTab[category].hasOwnProperty(titular)) {
+            crossTab[category][titular] += val;
+            crossTab[category].total += val;
+          }
+        }
+      });
+
+      return { 
+        totals, 
+        crossTab: Object.values(crossTab) 
+      };
     }, [rows]);
 
-    const somaIsabela = titularTotals['Isabela'] || 0;
-    const somaClaudio = titularTotals['Claudio'] || 0;
-    const somaDaniel  = titularTotals['Daniel']  || 0;
+    const { totals: titularTotals, crossTab } = aggregatedData;
+    const somaIsabela = titularTotals['Isabela'];
+    const somaClaudio = titularTotals['Claudio'];
+    const somaDaniel  = titularTotals['Daniel'];
   
     const totalConferidos = useMemo(() =>
       rows.filter(t => t.conferido).length,
@@ -146,33 +175,6 @@ import {
 
    const isValid = Math.abs(somaIsabela + somaClaudio + somaDaniel - 11019.68) < 500;
 
-    const crossTab = useMemo(() => {
-      const CIDADES = ['Araraquara', 'Bauru', 'Ribeirão Preto', 'São Carlos', 'Online', 'Não identificado'];
-      const categories = [...CIDADES, 'Encargos'];
-      const result: Record<string, any> = {};
-
-      categories.forEach(cat => {
-        result[cat] = { Isabela: 0, Claudio: 0, Daniel: 0, label: cat, total: 0 };
-      });
-
-      rows.forEach(t => {
-        if (t.tipo === 'Crédito' || t.tipo === 'Estorno' || t.valor <= 0) return;
-        
-        let category = t.cidade;
-        if (t.tipo === 'Encargo Bancário') category = 'Encargos';
-        if (!category || !categories.includes(category)) category = 'Não identificado';
-
-        if (result[category]) {
-          const titular = t.titular;
-          if (result[category].hasOwnProperty(titular)) {
-            result[category][titular] += t.valor;
-            result[category].total += t.valor;
-          }
-        }
-      });
-
-      return Object.values(result);
-    }, [rows]);
 
    const filteredTransacoes = useMemo(() => {
      return rows.filter(t => {
