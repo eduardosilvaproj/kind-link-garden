@@ -8,6 +8,12 @@ import { Download, FileText, Filter } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { 
+  DropdownMenu, 
+  DropdownMenuCheckboxItem, 
+  DropdownMenuContent, 
+  DropdownMenuTrigger 
+} from "@/components/ui/dropdown-menu";
 import { Transacao } from "../types";
 import { cn } from "@/lib/utils";
 import { exportToXLSX } from "../lib/exportUtils";
@@ -477,19 +483,44 @@ import {
                        />
                      </TableCell>
                      <TableCell className="px-6 py-3">
-                        <Select value={t.titular} onValueChange={(v) => updateRow(t.id, { titular: v })}>
-                         <SelectTrigger className={cn("w-10 h-8 p-0 rounded-full flex items-center justify-center font-bold text-[10px] border-none shadow-none focus:ring-0", getTitularColor(t.titular))}>
-                           <SelectValue>{getTitularInitials(t.titular)}▾</SelectValue>
-                         </SelectTrigger>
-                         <SelectContent>
-                           {config.titulares.map(tit => (
-                             <SelectItem key={tit.id} value={tit.id} className="text-xs font-bold">
-                               {tit.nome}
-                             </SelectItem>
-                           ))}
-                         </SelectContent>
-                       </Select>
-                     </TableCell>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" className="h-8 p-0 flex -space-x-1 items-center hover:bg-transparent">
+                              {t.titulares.map(tit => (
+                                <div 
+                                  key={tit} 
+                                  className={cn("w-6 h-6 rounded-full flex items-center justify-center font-bold text-[9px] border-2 border-white shadow-sm", getTitularColor(tit))}
+                                >
+                                  {getTitularInitials(tit)}
+                                </div>
+                              ))}
+                              <span className="ml-1 text-slate-400 text-[10px]">▾</span>
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="start">
+                            {config.titulares.map(tit => (
+                              <DropdownMenuCheckboxItem
+                                key={tit.id}
+                                checked={t.titulares.includes(tit.id)}
+                                onCheckedChange={(checked) => {
+                                  let newTitulares = [...t.titulares];
+                                  if (checked) {
+                                    if (!newTitulares.includes(tit.id)) newTitulares.push(tit.id);
+                                  } else {
+                                    // Impedir ficar sem nenhum titular se quiser
+                                    if (newTitulares.length > 1) {
+                                      newTitulares = newTitulares.filter(id => id !== tit.id);
+                                    }
+                                  }
+                                  updateRow(t.id, { titulares: newTitulares });
+                                }}
+                              >
+                                {tit.nome}
+                              </DropdownMenuCheckboxItem>
+                            ))}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
                     <TableCell className="px-6 py-3 font-medium text-slate-500">{t.data}</TableCell>
                     <TableCell className="px-6 py-3">
                       <div className="flex flex-col gap-2">
