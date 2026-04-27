@@ -1,4 +1,4 @@
- import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useAppContext } from '../hooks/useAppContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -16,6 +16,16 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
  import jsPDF from 'jspdf';
  import autoTable from 'jspdf-autotable';
+import { 
+  BarChart, 
+  Bar, 
+  XAxis, 
+  YAxis, 
+  CartesianGrid, 
+  Tooltip as RechartsTooltip, 
+  ResponsiveContainer, 
+  Cell 
+} from 'recharts';
 
   const Index = () => {
     const { config } = useAppContext();
@@ -107,6 +117,50 @@ import { Label } from "@/components/ui/label";
       totalCalculado: TOTAL_FATURA,
       conferidos: totalConferidos
     }), [somaIsabela, somaClaudio, somaDaniel, totalConferidos]);
+
+    const CATEGORIAS_FINANCEIRAS = ["Aluguel", "IPTU", "Condomínio", "Seguro"];
+
+    const somaCategorias = useMemo(() => {
+      const result: Record<string, number> = {
+        "Aluguel": 0,
+        "IPTU": 0,
+        "Condomínio": 0,
+        "Seguro": 0,
+        "Outros": 0
+      };
+      
+      rows.forEach(t => {
+        if (t.tipo === 'Crédito' || t.tipo === 'Estorno' || t.tipo === 'Pagamento') return;
+        if (t.valor <= 0) return;
+        
+        if (CATEGORIAS_FINANCEIRAS.includes(t.destino)) {
+          result[t.destino] += t.valor;
+        } else {
+          result["Outros"] += t.valor;
+        }
+      });
+      
+      return result;
+    }, [rows]);
+
+    const chartData = useMemo(() => {
+      const filtered = rows.filter(t => {
+        if (filterTitular !== "Todos" && t.titular !== filterTitular) return false;
+        if (t.tipo === 'Crédito' || t.tipo === 'Estorno' || t.tipo === 'Pagamento') return false;
+        if (t.valor <= 0) return false;
+        return true;
+      });
+
+      const cityMap: Record<string, number> = {};
+      filtered.forEach(t => {
+        const cidade = t.cidade || "Não identificado";
+        cityMap[cidade] = (cityMap[cidade] || 0) + t.valor;
+      });
+
+      return Object.entries(cityMap)
+        .map(([name, value]) => ({ name, value }))
+        .sort((a, b) => b.value - a.value);
+    }, [rows, filterTitular]);
 
    const isValid = Math.abs(somaIsabela + somaClaudio + somaDaniel - 11019.68) < 500;
 
