@@ -3,154 +3,94 @@ import { useAppContext } from '../hooks/useAppContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { TRANSACOES, TOTAL_FATURA, SUBTOTAL_ISABELA, SUBTOTAL_CLAUDIO, SUBTOTAL_DANIEL } from '../data/transactions';
- import { Download, AlertCircle, Filter, FilterX, Eye, EyeOff, FileText } from "lucide-react";
- import jsPDF from 'jspdf';
- import html2canvas from 'html2canvas';
+import { TRANSACOES, TOTAL_FATURA } from '../data/transactions';
+import { Download, FileText, Filter } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Cidade, TipoDestino, Transacao } from "../types";
+import { Transacao } from "../types";
 import { cn } from "@/lib/utils";
 import { exportToXLSX } from "../lib/exportUtils";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 
-   const exportPDF = async () => {
-     const element = document.getElementById('pdf-content');
-     if (!element) return;
-     
-     // Temporarily remove overflow and height constraints for full capture
-     const originalStyle = element.style.cssText;
-     element.style.height = 'auto';
-     element.style.overflow = 'visible';
-     
-     const canvas = await html2canvas(element, { 
-       scale: 2, 
-       useCORS: true,
-       logging: false,
-       windowWidth: element.scrollWidth,
-       windowHeight: element.scrollHeight
-     });
-     
-     element.style.cssText = originalStyle;
-     
-     const imgData = canvas.toDataURL('image/png');
-     const pdf = new jsPDF('l', 'mm', 'a4'); // landscape
-     const pageWidth = pdf.internal.pageSize.getWidth();
-     const pageHeight = pdf.internal.pageSize.getHeight();
-     const imgWidth = pageWidth;
-     const imgHeight = (canvas.height * pageWidth) / canvas.width;
-     
-     let heightLeft = imgHeight;
-     let position = 0;
-     
-     pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-     heightLeft -= pageHeight;
-     
-     while (heightLeft > 0) {
-       position = heightLeft - imgHeight;
-       pdf.addPage();
-       pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-       heightLeft -= pageHeight;
-     }
-     
-     pdf.save('Fatura_C6_Abril_2026.pdf');
-   };
- 
 const Index = () => {
   const { transacoes, setTransacoes, config, updateTransacao } = useAppContext();
   const [filterTitular, setFilterTitular] = useState<string>("Todos");
   const [showOnlyUnidentified, setShowOnlyUnidentified] = useState(false);
   const [showPayments, setShowPayments] = useState(false);
 
-  // Initialize with all data if empty (as requested)
-  // Simplified initialization
-   useState(() => {
-     if (transacoes.length === 0) {
-       setTransacoes(TRANSACOES);
-     } else {
-       // If we have saved data, check if it has the new fields
-       // This handles the first load after the update
-       const hasRealData = transacoes.length === TRANSACOES.length;
-       if (!hasRealData) {
-         setTransacoes(TRANSACOES);
-       }
-     }
-   });
+  useState(() => {
+    if (transacoes.length === 0) {
+      setTransacoes(TRANSACOES);
+    } else {
+      const hasRealData = transacoes.length === TRANSACOES.length;
+      if (!hasRealData) {
+        setTransacoes(TRANSACOES);
+      }
+    }
+  });
 
-   const totals = useMemo(() => {
-     const compras = transacoes.filter(t => !['Crédito', 'Estorno', 'Pagamento', 'Encargo Bancário'].includes(t.tipo)).reduce((acc, t) => acc + t.valor, 0);
-     const encargos = transacoes.filter(t => t.tipo === 'Encargo Bancário').reduce((acc, t) => acc + t.valor, 0);
-     const creditos = transacoes.filter(t => t.tipo === 'Crédito').reduce((acc, t) => acc + t.valor, 0);
-     const estornos = transacoes.filter(t => t.tipo === 'Estorno').reduce((acc, t) => acc + Math.abs(t.valor), 0);
-     
-     // Isabela: R$ 28.058,69 - Crédito 1 (4.458,05) - Crédito 2 (18.221,35) + Estorno 1 (187,90) + Estorno 2 (98,00) = R$ 5.665,19?
-     // The user says "Isabela card shows: R$ 28.058,69". That is the raw subtotal without subtracting credits.
-     const isabelaTotal = transacoes.filter(t => t.titular === 'Isabela' && t.tipo !== 'Crédito').reduce((acc, t) => acc + t.valor, 0);
-     const claudioTotal = transacoes.filter(t => t.titular === 'Claudio' && t.tipo !== 'Crédito').reduce((acc, t) => acc + t.valor, 0);
-     const danielTotal = transacoes.filter(t => t.titular === 'Daniel' && t.tipo !== 'Crédito').reduce((acc, t) => acc + t.valor, 0);
- 
-     return {
-       compras,
-       encargos,
-       creditos,
-       estornos,
-       totalCalculado: TOTAL_FATURA,
-       isabela: isabelaTotal,
-       claudio: claudioTotal,
-       daniel: danielTotal
-     };
-   }, [transacoes]);
+  const totals = useMemo(() => {
+    const compras = transacoes.filter(t => !['Crédito', 'Estorno', 'Pagamento', 'Encargo Bancário'].includes(t.tipo)).reduce((acc, t) => acc + t.valor, 0);
+    const encargos = transacoes.filter(t => t.tipo === 'Encargo Bancário').reduce((acc, t) => acc + t.valor, 0);
+    const creditos = transacoes.filter(t => t.tipo === 'Crédito').reduce((acc, t) => acc + t.valor, 0);
+    const estornos = transacoes.filter(t => t.tipo === 'Estorno').reduce((acc, t) => acc + Math.abs(t.valor), 0);
+    
+    const isabelaTotal = transacoes.filter(t => t.titular === 'Isabela' && t.tipo !== 'Crédito').reduce((acc, t) => acc + t.valor, 0);
+    const claudioTotal = transacoes.filter(t => t.titular === 'Claudio' && t.tipo !== 'Crédito').reduce((acc, t) => acc + t.valor, 0);
+    const danielTotal = transacoes.filter(t => t.titular === 'Daniel' && t.tipo !== 'Crédito').reduce((acc, t) => acc + t.valor, 0);
 
-  const EXPECTED_TOTAL = 11019.68;
-  const diff = Math.abs(totals.totalCalculado - EXPECTED_TOTAL);
-  const isValid = diff < 0.01;
+    return {
+      compras,
+      encargos,
+      creditos,
+      estornos,
+      totalCalculado: TOTAL_FATURA,
+      isabela: isabelaTotal,
+      claudio: claudioTotal,
+      daniel: danielTotal
+    };
+  }, [transacoes]);
 
-    const crossTable = useMemo(() => {
-      const rowLabels = [
-        "Araraquara",
-        "Bauru",
-        "Ribeirão Preto",
-        "São Carlos",
-        "Online",
-        "Não identificado",
-        "Encargos"
-      ];
-      const titularIds = ["Isabela", "Claudio", "Daniel"];
-      
-      return rowLabels.map(label => {
-        const row: any = { label };
-        let total = 0;
-        titularIds.forEach(titularId => {
-          let val = 0;
-          if (label === 'Encargos') {
-            val = transacoes
-              .filter(t => t.titular === titularId && t.tipo === 'Encargo Bancário')
-              .reduce((acc, t) => acc + t.valor, 0);
-          } else {
-            val = transacoes
-              .filter(t => 
-                t.titular === titularId &&
-                (label === "Online" ? (t.cidade === "Online" || t.cidade === "Online / Digital") : t.cidade === label) &&
-                t.tipo !== "Crédito" &&
-                t.tipo !== "Estorno" &&
-                t.tipo !== "Pagamento" &&
-                t.tipo !== "Encargo Bancário" &&
-                t.valor > 0
-              )
-              .reduce((acc, t) => acc + t.valor, 0);
-          }
-          row[titularId] = val;
-          total += val;
-        });
-        row.total = total;
-        return row;
+  const isValid = Math.abs(totals.totalCalculado - 11019.68) < 0.01;
+
+  const crossTable = useMemo(() => {
+    const rowLabels = ["Araraquara", "Bauru", "Ribeirão Preto", "São Carlos", "Online", "Não identificado", "Encargos"];
+    const titularIds = ["Isabela", "Claudio", "Daniel"];
+    
+    return rowLabels.map(label => {
+      const row: any = { label };
+      let total = 0;
+      titularIds.forEach(titularId => {
+        let val = 0;
+        if (label === 'Encargos') {
+          val = transacoes
+            .filter(t => t.titular === titularId && t.tipo === 'Encargo Bancário')
+            .reduce((acc, t) => acc + t.valor, 0);
+        } else {
+          val = transacoes
+            .filter(t => 
+              t.titular === titularId &&
+              (label === "Online" ? (t.cidade === "Online" || t.cidade === "Online / Digital") : t.cidade === label) &&
+              t.tipo !== "Crédito" &&
+              t.tipo !== "Estorno" &&
+              t.tipo !== "Pagamento" &&
+              t.tipo !== "Encargo Bancário" &&
+              t.valor > 0
+            )
+            .reduce((acc, t) => acc + t.valor, 0);
+        }
+        row[titularId] = val;
+        total += val;
       });
-    }, [transacoes]);
+      row.total = total;
+      return row;
+    });
+  }, [transacoes]);
 
   const filteredTransacoes = useMemo(() => {
     return transacoes.filter(t => {
@@ -177,92 +117,236 @@ const Index = () => {
     return "??";
   };
 
-   const getRowColor = (t: Transacao) => {
-     const isUnidentified = t.cidade === "Não identificado";
-     if (t.tipo === "Encargo Bancário") return "bg-red-50 text-red-700";
-     if (isUnidentified) return "bg-amber-50 text-amber-700";
-     if (t.tipo === "Crédito") return "bg-blue-50 text-blue-700";
-     if (t.tipo === "Estorno") return "bg-green-50 text-green-700";
-     return "";
-   };
+  const getRowColor = (t: Transacao) => {
+    const isUnidentified = t.cidade === "Não identificado";
+    if (t.tipo === "Encargo Bancário") return "bg-red-50 text-red-700";
+    if (isUnidentified) return "bg-amber-50 text-amber-700";
+    if (t.tipo === "Crédito") return "bg-blue-50 text-blue-700";
+    if (t.tipo === "Estorno") return "bg-green-50 text-green-700";
+    return "";
+  };
 
   const formatBRL = (val: number) => {
     return val.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   };
 
-                    <TableRow key={t.id} className={cn("group text-xs", getRowColor(t))}>
-                      <TableCell className="py-2">
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger>
-                              <div className={cn("w-6 h-6 rounded-full flex items-center justify-center font-bold text-[8px]", getTitularColor(t.titular))}>
-                                {getTitularInitials(t.titular)}
-                              </div>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                             <p className="text-xs font-bold">{config.titulares.find(tit => tit.id === t.titular)?.nome}</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      </TableCell>
-                      <TableCell className="py-2 font-medium text-slate-500">{t.data}</TableCell>
-                      <TableCell className="py-2">
-                        <div className="flex flex-col">
-                          <Input 
-                            value={t.nome} 
-                            onChange={(e) => updateTransacao(t.id, { nome: e.target.value })}
-                            className="h-6 text-[11px] border-none shadow-none bg-transparent hover:bg-white focus:bg-white p-0 px-1 font-bold"
-                          />
-                           <div className="flex gap-1 items-center mt-1">
-                             <Select value={t.cidade} onValueChange={(v) => updateTransacao(t.id, { cidade: v })}>
-                               <SelectTrigger className="h-5 text-[11px] bg-white border border-slate-200 rounded-md px-2 w-fit gap-1 text-slate-600 font-medium shadow-none hover:bg-slate-50">
-                                 <SelectValue placeholder="Cidade" />
-                               </SelectTrigger>
-                               <SelectContent>
-                                 {["Araraquara", "Bauru", "Ribeirão Preto", "São Carlos", "Online", "Não identificado"].map(c => (
-                                   <SelectItem key={c} value={c} className="text-[11px]">{c}</SelectItem>
-                                 ))}
-                               </SelectContent>
-                             </Select>
+  const exportPDF = async () => {
+    const element = document.getElementById('pdf-content');
+    if (!element) return;
+    const canvas = await html2canvas(element, { scale: 2, useCORS: true });
+    const imgData = canvas.toDataURL('image/png');
+    const pdf = new jsPDF('l', 'mm', 'a4');
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    const imgWidth = pageWidth;
+    const imgHeight = (canvas.height * pageWidth) / canvas.width;
+    let heightLeft = imgHeight;
+    let position = 0;
+    pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+    heightLeft -= pageHeight;
+    while (heightLeft > 0) {
+      position = heightLeft - imgHeight;
+      pdf.addPage();
+      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
+    }
+    pdf.save('Fatura_C6_Abril_2026.pdf');
+  };
 
-                             <Select value={t.destino || ""} onValueChange={(v) => updateTransacao(t.id, { destino: v })}>
-                               <SelectTrigger className="h-5 text-[11px] bg-white border border-slate-200 rounded-md px-2 w-fit gap-1 text-slate-600 font-medium shadow-none hover:bg-slate-50">
-                                 <div className="flex items-center gap-1">
-                                   <span>{t.destino === "Cliente" && t.clienteNome ? `Cliente — ${t.clienteNome}` : (t.destino || "Destino")}</span>
-                                 </div>
-                               </SelectTrigger>
-                               <SelectContent>
-                                 <SelectItem value="Loja" className="text-[11px]">Loja</SelectItem>
-                                 <SelectItem value="Depósito" className="text-[11px]">Depósito</SelectItem>
-                                 <SelectItem value="Cliente" className="text-[11px]">Cliente</SelectItem>
-                               </SelectContent>
-                             </Select>
+  return (
+    <div className="min-h-screen bg-slate-50 text-slate-900 pb-12">
+      <div id="pdf-content" className="p-6 max-w-[1400px] mx-auto flex flex-col gap-6">
+        {/* HEADER */}
+        <header className="py-4 flex justify-between items-center bg-white border b rounded-xl px-6 shadow-sm">
+          <div className="flex items-center gap-4">
+            <h1 className="text-xl font-bold">Classificador de Fatura C6 Bank</h1>
+            <Badge className={cn("text-[10px] font-bold uppercase px-3 py-1", isValid ? "bg-green-100 text-green-700 border-green-200" : "bg-red-100 text-red-700 border-red-200")}>
+              Total calculado: {formatBRL(totals.totalCalculado)} {isValid ? '✓' : '✗'}
+            </Badge>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => exportToXLSX(transacoes, config)} className="flex gap-2">
+              <Download className="w-4 h-4" /> Exportar Excel
+            </Button>
+            <Button variant="outline" size="sm" onClick={exportPDF} className="flex gap-2">
+              <FileText className="w-4 h-4" /> Exportar PDF
+            </Button>
+          </div>
+        </header>
 
-                             {t.destino === "Cliente" && (
-                               <Input
-                                 placeholder="Nome"
-                                 value={t.clienteNome || ""}
-                                 onChange={(e) => updateTransacao(t.id, { clienteNome: e.target.value })}
-                                 className="h-5 w-24 text-[11px] px-1 border-slate-200"
-                               />
-                             )}
+        {/* METRIC CARDS */}
+        <div className="grid grid-cols-4 gap-4">
+          <Card>
+            <CardContent className="p-4">
+              <p className="text-xs font-bold text-slate-500 uppercase mb-1">Isabela (Líquido)</p>
+              <p className="text-2xl font-black text-amber-600">{formatBRL(totals.isabela)}</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4">
+              <p className="text-xs font-bold text-slate-500 uppercase mb-1">Claudio (Líquido)</p>
+              <p className="text-2xl font-black text-blue-600">{formatBRL(totals.claudio)}</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4">
+              <p className="text-xs font-bold text-slate-500 uppercase mb-1">Daniel (Adicional)</p>
+              <p className="text-2xl font-black text-teal-600">{formatBRL(totals.daniel)}</p>
+            </CardContent>
+          </Card>
+          <Card className="bg-slate-900 text-white">
+            <CardContent className="p-4">
+              <p className="text-xs font-bold text-slate-400 uppercase mb-1">TOTAL FATURA</p>
+              <p className="text-2xl font-black">{formatBRL(totals.totalCalculado)}</p>
+            </CardContent>
+          </Card>
+        </div>
 
-                             {t.parcela && t.parcela !== "—" && (
-                               <Badge variant="outline" className="h-5 text-[11px] font-medium border-slate-200 text-slate-500 rounded-md px-2 py-0">
-                                 {t.parcela}
-                               </Badge>
-                             )}
-                           </div>
+        {/* SUMMARY TABLE */}
+        <Card className="shadow-sm">
+          <CardHeader className="py-3 px-6 border-b bg-slate-50/50">
+            <CardTitle className="text-sm font-bold uppercase text-slate-500">Distribuição Cidade × Titular</CardTitle>
+          </CardHeader>
+          <Table className="w-full table-fixed">
+            <TableHeader>
+              <TableRow className="bg-slate-50/50">
+                <TableHead className="font-bold text-[11px] uppercase px-6 h-10">Cidade</TableHead>
+                <TableHead className="text-right font-bold text-[11px] uppercase px-6 h-10">Isabela</TableHead>
+                <TableHead className="text-right font-bold text-[11px] uppercase px-6 h-10">Claudio</TableHead>
+                <TableHead className="text-right font-bold text-[11px] uppercase px-6 h-10">Daniel</TableHead>
+                <TableHead className="text-right font-bold bg-slate-100/50 text-[11px] uppercase px-6 h-10">Total</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {crossTable.map((row, idx) => (
+                <TableRow key={idx} className={cn(row.label === 'Não identificado' && row.total > 0 ? 'bg-amber-50' : row.label === 'Encargos' ? 'bg-red-50' : '')}>
+                  <TableCell className="font-medium text-[12px] px-6 py-2">{row.label}</TableCell>
+                  <TableCell className="text-right tabular-nums text-[12px] px-6 py-2">{row.Isabela > 0.01 ? formatBRL(row.Isabela) : '—'}</TableCell>
+                  <TableCell className="text-right tabular-nums text-[12px] px-6 py-2">{row.Claudio > 0.01 ? formatBRL(row.Claudio) : '—'}</TableCell>
+                  <TableCell className="text-right tabular-nums text-[12px] px-6 py-2">{row.Daniel > 0.01 ? formatBRL(row.Daniel) : '—'}</TableCell>
+                  <TableCell className="text-right font-bold tabular-nums bg-slate-50 text-[12px] px-6 py-2">{formatBRL(row.total)}</TableCell>
+                </TableRow>
+              ))}
+              <TableRow className="bg-slate-100 font-black">
+                <TableCell className="px-6 py-3 text-[12px]">TOTAL</TableCell>
+                <TableCell className="text-right tabular-nums text-[12px] px-6 py-3">{formatBRL(crossTable.reduce((acc, r) => acc + r.Isabela, 0))}</TableCell>
+                <TableCell className="text-right tabular-nums text-[12px] px-6 py-3">{formatBRL(crossTable.reduce((acc, r) => acc + r.Claudio, 0))}</TableCell>
+                <TableCell className="text-right tabular-nums text-[12px] px-6 py-3">{formatBRL(crossTable.reduce((acc, r) => acc + r.Daniel, 0))}</TableCell>
+                <TableCell className="text-right tabular-nums bg-slate-200 text-[12px] px-6 py-3">{formatBRL(crossTable.reduce((acc, r) => acc + r.total, 0))}</TableCell>
+              </TableRow>
+            </TableBody>
+          </Table>
+        </Card>
+
+        {/* TRANSACTION LIST */}
+        <div className="flex flex-col gap-4">
+          <Card className="shadow-sm">
+            <CardHeader className="py-3 px-6 border-b bg-slate-50/50 flex flex-row items-center justify-between space-y-0">
+              <div className="flex items-center gap-4">
+                <Select value={filterTitular} onValueChange={setFilterTitular}>
+                  <SelectTrigger className="h-8 w-[140px] bg-white">
+                    <Filter className="w-3 h-3 mr-2" />
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Todos">Todos Titulares</SelectItem>
+                    {config.titulares.map(t => <SelectItem key={t.id} value={t.id}>{t.nome}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+                
+                <div className="flex items-center gap-2 bg-white px-3 py-1 rounded-md border h-8">
+                  <Switch id="unidentified" checked={showOnlyUnidentified} onCheckedChange={setShowOnlyUnidentified} className="scale-75" />
+                  <Label htmlFor="unidentified" className="text-[11px] font-bold uppercase cursor-pointer">Pendentes</Label>
+                </div>
+
+                <div className="flex items-center gap-2 bg-white px-3 py-1 rounded-md border h-8">
+                  <Switch id="payments" checked={showPayments} onCheckedChange={setShowPayments} className="scale-75" />
+                  <Label htmlFor="payments" className="text-[11px] font-bold uppercase cursor-pointer">Pagamentos</Label>
+                </div>
+              </div>
+              <span className="text-[11px] font-bold text-slate-400 uppercase">{filteredTransacoes.length} transações</span>
+            </CardHeader>
+            <Table>
+              <TableHeader>
+                <TableRow className="text-[11px] uppercase text-slate-500 bg-slate-50/50">
+                  <TableHead className="w-[80px] px-6">Titular</TableHead>
+                  <TableHead className="w-[100px] px-6">Data</TableHead>
+                  <TableHead className="px-6">Estabelecimento & Classificação</TableHead>
+                  <TableHead className="text-right px-6 w-[150px]">Valor</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredTransacoes.map(t => (
+                  <TableRow key={t.id} className={cn("group text-sm", getRowColor(t))}>
+                    <TableCell className="px-6 py-3">
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger>
+                            <div className={cn("w-8 h-8 rounded-full flex items-center justify-center font-bold text-[10px]", getTitularColor(t.titular))}>
+                              {getTitularInitials(t.titular)}
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p className="text-xs font-bold">{config.titulares.find(tit => tit.id === t.titular)?.nome}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </TableCell>
+                    <TableCell className="px-6 py-3 font-medium text-slate-500">{t.data}</TableCell>
+                    <TableCell className="px-6 py-3">
+                      <div className="flex flex-col gap-2">
+                        <Input 
+                          value={t.nome} 
+                          onChange={(e) => updateTransacao(t.id, { nome: e.target.value })}
+                          className="h-7 text-sm border-none shadow-none bg-transparent hover:bg-white focus:bg-white p-0 px-1 font-bold w-full max-w-md"
+                        />
+                        <div className="flex gap-2 items-center">
+                          <Select value={t.cidade} onValueChange={(v) => updateTransacao(t.id, { cidade: v })}>
+                            <SelectTrigger className="h-6 text-[11px] bg-white border border-slate-200 rounded-md px-2 w-fit gap-1 text-slate-600 font-medium">
+                              <SelectValue placeholder="Cidade" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {["Araraquara", "Bauru", "Ribeirão Preto", "São Carlos", "Online", "Não identificado", "—"].map(c => (
+                                <SelectItem key={c} value={c} className="text-[11px]">{c}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+
+                          <Select value={t.destino || ""} onValueChange={(v) => updateTransacao(t.id, { destino: v })}>
+                            <SelectTrigger className="h-6 text-[11px] bg-white border border-slate-200 rounded-md px-2 w-fit gap-1 text-slate-600 font-medium">
+                              <span>{t.destino === "Cliente" && t.clienteNome ? `Cliente — ${t.clienteNome}` : (t.destino || "Destino")}</span>
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="Loja" className="text-[11px]">Loja</SelectItem>
+                              <SelectItem value="Depósito" className="text-[11px]">Depósito</SelectItem>
+                              <SelectItem value="Cliente" className="text-[11px]">Cliente</SelectItem>
+                            </SelectContent>
+                          </Select>
+
+                          {t.destino === "Cliente" && (
+                            <Input
+                              placeholder="Nome"
+                              value={t.clienteNome || ""}
+                              onChange={(e) => updateTransacao(t.id, { clienteNome: e.target.value })}
+                              className="h-6 w-32 text-[11px] px-2 border-slate-200"
+                            />
+                          )}
+
+                          {t.parcela && t.parcela !== "—" && (
+                            <Badge variant="outline" className="h-6 text-[11px] font-medium border-slate-200 text-slate-500 rounded-md px-2">
+                              {t.parcela}
+                            </Badge>
+                          )}
                         </div>
-                      </TableCell>
-                      <TableCell className={cn("py-2 text-right font-bold tabular-nums", t.tipo === "Estorno" ? "text-green-600" : "")}>
-                        {formatBRL(t.valor)}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+                      </div>
+                    </TableCell>
+                    <TableCell className={cn("px-6 py-3 text-right font-bold tabular-nums text-base", t.tipo === "Estorno" ? "text-green-600" : "")}>
+                      {formatBRL(t.valor)}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           </Card>
         </div>
       </div>
