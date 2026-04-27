@@ -18,7 +18,7 @@ import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 
 const Index = () => {
-  const { transacoes, setTransacoes, config, updateTransacao } = useAppContext();
+   const { transacoes, setTransacoes, config, updateTransacao, updateBatchTransacoes } = useAppContext();
   const [filterTitular, setFilterTitular] = useState<string>("Todos");
   const [showOnlyUnidentified, setShowOnlyUnidentified] = useState(false);
   const [showPayments, setShowPayments] = useState(false);
@@ -34,6 +34,8 @@ const Index = () => {
     }
   });
 
+   const checkedCount = useMemo(() => transacoes.filter(t => t.conferido).length, [transacoes]);
+ 
   const totals = useMemo(() => {
     const compras = transacoes.filter(t => !['Crédito', 'Estorno', 'Pagamento', 'Encargo Bancário'].includes(t.tipo)).reduce((acc, t) => acc + t.valor, 0);
     const encargos = transacoes.filter(t => t.tipo === 'Encargo Bancário').reduce((acc, t) => acc + t.valor, 0);
@@ -161,8 +163,11 @@ const Index = () => {
           <div className="flex items-center gap-4">
             <h1 className="text-xl font-bold">Classificador de Fatura C6 Bank</h1>
             <Badge className={cn("text-[10px] font-bold uppercase px-3 py-1", isValid ? "bg-green-100 text-green-700 border-green-200" : "bg-red-100 text-red-700 border-red-200")}>
-              Total calculado: {formatBRL(totals.totalCalculado)} {isValid ? '✓' : '✗'}
-            </Badge>
+               Total calculado: {formatBRL(totals.totalCalculado)} {isValid ? '✓' : '✗'}
+             </Badge>
+             <Badge variant="outline" className="text-[10px] font-bold uppercase px-3 py-1 bg-white border-slate-200 text-slate-600">
+               ✓ Conferidos: {checkedCount} / {transacoes.length}
+             </Badge>
           </div>
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" onClick={() => exportToXLSX(transacoes, config)} className="flex gap-2">
@@ -269,29 +274,53 @@ const Index = () => {
             <Table>
               <TableHeader>
                 <TableRow className="text-[11px] uppercase text-slate-500 bg-slate-50/50">
-                  <TableHead className="w-[80px] px-6">Titular</TableHead>
+                   <TableHead className="w-[36px] px-2 text-center text-[10px]">#</TableHead>
+                   <TableHead className="w-[40px] px-2 text-center">
+                     <input 
+                       type="checkbox" 
+                       className="w-4 h-4 rounded border-slate-300"
+                       checked={filteredTransacoes.length > 0 && filteredTransacoes.every(t => t.conferido)}
+                       onChange={(e) => {
+                         const checked = e.target.checked;
+                         const ids = filteredTransacoes.map(t => t.id);
+                         updateBatchTransacoes(ids, { conferido: checked });
+                       }}
+                     />
+                   </TableHead>
+                   <TableHead className="w-[100px] px-6">Titular</TableHead>
                   <TableHead className="w-[100px] px-6">Data</TableHead>
                   <TableHead className="px-6">Estabelecimento & Classificação</TableHead>
                   <TableHead className="text-right px-6 w-[150px]">Valor</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredTransacoes.map(t => (
-                  <TableRow key={t.id} className={cn("group text-sm", getRowColor(t))}>
-                    <TableCell className="px-6 py-3">
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger>
-                            <div className={cn("w-8 h-8 rounded-full flex items-center justify-center font-bold text-[10px]", getTitularColor(t.titular))}>
-                              {getTitularInitials(t.titular)}
-                            </div>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p className="text-xs font-bold">{config.titulares.find(tit => tit.id === t.titular)?.nome}</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    </TableCell>
+                 {filteredTransacoes.map((t) => (
+                   <TableRow key={t.id} className={cn("group text-sm transition-colors", getRowColor(t), t.conferido && "border-l-[3px] border-l-[#198754]")}>
+                     <TableCell className="px-2 py-3 text-center text-[11px] text-slate-400 font-mono">
+                       {t.id}
+                     </TableCell>
+                     <TableCell className="px-2 py-3 text-center">
+                       <input 
+                         type="checkbox" 
+                         className="w-4 h-4 rounded border-slate-300 accent-[#198754]"
+                         checked={!!t.conferido}
+                         onChange={(e) => updateTransacao(t.id, { conferido: e.target.checked })}
+                       />
+                     </TableCell>
+                     <TableCell className="px-6 py-3">
+                       <Select value={t.titular} onValueChange={(v) => updateTransacao(t.id, { titular: v })}>
+                         <SelectTrigger className={cn("w-10 h-8 p-0 rounded-full flex items-center justify-center font-bold text-[10px] border-none shadow-none focus:ring-0", getTitularColor(t.titular))}>
+                           <SelectValue>{getTitularInitials(t.titular)}▾</SelectValue>
+                         </SelectTrigger>
+                         <SelectContent>
+                           {config.titulares.map(tit => (
+                             <SelectItem key={tit.id} value={tit.id} className="text-xs font-bold">
+                               {tit.nome}
+                             </SelectItem>
+                           ))}
+                         </SelectContent>
+                       </Select>
+                     </TableCell>
                     <TableCell className="px-6 py-3 font-medium text-slate-500">{t.data}</TableCell>
                     <TableCell className="px-6 py-3">
                       <div className="flex flex-col gap-2">
