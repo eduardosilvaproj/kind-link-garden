@@ -8,6 +8,12 @@ import { Download, FileText, Filter } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { 
+  DropdownMenu, 
+  DropdownMenuCheckboxItem, 
+  DropdownMenuContent, 
+  DropdownMenuTrigger 
+} from "@/components/ui/dropdown-menu";
 import { Transacao } from "../types";
 import { cn } from "@/lib/utils";
 import { exportToXLSX } from "../lib/exportUtils";
@@ -35,7 +41,7 @@ import {
   
     // 1. SINGLE SOURCE OF TRUTH
     const [edits, setEdits] = useState<Record<string, {
-      titular?: string;
+      titulares?: string[];
       cidade?: string;
       destino?: string;
       clienteNome?: string;
@@ -75,11 +81,12 @@ import {
     const rows = useMemo(() =>
       TRANSACOES.map(t => {
         const e = edits[`${t.id}`] ?? {};
+        const rowTitulares = e.titulares ?? [t.titular];
         return {
           ...t,
-          titular:     e.titular     ?? t.titular,
+          titulares: rowTitulares,
           cidade:      e.cidade      ?? t.cidade,
-     destino:     e.destino     ?? t.destino ?? t.tipo,
+          destino:     e.destino     ?? t.destino ?? t.tipo,
           clienteNome: e.clienteNome ?? t.clienteNome ?? '',
           conferido:   e.conferido   ?? false,
           nome:        e.nome        ?? t.nome,
@@ -88,38 +95,20 @@ import {
     [edits]);
   
     // 3. CARD TOTALS — always from rows
-    const somaIsabela = useMemo(() => {
-      const total = rows
-        .filter(t => t.titular === 'Isabela')
-        .reduce((s, t) => {
-          if (t.tipo === 'Crédito' || t.tipo === 'Estorno') return s - Math.abs(t.valor);
-          return s + t.valor;
-        }, 0);
-      console.log('Soma Isabela:', total);
-      return total;
+    const getTitularSum = useCallback((titular: string) => {
+      return rows.reduce((s, t) => {
+        const rowTits = (t as any).titulares as string[];
+        if (!rowTits.includes(titular)) return s;
+        const splitFactor = rowTits.length;
+        const val = t.valor / splitFactor;
+        if (t.tipo === 'Crédito' || t.tipo === 'Estorno') return s - Math.abs(val);
+        return s + val;
+      }, 0);
     }, [rows]);
 
-    const somaClaudio = useMemo(() => {
-      const total = rows
-        .filter(t => t.titular === 'Claudio')
-        .reduce((s, t) => {
-          if (t.tipo === 'Crédito' || t.tipo === 'Estorno') return s - Math.abs(t.valor);
-          return s + t.valor;
-        }, 0);
-      console.log('Soma Claudio:', total);
-      return total;
-    }, [rows]);
-
-    const somaDaniel = useMemo(() => {
-      const total = rows
-        .filter(t => t.titular === 'Daniel')
-        .reduce((s, t) => {
-          if (t.tipo === 'Crédito' || t.tipo === 'Estorno') return s - Math.abs(t.valor);
-          return s + t.valor;
-        }, 0);
-      console.log('Soma Daniel:', total);
-      return total;
-    }, [rows]);
+    const somaIsabela = useMemo(() => getTitularSum('Isabela'), [getTitularSum]);
+    const somaClaudio = useMemo(() => getTitularSum('Claudio'), [getTitularSum]);
+    const somaDaniel = useMemo(() => getTitularSum('Daniel'), [getTitularSum]);
   
     const totalConferidos = useMemo(() =>
       rows.filter(t => t.conferido).length,
@@ -135,7 +124,7 @@ import {
 
     const chartData = useMemo(() => {
       const filtered = rows.filter(t => {
-        if (filterTitular !== "Todos" && t.titular !== filterTitular) return false;
+        if (filterTitular !== "Todos" && !t.titulares.includes(filterTitular)) return false;
         if (t.tipo === 'Crédito' || t.tipo === 'Estorno' || t.tipo === 'Pagamento') return false;
         if (t.valor <= 0) return false;
         return true;
@@ -164,11 +153,11 @@ import {
            .filter(t => {
              if (t.tipo === 'Crédito' || t.tipo === 'Estorno') return false;
              if (t.valor <= 0) return false;
-             if (t.titular !== titular) return false;
+             if (!((t as any).titulares as string[]).includes(titular)) return false;
              if (cidade === 'Encargos') return t.tipo === 'Encargo Bancário';
-             return t.cidade === cidade;
-           })
-           .reduce((s, t) => s + t.valor, 0);
+              return t.cidade === cidade;
+            })
+             .reduce((s, t) => s + (t.valor / ((t as any).titulares as string[]).length), 0);
        }
        result[cidade].total = result[cidade].Isabela + result[cidade].Claudio + result[cidade].Daniel;
      }
@@ -177,7 +166,7 @@ import {
 
    const filteredTransacoes = useMemo(() => {
      return rows.filter(t => {
-       if (filterTitular !== "Todos" && t.titular !== filterTitular) return false;
+         if (filterTitular !== "Todos" && !((t as any).titulares as string[]).includes(filterTitular)) return false;
        if (showOnlyUnidentified && t.cidade !== "Não identificado") return false;
        if (!showPayments && (t.tipo === "Pagamento" || t.tipo === "Crédito")) return false;
        return true;
@@ -255,7 +244,7 @@ import {
        .map(t => [
          String(t.id),
          t.conferido ? '✓' : '',
-         t.titular,
+          t.titulares.join(', '),
          t.data,
          t.nome,
          t.cidade,
@@ -495,19 +484,44 @@ import {
                        />
                      </TableCell>
                      <TableCell className="px-6 py-3">
-                        <Select value={t.titular} onValueChange={(v) => updateRow(t.id, { titular: v })}>
-                         <SelectTrigger className={cn("w-10 h-8 p-0 rounded-full flex items-center justify-center font-bold text-[10px] border-none shadow-none focus:ring-0", getTitularColor(t.titular))}>
-                           <SelectValue>{getTitularInitials(t.titular)}▾</SelectValue>
-                         </SelectTrigger>
-                         <SelectContent>
-                           {config.titulares.map(tit => (
-                             <SelectItem key={tit.id} value={tit.id} className="text-xs font-bold">
-                               {tit.nome}
-                             </SelectItem>
-                           ))}
-                         </SelectContent>
-                       </Select>
-                     </TableCell>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" className="h-8 p-0 flex -space-x-1 items-center hover:bg-transparent">
+                              {((t as any).titulares as string[]).map(tit => (
+                                <div 
+                                  key={tit} 
+                                  className={cn("w-6 h-6 rounded-full flex items-center justify-center font-bold text-[9px] border-2 border-white shadow-sm", getTitularColor(tit))}
+                                >
+                                  {getTitularInitials(tit)}
+                                </div>
+                              ))}
+                              <span className="ml-1 text-slate-400 text-[10px]">▾</span>
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="start">
+                            {config.titulares.map(tit => (
+                              <DropdownMenuCheckboxItem
+                                key={tit.id}
+                                checked={((t as any).titulares as string[]).includes(tit.id)}
+                                onCheckedChange={(checked) => {
+                                  let newTitulares = [...((t as any).titulares as string[])];
+                                  if (checked) {
+                                    if (!newTitulares.includes(tit.id)) newTitulares.push(tit.id);
+                                  } else {
+                                    // Impedir ficar sem nenhum titular se quiser
+                                    if (newTitulares.length > 1) {
+                                      newTitulares = newTitulares.filter(id => id !== tit.id);
+                                    }
+                                  }
+                                  updateRow(t.id, { titulares: newTitulares });
+                                }}
+                              >
+                                {tit.nome}
+                              </DropdownMenuCheckboxItem>
+                            ))}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
                     <TableCell className="px-6 py-3 font-medium text-slate-500">{t.data}</TableCell>
                     <TableCell className="px-6 py-3">
                       <div className="flex flex-col gap-2">
@@ -567,6 +581,43 @@ import {
             </Table>
           </Card>
         </div>
+        {/* PARTICIPATION TABLE */}
+        <Card className="shadow-sm">
+          <CardHeader className="py-3 px-6 border-b bg-slate-50/50">
+            <CardTitle className="text-sm font-bold uppercase text-slate-500">Distribuição Final e Participação</CardTitle>
+          </CardHeader>
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-slate-50/50">
+                <TableHead className="font-bold text-[11px] uppercase px-6">Titular</TableHead>
+                <TableHead className="text-right font-bold text-[11px] uppercase px-6">Total Acumulado</TableHead>
+                <TableHead className="text-right font-bold text-[11px] uppercase px-6">Participação %</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {[
+                { name: 'Isabela', val: somaIsabela, color: 'text-amber-600' },
+                { name: 'Claudio', val: somaClaudio, color: 'text-blue-600' },
+                { name: 'Daniel', val: somaDaniel, color: 'text-teal-600' }
+              ].map(tit => {
+                const total = somaIsabela + somaClaudio + somaDaniel;
+                const percentage = total > 0 ? (tit.val / total) * 100 : 0;
+                return (
+                  <TableRow key={tit.name}>
+                    <TableCell className="font-bold text-[12px] px-6 py-3">{tit.name}</TableCell>
+                    <TableCell className={cn("text-right font-black tabular-nums text-[14px] px-6 py-3", tit.color)}>
+                      {formatBRL(tit.val)}
+                    </TableCell>
+                    <TableCell className="text-right font-medium text-slate-500 text-[12px] px-6 py-3">
+                      {percentage.toFixed(1)}%
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </Card>
+
       </div>
     </div>
   );
