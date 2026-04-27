@@ -50,7 +50,8 @@ export const useAppContext = () => {
     config,
     transacoes,
     setTransacoes,
-    updateTransacao,
+     updateTransacao,
+     updateBatchTransacoes,
     updateConfig,
     clearData
   };
