@@ -94,24 +94,53 @@ import {
       }),
     [edits]);
   
-    // 3. AGGREGATED CALCULATIONS
-    const titularTotals = useMemo(() => {
-      const initial: Record<string, number> = { Isabela: 0, Claudio: 0, Daniel: 0 };
-      return rows.reduce((acc, t) => {
+    // 3. AGGREGATED CALCULATIONS — Centralized logic for all components
+    const aggregatedData = useMemo(() => {
+      const totals: Record<string, number> = { Isabela: 0, Claudio: 0, Daniel: 0 };
+      const CIDADES = ['Araraquara', 'Bauru', 'Ribeirão Preto', 'São Carlos', 'Online', 'Não identificado'];
+      const categories = [...CIDADES, 'Encargos'];
+      const crossTab: Record<string, any> = {};
+      
+      categories.forEach(cat => {
+        crossTab[cat] = { Isabela: 0, Claudio: 0, Daniel: 0, label: cat, total: 0 };
+      });
+
+      rows.forEach(t => {
         const titular = t.titular;
-        if (!acc.hasOwnProperty(titular)) acc[titular] = 0;
-        
         const val = t.valor;
         const isNegative = t.tipo === 'Crédito' || t.tipo === 'Estorno';
-        acc[titular] += isNegative ? -Math.abs(val) : val;
-        
-        return acc;
-      }, initial);
+        const finalVal = isNegative ? -Math.abs(val) : val;
+
+        // Update Titular Totals (for Cards and Participation table)
+        if (totals.hasOwnProperty(titular)) {
+          totals[titular] += finalVal;
+        }
+
+        // Update CrossTab (Distribution Table)
+        // We only sum positive expenses for distribution, excluding credits/estornos from the city breakdown 
+        // to maintain consistency with previous logic, unless they are specific costs.
+        if (!isNegative && val > 0) {
+          let category = t.cidade;
+          if (t.tipo === 'Encargo Bancário') category = 'Encargos';
+          if (!category || !categories.includes(category)) category = 'Não identificado';
+
+          if (crossTab[category] && crossTab[category].hasOwnProperty(titular)) {
+            crossTab[category][titular] += val;
+            crossTab[category].total += val;
+          }
+        }
+      });
+
+      return { 
+        totals, 
+        crossTab: Object.values(crossTab) 
+      };
     }, [rows]);
 
-    const somaIsabela = titularTotals['Isabela'] || 0;
-    const somaClaudio = titularTotals['Claudio'] || 0;
-    const somaDaniel  = titularTotals['Daniel']  || 0;
+    const { totals: titularTotals, crossTab } = aggregatedData;
+    const somaIsabela = titularTotals['Isabela'];
+    const somaClaudio = titularTotals['Claudio'];
+    const somaDaniel  = titularTotals['Daniel'];
   
     const totalConferidos = useMemo(() =>
       rows.filter(t => t.conferido).length,
@@ -146,33 +175,6 @@ import {
 
    const isValid = Math.abs(somaIsabela + somaClaudio + somaDaniel - 11019.68) < 500;
 
-    const crossTab = useMemo(() => {
-      const CIDADES = ['Araraquara', 'Bauru', 'Ribeirão Preto', 'São Carlos', 'Online', 'Não identificado'];
-      const categories = [...CIDADES, 'Encargos'];
-      const result: Record<string, any> = {};
-
-      categories.forEach(cat => {
-        result[cat] = { Isabela: 0, Claudio: 0, Daniel: 0, label: cat, total: 0 };
-      });
-
-      rows.forEach(t => {
-        if (t.tipo === 'Crédito' || t.tipo === 'Estorno' || t.valor <= 0) return;
-        
-        let category = t.cidade;
-        if (t.tipo === 'Encargo Bancário') category = 'Encargos';
-        if (!category || !categories.includes(category)) category = 'Não identificado';
-
-        if (result[category]) {
-          const titular = t.titular;
-          if (result[category].hasOwnProperty(titular)) {
-            result[category][titular] += t.valor;
-            result[category].total += t.valor;
-          }
-        }
-      });
-
-      return Object.values(result);
-    }, [rows]);
 
    const filteredTransacoes = useMemo(() => {
      return rows.filter(t => {
@@ -336,30 +338,35 @@ import {
           </div>
         </header>
 
-        {/* TITULAR CARDS */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-           <Card>
-             <CardContent className="p-4">
-               <p className="text-xs font-bold text-slate-500 uppercase mb-1">Isabela (Líquido)</p>
-               <p className="text-2xl font-black text-amber-600">{formatBRL(somaIsabela)}</p>
-             </CardContent>
-           </Card>
-           <Card>
-             <CardContent className="p-4">
-               <p className="text-xs font-bold text-slate-500 uppercase mb-1">Claudio (Líquido)</p>
-               <p className="text-2xl font-black text-blue-600">{formatBRL(somaClaudio)}</p>
-             </CardContent>
-           </Card>
-           <Card>
-             <CardContent className="p-4">
-               <p className="text-xs font-bold text-slate-500 uppercase mb-1">Daniel (Adicional)</p>
-               <p className="text-2xl font-black text-teal-600">{formatBRL(somaDaniel)}</p>
-             </CardContent>
-           </Card>
-          <Card className="bg-slate-900 text-white">
-            <CardContent className="p-4">
-              <p className="text-xs font-bold text-slate-400 uppercase mb-1">TOTAL FATURA</p>
-              <p className="text-2xl font-black">{formatBRL(totals.totalCalculado)}</p>
+        {/* TITULAR CARDS — Improved UI */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {[
+            { id: 'Isabela', name: 'Isabela', val: somaIsabela, color: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-100', iconColor: 'bg-amber-500' },
+            { id: 'Claudio', name: 'Claudio', val: somaClaudio, color: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-100', iconColor: 'bg-blue-500' },
+            { id: 'Daniel', name: 'Daniel', val: somaDaniel, color: 'text-teal-600', bg: 'bg-teal-50', border: 'border-teal-100', iconColor: 'bg-teal-500' }
+          ].map(tit => (
+            <Card key={tit.id} className={cn("border-2 shadow-sm transition-all hover:shadow-md", tit.border, tit.bg)}>
+              <CardContent className="p-5 flex items-center gap-4">
+                <div className={cn("w-12 h-12 rounded-full flex items-center justify-center text-white font-black text-lg shadow-inner", tit.iconColor)}>
+                  {getTitularInitials(tit.id)}
+                </div>
+                <div>
+                  <p className="text-[10px] font-black text-slate-500 uppercase tracking-wider mb-0.5">Total {tit.name}</p>
+                  <p className={cn("text-xl font-black tabular-nums", tit.color)}>{formatBRL(tit.val)}</p>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+          
+          <Card className="bg-slate-900 border-slate-800 shadow-lg lg:col-span-1 sm:col-span-2">
+            <CardContent className="p-5 flex items-center gap-4">
+              <div className="w-12 h-12 rounded-full bg-slate-800 flex items-center justify-center text-white">
+                <FileText className="w-6 h-6 text-slate-400" />
+              </div>
+              <div>
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-0.5">Total Fatura</p>
+                <p className="text-xl font-black text-white tabular-nums">{formatBRL(totals.totalCalculado)}</p>
+              </div>
             </CardContent>
           </Card>
         </div>
