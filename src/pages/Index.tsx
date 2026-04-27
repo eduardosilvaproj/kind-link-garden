@@ -131,14 +131,14 @@ import { Label } from "@/components/ui/label";
      return Object.values(result);
    }, [rows]);
 
-  const filteredTransacoes = useMemo(() => {
-    return transacoesEfetivas.filter(t => {
-      if (filterTitular !== "Todos" && t.titular !== filterTitular) return false;
-      if (showOnlyUnidentified && t.cidade !== "Não identificado") return false;
-      if (!showPayments && (t.tipo === "Pagamento" || t.tipo === "Crédito")) return false;
-      return true;
-    });
-  }, [transacoesEfetivas, filterTitular, showOnlyUnidentified, showPayments]);
+   const filteredTransacoes = useMemo(() => {
+     return rows.filter(t => {
+       if (filterTitular !== "Todos" && t.titular !== filterTitular) return false;
+       if (showOnlyUnidentified && t.cidade !== "Não identificado") return false;
+       if (!showPayments && (t.tipo === "Pagamento" || t.tipo === "Crédito")) return false;
+       return true;
+     });
+   }, [rows, filterTitular, showOnlyUnidentified, showPayments]);
 
   const getTitularColor = (id: string) => {
     const lower = id.toLowerCase();
