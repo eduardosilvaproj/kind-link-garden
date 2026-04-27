@@ -110,39 +110,26 @@ import { Label } from "@/components/ui/label";
 
   const isValid = Math.abs(totals.totalCalculado - 11019.68) < 0.01;
 
-  const crossTable = useMemo(() => {
-    const rowLabels = ["Araraquara", "Bauru", "Ribeirão Preto", "São Carlos", "Online", "Não identificado", "Encargos"];
-    const titularIds = ["Isabela", "Claudio", "Daniel"];
-    
-    return rowLabels.map(label => {
-      const row: any = { label };
-      let total = 0;
-      titularIds.forEach(titularId => {
-        let val = 0;
-        if (label === 'Encargos') {
-          val = transacoesEfetivas
-            .filter(t => t.titular === titularId && t.tipo === 'Encargo Bancário')
-            .reduce((acc, t) => acc + t.valor, 0);
-        } else {
-          val = transacoesEfetivas
-            .filter(t => 
-              t.titular === titularId &&
-              (label === "Online" ? (t.cidade === "Online" || t.cidade === "Online / Digital") : t.cidade === label) &&
-              t.tipo !== "Crédito" &&
-              t.tipo !== "Estorno" &&
-              t.tipo !== "Pagamento" &&
-              t.tipo !== "Encargo Bancário" &&
-              t.valor > 0
-            )
-            .reduce((acc, t) => acc + t.valor, 0);
-        }
-        row[titularId] = val;
-        total += val;
-      });
-      row.total = total;
-      return row;
-    });
-  }, [transacoesEfetivas]);
+   const crossTab = useMemo(() => {
+     const CIDADES = ['Araraquara','Bauru','Ribeirão Preto','São Carlos','Online','Não identificado'];
+     const result: Record<string, any> = {};
+     for (const cidade of [...CIDADES, 'Encargos']) {
+       result[cidade] = { Isabela: 0, Claudio: 0, Daniel: 0, label: cidade };
+       for (const titular of ['Isabela','Claudio','Daniel']) {
+         result[cidade][titular] = rows
+           .filter(t => {
+             if (t.tipo === 'Crédito' || t.tipo === 'Estorno') return false;
+             if (t.valor <= 0) return false;
+             if (t.titular !== titular) return false;
+             if (cidade === 'Encargos') return t.tipo === 'Encargo Bancário';
+             return t.cidade === cidade;
+           })
+           .reduce((s, t) => s + t.valor, 0);
+       }
+       result[cidade].total = result[cidade].Isabela + result[cidade].Claudio + result[cidade].Daniel;
+     }
+     return Object.values(result);
+   }, [rows]);
 
   const filteredTransacoes = useMemo(() => {
     return transacoesEfetivas.filter(t => {
