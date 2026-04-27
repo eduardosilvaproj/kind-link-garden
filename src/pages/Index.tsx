@@ -97,8 +97,9 @@ import {
     // 3. CARD TOTALS — always from rows
     const getTitularSum = useCallback((titular: string) => {
       return rows.reduce((s, t) => {
-        if (!t.titulares.includes(titular)) return s;
-        const splitFactor = t.titulares.length;
+        const rowTits = (t as any).titulares as string[];
+        if (!rowTits.includes(titular)) return s;
+        const splitFactor = rowTits.length;
         const val = t.valor / splitFactor;
         if (t.tipo === 'Crédito' || t.tipo === 'Estorno') return s - Math.abs(val);
         return s + val;
