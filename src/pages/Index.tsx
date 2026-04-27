@@ -487,7 +487,7 @@ import {
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button variant="ghost" className="h-8 p-0 flex -space-x-1 items-center hover:bg-transparent">
-                              {t.titulares.map(tit => (
+                              {((t as any).titulares as string[]).map(tit => (
                                 <div 
                                   key={tit} 
                                   className={cn("w-6 h-6 rounded-full flex items-center justify-center font-bold text-[9px] border-2 border-white shadow-sm", getTitularColor(tit))}
