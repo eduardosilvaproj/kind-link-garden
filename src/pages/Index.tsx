@@ -81,10 +81,10 @@ import {
     const rows = useMemo(() =>
       TRANSACOES.map(t => {
         const e = edits[`${t.id}`] ?? {};
-        const titulares = e.titulares ?? [t.titular];
+        const rowTitulares = e.titulares ?? [t.titular];
         return {
           ...t,
-          titulares,
+          titulares: rowTitulares,
           cidade:      e.cidade      ?? t.cidade,
           destino:     e.destino     ?? t.destino ?? t.tipo,
           clienteNome: e.clienteNome ?? t.clienteNome ?? '',
