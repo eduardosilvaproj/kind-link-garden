@@ -17,136 +17,128 @@ import { Label } from "@/components/ui/label";
  import jsPDF from 'jspdf';
  import autoTable from 'jspdf-autotable';
 
- type RowEdit = {
-   titular?: string;
-   cidade?: string;
-   destino?: string;
-   clienteNome?: string;
-   conferido?: boolean;
-   nome?: string;
- };
- 
- const Index = () => {
-   const { config } = useAppContext();
-   const [filterTitular, setFilterTitular] = useState<string>("Todos");
-   const [showOnlyUnidentified, setShowOnlyUnidentified] = useState(false);
-   const [showPayments, setShowPayments] = useState(false);
- 
-    const [rowEdits, setRowEdits] = useState<Record<number, RowEdit>>(() => {
+  const Index = () => {
+    const { config } = useAppContext();
+    const [filterTitular, setFilterTitular] = useState<string>("Todos");
+    const [showOnlyUnidentified, setShowOnlyUnidentified] = useState(false);
+    const [showPayments, setShowPayments] = useState(false);
+  
+    // 1. SINGLE SOURCE OF TRUTH
+    const [edits, setEdits] = useState<Record<string, {
+      titular?: string;
+      cidade?: string;
+      destino?: string;
+      clienteNome?: string;
+      conferido?: boolean;
+      nome?: string;
+    }>>(() => {
       try {
-        const saved = localStorage.getItem('faturaRowEdits');
-        if (!saved) return {};
-        const parsed = JSON.parse(saved);
-        // Ensure keys are numbers to match transaction IDs
-        return Object.fromEntries(
-          Object.entries(parsed).map(([k, v]) => [Number(k), v as RowEdit])
-        );
-      } catch (e) {
-        return {};
-      }
+        const raw = localStorage.getItem('fatura_edits');
+        return raw ? JSON.parse(raw) : {};
+      } catch { return {}; }
     });
- 
-   useEffect(() => {
-     localStorage.setItem('faturaRowEdits', JSON.stringify(rowEdits));
-   }, [rowEdits]);
- 
-   const transacoesEfetivas = useMemo(() => {
-     return TRANSACOES.map(t => ({
-       ...t,
-       titular: rowEdits[t.id]?.titular ?? t.titular,
-       cidade: rowEdits[t.id]?.cidade ?? t.cidade,
-       destino: rowEdits[t.id]?.destino ?? t.destino,
-       clienteNome: rowEdits[t.id]?.clienteNome ?? t.clienteNome,
-       conferido: rowEdits[t.id]?.conferido ?? false,
-       nome: rowEdits[t.id]?.nome ?? t.nome,
-     }));
-   }, [rowEdits]);
- 
-   const updateRow = (id: number, changes: Partial<RowEdit>) => {
-     setRowEdits(prev => ({
-       ...prev,
-       [id]: { ...prev[id], ...changes }
-     }));
-   };
- 
-   const updateBatchRows = (ids: number[], changes: Partial<RowEdit>) => {
-     setRowEdits(prev => {
-       const next = { ...prev };
-       ids.forEach(id => {
-         next[id] = { ...next[id], ...changes };
-       });
-       return next;
-     });
-   };
- 
-    const checkedCount = useMemo(() => transacoesEfetivas.filter(t => t.conferido).length, [transacoesEfetivas]);
- 
-   const totals = useMemo(() => {
-     const compras = transacoesEfetivas.filter(t => !['Crédito', 'Estorno', 'Pagamento', 'Encargo Bancário'].includes(t.tipo)).reduce((acc, t) => acc + t.valor, 0);
-     const encargos = transacoesEfetivas.filter(t => t.tipo === 'Encargo Bancário').reduce((acc, t) => acc + t.valor, 0);
-     const creditos = transacoesEfetivas.filter(t => t.tipo === 'Crédito').reduce((acc, t) => acc + t.valor, 0);
-     const estornos = transacoesEfetivas.filter(t => t.tipo === 'Estorno').reduce((acc, t) => acc + Math.abs(t.valor), 0);
-     
-      const isabelaTotal = transacoesEfetivas.filter(t => t.titular === 'Isabela' && t.tipo !== 'Crédito' && t.tipo !== 'Estorno' && t.valor > 0).reduce((acc, t) => acc + t.valor, 0);
-      const claudioTotal = transacoesEfetivas.filter(t => t.titular === 'Claudio' && t.tipo !== 'Crédito' && t.tipo !== 'Estorno' && t.valor > 0).reduce((acc, t) => acc + t.valor, 0);
-      const danielTotal = transacoesEfetivas.filter(t => t.titular === 'Daniel' && t.tipo !== 'Crédito' && t.tipo !== 'Estorno' && t.valor > 0).reduce((acc, t) => acc + t.valor, 0);
-
-    return {
-      compras,
-      encargos,
-      creditos,
-      estornos,
-      totalCalculado: TOTAL_FATURA,
-      isabela: isabelaTotal,
-      claudio: claudioTotal,
-      daniel: danielTotal
+  
+    // Save to localStorage on every change
+    useEffect(() => {
+      localStorage.setItem('fatura_edits', JSON.stringify(edits));
+    }, [edits]);
+  
+    // Update a single row
+    const updateRow = (id: number, patch: object) => {
+      setEdits(prev => ({
+        ...prev,
+        [`${id}`]: { ...prev[`${id}`], ...patch }
+      }));
     };
-   }, [transacoesEfetivas]);
+  
+    const updateBatchRows = (ids: number[], patch: object) => {
+      setEdits(prev => {
+        const next = { ...prev };
+        ids.forEach(id => {
+          next[`${id}`] = { ...next[`${id}`], ...patch };
+        });
+        return next;
+      });
+    };
+  
+    // 2. EFFECTIVE LIST — merge edits over base data
+    const rows = useMemo(() =>
+      TRANSACOES.map(t => {
+        const e = edits[`${t.id}`] ?? {};
+        return {
+          ...t,
+          titular:     e.titular     ?? t.titular,
+          cidade:      e.cidade      ?? t.cidade,
+          destino:     e.destino     ?? t.destino,
+          clienteNome: e.clienteNome ?? t.clienteNome ?? '',
+          conferido:   e.conferido   ?? false,
+          nome:        e.nome        ?? t.nome,
+        };
+      }),
+    [edits]);
+  
+    // 3. CARD TOTALS — always from rows
+    const somaIsabela = useMemo(() =>
+      rows
+        .filter(t => t.titular === 'Isabela' && t.tipo !== 'Crédito' && t.tipo !== 'Estorno' && t.valor > 0)
+        .reduce((s, t) => s + t.valor, 0),
+    [rows]);
+  
+    const somaClaudio = useMemo(() =>
+      rows
+        .filter(t => t.titular === 'Claudio' && t.tipo !== 'Crédito' && t.tipo !== 'Estorno' && t.valor > 0)
+        .reduce((s, t) => s + t.valor, 0),
+    [rows]);
+  
+    const somaDaniel = useMemo(() =>
+      rows
+        .filter(t => t.titular === 'Daniel' && t.tipo !== 'Crédito' && t.tipo !== 'Estorno' && t.valor > 0)
+        .reduce((s, t) => s + t.valor, 0),
+    [rows]);
+  
+    const totalConferidos = useMemo(() =>
+      rows.filter(t => t.conferido).length,
+    [rows]);
+  
+    const totals = useMemo(() => ({
+      isabela: somaIsabela,
+      claudio: somaClaudio,
+      daniel: somaDaniel,
+      totalCalculado: TOTAL_FATURA,
+      conferidos: totalConferidos
+    }), [somaIsabela, somaClaudio, somaDaniel, totalConferidos]);
 
   const isValid = Math.abs(totals.totalCalculado - 11019.68) < 0.01;
 
-  const crossTable = useMemo(() => {
-    const rowLabels = ["Araraquara", "Bauru", "Ribeirão Preto", "São Carlos", "Online", "Não identificado", "Encargos"];
-    const titularIds = ["Isabela", "Claudio", "Daniel"];
-    
-    return rowLabels.map(label => {
-      const row: any = { label };
-      let total = 0;
-      titularIds.forEach(titularId => {
-        let val = 0;
-        if (label === 'Encargos') {
-          val = transacoesEfetivas
-            .filter(t => t.titular === titularId && t.tipo === 'Encargo Bancário')
-            .reduce((acc, t) => acc + t.valor, 0);
-        } else {
-          val = transacoesEfetivas
-            .filter(t => 
-              t.titular === titularId &&
-              (label === "Online" ? (t.cidade === "Online" || t.cidade === "Online / Digital") : t.cidade === label) &&
-              t.tipo !== "Crédito" &&
-              t.tipo !== "Estorno" &&
-              t.tipo !== "Pagamento" &&
-              t.tipo !== "Encargo Bancário" &&
-              t.valor > 0
-            )
-            .reduce((acc, t) => acc + t.valor, 0);
-        }
-        row[titularId] = val;
-        total += val;
-      });
-      row.total = total;
-      return row;
-    });
-  }, [transacoesEfetivas]);
+   const crossTab = useMemo(() => {
+     const CIDADES = ['Araraquara','Bauru','Ribeirão Preto','São Carlos','Online','Não identificado'];
+     const result: Record<string, any> = {};
+     for (const cidade of [...CIDADES, 'Encargos']) {
+       result[cidade] = { Isabela: 0, Claudio: 0, Daniel: 0, label: cidade };
+       for (const titular of ['Isabela','Claudio','Daniel']) {
+         result[cidade][titular] = rows
+           .filter(t => {
+             if (t.tipo === 'Crédito' || t.tipo === 'Estorno') return false;
+             if (t.valor <= 0) return false;
+             if (t.titular !== titular) return false;
+             if (cidade === 'Encargos') return t.tipo === 'Encargo Bancário';
+             return t.cidade === cidade;
+           })
+           .reduce((s, t) => s + t.valor, 0);
+       }
+       result[cidade].total = result[cidade].Isabela + result[cidade].Claudio + result[cidade].Daniel;
+     }
+     return Object.values(result);
+   }, [rows]);
 
-  const filteredTransacoes = useMemo(() => {
-    return transacoesEfetivas.filter(t => {
-      if (filterTitular !== "Todos" && t.titular !== filterTitular) return false;
-      if (showOnlyUnidentified && t.cidade !== "Não identificado") return false;
-      if (!showPayments && (t.tipo === "Pagamento" || t.tipo === "Crédito")) return false;
-      return true;
-    });
-  }, [transacoesEfetivas, filterTitular, showOnlyUnidentified, showPayments]);
+   const filteredTransacoes = useMemo(() => {
+     return rows.filter(t => {
+       if (filterTitular !== "Todos" && t.titular !== filterTitular) return false;
+       if (showOnlyUnidentified && t.cidade !== "Não identificado") return false;
+       if (!showPayments && (t.tipo === "Pagamento" || t.tipo === "Crédito")) return false;
+       return true;
+     });
+   }, [rows, filterTitular, showOnlyUnidentified, showPayments]);
 
   const getTitularColor = (id: string) => {
     const lower = id.toLowerCase();
@@ -191,17 +183,17 @@ import { Label } from "@/components/ui/label";
      pdf.text(`Total Fatura: R$ ${totals.totalCalculado.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, 14, 23);
      pdf.text(`Isabela: ${fmt(totals.isabela)}   Claudio: ${fmt(totals.claudio)}   Daniel: ${fmt(totals.daniel)}`, 14, 29);
  
-     autoTable(pdf, {
-       startY: 34,
-       head: [['Cidade', 'Isabela', 'Claudio', 'Daniel', 'Total']],
-       body: crossTable.map(row => [
-         row.label,
-         fmt(row.Isabela),
-         fmt(row.Claudio),
-         fmt(row.Daniel),
-         fmt(row.total)
-       ]),
-       foot: [['TOTAL', fmt(crossTable.reduce((acc, r) => acc + r.Isabela, 0)), fmt(crossTable.reduce((acc, r) => acc + r.Claudio, 0)), fmt(crossTable.reduce((acc, r) => acc + r.Daniel, 0)), fmt(crossTable.reduce((acc, r) => acc + r.total, 0))]],
+      autoTable(pdf, {
+        startY: 34,
+        head: [['Cidade', 'Isabela', 'Claudio', 'Daniel', 'Total']],
+        body: crossTab.map(row => [
+          row.label,
+          fmt(row.Isabela),
+          fmt(row.Claudio),
+          fmt(row.Daniel),
+          fmt(row.total)
+        ]),
+        foot: [['TOTAL', fmt(crossTab.reduce((acc, r) => acc + r.Isabela, 0)), fmt(crossTab.reduce((acc, r) => acc + r.Claudio, 0)), fmt(crossTab.reduce((acc, r) => acc + r.Daniel, 0)), fmt(crossTab.reduce((acc, r) => acc + r.total, 0))]],
        styles: { fontSize: 9, cellPadding: 3 },
        headStyles: { fillColor: [31, 56, 100], textColor: 255, fontStyle: 'bold' },
        footStyles: { fillColor: [220, 220, 220], fontStyle: 'bold' },
@@ -214,7 +206,7 @@ import { Label } from "@/components/ui/label";
        },
      });
  
-     const tableBody = transacoesEfetivas
+      const tableBody = rows
        .filter(t => t.tipo !== 'Crédito' && t.tipo !== 'Pagamento')
        .map(t => [
          String(t.id),
@@ -287,12 +279,12 @@ import { Label } from "@/components/ui/label";
             <Badge className={cn("text-[10px] font-bold uppercase px-3 py-1", isValid ? "bg-green-100 text-green-700 border-green-200" : "bg-red-100 text-red-700 border-red-200")}>
                Total calculado: {formatBRL(totals.totalCalculado)} {isValid ? '✓' : '✗'}
              </Badge>
-             <Badge variant="outline" className="text-[10px] font-bold uppercase px-3 py-1 bg-white border-slate-200 text-slate-600">
-               ✓ Conferidos: {checkedCount} / {transacoesEfetivas.length}
-             </Badge>
+              <Badge variant="outline" className="text-[10px] font-bold uppercase px-3 py-1 bg-white border-slate-200 text-slate-600">
+                ✓ Conferidos: {totalConferidos} / {rows.length}
+              </Badge>
           </div>
           <div className="flex items-center gap-2">
-             <Button variant="outline" size="sm" onClick={() => exportToXLSX(transacoesEfetivas, config)} className="flex gap-2 no-print">
+              <Button variant="outline" size="sm" onClick={() => exportToXLSX(rows, config)} className="flex gap-2 no-print">
               <Download className="w-4 h-4" /> Exportar Excel
             </Button>
              <Button variant="outline" size="sm" onClick={exportPDF} className="flex gap-2 no-print">
@@ -345,7 +337,7 @@ import { Label } from "@/components/ui/label";
               </TableRow>
             </TableHeader>
             <TableBody>
-              {crossTable.map((row, idx) => (
+               {crossTab.map((row, idx) => (
                 <TableRow key={idx} className={cn(row.label === 'Não identificado' && row.total > 0 ? 'bg-amber-50' : row.label === 'Encargos' ? 'bg-red-50' : '')}>
                   <TableCell className="font-medium text-[12px] px-6 py-2">{row.label}</TableCell>
                   <TableCell className="text-right tabular-nums text-[12px] px-6 py-2">{row.Isabela > 0.01 ? formatBRL(row.Isabela) : '—'}</TableCell>
@@ -356,10 +348,10 @@ import { Label } from "@/components/ui/label";
               ))}
               <TableRow className="bg-slate-100 font-black">
                 <TableCell className="px-6 py-3 text-[12px]">TOTAL</TableCell>
-                <TableCell className="text-right tabular-nums text-[12px] px-6 py-3">{formatBRL(crossTable.reduce((acc, r) => acc + r.Isabela, 0))}</TableCell>
-                <TableCell className="text-right tabular-nums text-[12px] px-6 py-3">{formatBRL(crossTable.reduce((acc, r) => acc + r.Claudio, 0))}</TableCell>
-                <TableCell className="text-right tabular-nums text-[12px] px-6 py-3">{formatBRL(crossTable.reduce((acc, r) => acc + r.Daniel, 0))}</TableCell>
-                <TableCell className="text-right tabular-nums bg-slate-200 text-[12px] px-6 py-3">{formatBRL(crossTable.reduce((acc, r) => acc + r.total, 0))}</TableCell>
+                 <TableCell className="text-right tabular-nums text-[12px] px-6 py-3">{formatBRL(crossTab.reduce((acc, r) => acc + r.Isabela, 0))}</TableCell>
+                 <TableCell className="text-right tabular-nums text-[12px] px-6 py-3">{formatBRL(crossTab.reduce((acc, r) => acc + r.Claudio, 0))}</TableCell>
+                 <TableCell className="text-right tabular-nums text-[12px] px-6 py-3">{formatBRL(crossTab.reduce((acc, r) => acc + r.Daniel, 0))}</TableCell>
+                 <TableCell className="text-right tabular-nums bg-slate-200 text-[12px] px-6 py-3">{formatBRL(crossTab.reduce((acc, r) => acc + r.total, 0))}</TableCell>
               </TableRow>
             </TableBody>
           </Table>
