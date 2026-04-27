@@ -37,6 +37,7 @@ export type Cidade =
    nome: string;
    parcela: string;
    valor: number;
+   conferido?: boolean;
    cidade: string;
    tipo: TipoDestino;
    destino?: string;
