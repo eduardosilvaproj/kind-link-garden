@@ -71,11 +71,17 @@ import {
       });
     }, []);
 
-    // 2. COMPUTED DATA — Deriving the effective transaction list
-    // This is the core reactive layer: any change to 'edits' triggers a full recalculation
-    const rows = useMemo(() =>
-      TRANSACOES.map(t => {
+    // 2. COMPUTED DATA — Deriving the effective transaction list with Running Totals
+    const rows = useMemo(() => {
+      let runningBalance = 0;
+      return TRANSACOES.map(t => {
         const e = edits[`${t.id}`] || {};
+        const isNegative = t.tipo === 'Crédito' || t.tipo === 'Estorno' || t.tipo === 'Pagamento';
+        const val = e.valor !== undefined ? Number(e.valor) : t.valor;
+        const finalVal = isNegative ? -Math.abs(val) : val;
+        
+        runningBalance += finalVal;
+        
         return {
           ...t,
           titular:     e.titular     ?? t.titular,
@@ -84,10 +90,11 @@ import {
           clienteNome: e.clienteNome ?? t.clienteNome ?? '',
           conferido:   e.conferido   ?? false,
           nome:        e.nome        ?? t.nome,
-          valor:       e.valor !== undefined ? Number(e.valor) : t.valor, // Allow editing values in the future
+          valor:       val,
+          saldoAcumulado: runningBalance
         };
-      }),
-    [edits]);
+      });
+    }, [edits]);
   
     // 3. AGGREGATED CALCULATIONS — Centralized logic for all components
     // We use "edits" as a dependency to ensure any UI change triggers a recalculation
@@ -485,8 +492,9 @@ import {
                    </TableHead>
                    <TableHead className="w-[100px] px-6">Titular</TableHead>
                   <TableHead className="w-[100px] px-6">Data</TableHead>
-                  <TableHead className="px-6">Estabelecimento & Classificação</TableHead>
-                  <TableHead className="text-right px-6 w-[180px]">Valor</TableHead>
+                   <TableHead className="px-6">Estabelecimento & Classificação</TableHead>
+                   <TableHead className="text-right px-6 w-[140px]">Valor</TableHead>
+                   <TableHead className="text-right px-6 w-[140px] bg-slate-50/80">Saldo</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -575,8 +583,14 @@ import {
                         </div>
                       </div>
                     </TableCell>
-                    <TableCell className={cn("px-6 py-3 text-right font-bold tabular-nums text-base", t.tipo === "Estorno" ? "text-green-600" : "")}>
-                      {formatBRL(t.valor)}
+                    <TableCell className={cn("px-6 py-3 text-right font-bold tabular-nums text-sm", (t.tipo === "Estorno" || t.tipo === "Crédito") ? "text-green-600" : "")}>
+                      <div className="flex flex-col items-end">
+                        <span>{formatBRL(t.valor)}</span>
+                        <span className="text-[9px] font-normal text-slate-400 uppercase leading-none">{t.tipo}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="px-6 py-3 text-right font-mono text-[12px] tabular-nums bg-slate-50/30 text-slate-500">
+                      {formatBRL((t as any).saldoAcumulado)}
                     </TableCell>
                   </TableRow>
                 ))}
@@ -585,7 +599,7 @@ import {
                 <TableRow className="bg-slate-50 font-black border-t-2">
                   <TableCell className="px-2 py-4" colSpan={2}></TableCell>
                   <TableCell className="px-6 py-4 text-[11px] uppercase text-slate-400">Total Exibido</TableCell>
-                  <TableCell className="px-6 py-4" colSpan={2}>
+                  <TableCell className="px-6 py-4" colSpan={3}>
                     <Badge variant="outline" className="text-[10px] font-bold bg-white text-slate-500 border-slate-200">
                       {filteredTransacoes.length} Itens
                     </Badge>
