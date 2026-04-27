@@ -1,4 +1,4 @@
- import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useAppContext } from '../hooks/useAppContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -16,6 +16,16 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
  import jsPDF from 'jspdf';
  import autoTable from 'jspdf-autotable';
+import { 
+  BarChart, 
+  Bar, 
+  XAxis, 
+  YAxis, 
+  CartesianGrid, 
+  Tooltip as RechartsTooltip, 
+  ResponsiveContainer, 
+  Cell 
+} from 'recharts';
 
   const Index = () => {
     const { config } = useAppContext();
@@ -107,6 +117,50 @@ import { Label } from "@/components/ui/label";
       totalCalculado: TOTAL_FATURA,
       conferidos: totalConferidos
     }), [somaIsabela, somaClaudio, somaDaniel, totalConferidos]);
+
+    const CATEGORIAS_FINANCEIRAS = ["Aluguel", "IPTU", "Condomínio", "Seguro"];
+
+    const somaCategorias = useMemo(() => {
+      const result: Record<string, number> = {
+        "Aluguel": 0,
+        "IPTU": 0,
+        "Condomínio": 0,
+        "Seguro": 0,
+        "Outros": 0
+      };
+      
+      rows.forEach(t => {
+        if (t.tipo === 'Crédito' || t.tipo === 'Estorno' || t.tipo === 'Pagamento') return;
+        if (t.valor <= 0) return;
+        
+        if (CATEGORIAS_FINANCEIRAS.includes(t.destino)) {
+          result[t.destino] += t.valor;
+        } else {
+          result["Outros"] += t.valor;
+        }
+      });
+      
+      return result;
+    }, [rows]);
+
+    const chartData = useMemo(() => {
+      const filtered = rows.filter(t => {
+        if (filterTitular !== "Todos" && t.titular !== filterTitular) return false;
+        if (t.tipo === 'Crédito' || t.tipo === 'Estorno' || t.tipo === 'Pagamento') return false;
+        if (t.valor <= 0) return false;
+        return true;
+      });
+
+      const cityMap: Record<string, number> = {};
+      filtered.forEach(t => {
+        const cidade = t.cidade || "Não identificado";
+        cityMap[cidade] = (cityMap[cidade] || 0) + t.valor;
+      });
+
+      return Object.entries(cityMap)
+        .map(([name, value]) => ({ name, value }))
+        .sort((a, b) => b.value - a.value);
+    }, [rows, filterTitular]);
 
    const isValid = Math.abs(somaIsabela + somaClaudio + somaDaniel - 11019.68) < 500;
 
@@ -293,8 +347,8 @@ import { Label } from "@/components/ui/label";
           </div>
         </header>
 
-        {/* METRIC CARDS */}
-        <div className="grid grid-cols-4 gap-4">
+        {/* TITULAR CARDS */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
            <Card>
              <CardContent className="p-4">
                <p className="text-xs font-bold text-slate-500 uppercase mb-1">Isabela (Líquido)</p>
@@ -321,41 +375,83 @@ import { Label } from "@/components/ui/label";
           </Card>
         </div>
 
-        {/* SUMMARY TABLE */}
-        <Card className="shadow-sm">
-          <CardHeader className="py-3 px-6 border-b bg-slate-50/50">
-            <CardTitle className="text-sm font-bold uppercase text-slate-500">Distribuição Cidade × Titular</CardTitle>
-          </CardHeader>
-          <Table className="w-full table-fixed">
-            <TableHeader>
-              <TableRow className="bg-slate-50/50">
-                <TableHead className="font-bold text-[11px] uppercase px-6 h-10">Cidade</TableHead>
-                <TableHead className="text-right font-bold text-[11px] uppercase px-6 h-10">Isabela</TableHead>
-                <TableHead className="text-right font-bold text-[11px] uppercase px-6 h-10">Claudio</TableHead>
-                <TableHead className="text-right font-bold text-[11px] uppercase px-6 h-10">Daniel</TableHead>
-                <TableHead className="text-right font-bold bg-slate-100/50 text-[11px] uppercase px-6 h-10">Total</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-               {crossTab.map((row, idx) => (
-                <TableRow key={idx} className={cn(row.label === 'Não identificado' && row.total > 0 ? 'bg-amber-50' : row.label === 'Encargos' ? 'bg-red-50' : '')}>
-                  <TableCell className="font-medium text-[12px] px-6 py-2">{row.label}</TableCell>
-                  <TableCell className="text-right tabular-nums text-[12px] px-6 py-2">{row.Isabela > 0.01 ? formatBRL(row.Isabela) : '—'}</TableCell>
-                  <TableCell className="text-right tabular-nums text-[12px] px-6 py-2">{row.Claudio > 0.01 ? formatBRL(row.Claudio) : '—'}</TableCell>
-                  <TableCell className="text-right tabular-nums text-[12px] px-6 py-2">{row.Daniel > 0.01 ? formatBRL(row.Daniel) : '—'}</TableCell>
-                  <TableCell className="text-right font-bold tabular-nums bg-slate-50 text-[12px] px-6 py-2">{formatBRL(row.total)}</TableCell>
+
+        {/* CATEGORY CARDS */}
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+          {Object.entries(somaCategorias).map(([cat, val]) => (
+            <Card key={cat} className="border-slate-200">
+              <CardContent className="p-4">
+                <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">{cat}</p>
+                <p className="text-xl font-bold text-slate-700">{formatBRL(val)}</p>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* SUMMARY TABLE */}
+          <Card className="shadow-sm lg:col-span-2">
+            <CardHeader className="py-3 px-6 border-b bg-slate-50/50">
+              <CardTitle className="text-sm font-bold uppercase text-slate-500">Distribuição Cidade × Titular</CardTitle>
+            </CardHeader>
+            <Table className="w-full table-fixed">
+              <TableHeader>
+                <TableRow className="bg-slate-50/50">
+                  <TableHead className="font-bold text-[11px] uppercase px-6 h-10">Cidade</TableHead>
+                  <TableHead className="text-right font-bold text-[11px] uppercase px-6 h-10">Isabela</TableHead>
+                  <TableHead className="text-right font-bold text-[11px] uppercase px-6 h-10">Claudio</TableHead>
+                  <TableHead className="text-right font-bold text-[11px] uppercase px-6 h-10">Daniel</TableHead>
+                  <TableHead className="text-right font-bold bg-slate-100/50 text-[11px] uppercase px-6 h-10">Total</TableHead>
                 </TableRow>
-              ))}
-              <TableRow className="bg-slate-100 font-black">
-                <TableCell className="px-6 py-3 text-[12px]">TOTAL</TableCell>
-                 <TableCell className="text-right tabular-nums text-[12px] px-6 py-3">{formatBRL(crossTab.reduce((acc, r) => acc + r.Isabela, 0))}</TableCell>
-                 <TableCell className="text-right tabular-nums text-[12px] px-6 py-3">{formatBRL(crossTab.reduce((acc, r) => acc + r.Claudio, 0))}</TableCell>
-                 <TableCell className="text-right tabular-nums text-[12px] px-6 py-3">{formatBRL(crossTab.reduce((acc, r) => acc + r.Daniel, 0))}</TableCell>
-                 <TableCell className="text-right tabular-nums bg-slate-200 text-[12px] px-6 py-3">{formatBRL(crossTab.reduce((acc, r) => acc + r.total, 0))}</TableCell>
-              </TableRow>
-            </TableBody>
-          </Table>
-        </Card>
+              </TableHeader>
+              <TableBody>
+                {crossTab.map((row, idx) => (
+                  <TableRow key={idx} className={cn(row.label === 'Não identificado' && row.total > 0 ? 'bg-amber-50' : row.label === 'Encargos' ? 'bg-red-50' : '')}>
+                    <TableCell className="font-medium text-[12px] px-6 py-2">{row.label}</TableCell>
+                    <TableCell className="text-right tabular-nums text-[12px] px-6 py-2">{row.Isabela > 0.01 ? formatBRL(row.Isabela) : '—'}</TableCell>
+                    <TableCell className="text-right tabular-nums text-[12px] px-6 py-2">{row.Claudio > 0.01 ? formatBRL(row.Claudio) : '—'}</TableCell>
+                    <TableCell className="text-right tabular-nums text-[12px] px-6 py-2">{row.Daniel > 0.01 ? formatBRL(row.Daniel) : '—'}</TableCell>
+                    <TableCell className="text-right font-bold tabular-nums bg-slate-50 text-[12px] px-6 py-2">{formatBRL(row.total)}</TableCell>
+                  </TableRow>
+                ))}
+                <TableRow className="bg-slate-100 font-black">
+                  <TableCell className="px-6 py-3 text-[12px]">TOTAL</TableCell>
+                  <TableCell className="text-right tabular-nums text-[12px] px-6 py-3">{formatBRL(crossTab.reduce((acc, r) => acc + r.Isabela, 0))}</TableCell>
+                  <TableCell className="text-right tabular-nums text-[12px] px-6 py-3">{formatBRL(crossTab.reduce((acc, r) => acc + r.Claudio, 0))}</TableCell>
+                  <TableCell className="text-right tabular-nums text-[12px] px-6 py-3">{formatBRL(crossTab.reduce((acc, r) => acc + r.Daniel, 0))}</TableCell>
+                  <TableCell className="text-right tabular-nums bg-slate-200 text-[12px] px-6 py-3">{formatBRL(crossTab.reduce((acc, r) => acc + r.total, 0))}</TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+          </Card>
+
+          {/* CHART */}
+          <Card className="shadow-sm">
+            <CardHeader className="py-3 px-6 border-b bg-slate-50/50">
+              <CardTitle className="text-sm font-bold uppercase text-slate-500">
+                Gastos por Cidade {filterTitular !== "Todos" ? `(${filterTitular})` : ""}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-6 h-[300px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={chartData} layout="vertical" margin={{ left: 30, right: 30, top: 10, bottom: 10 }}>
+                  <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} />
+                  <XAxis type="number" hide />
+                  <YAxis dataKey="name" type="category" width={80} style={{ fontSize: '10px', fontWeight: 'bold' }} />
+                  <RechartsTooltip 
+                    formatter={(value: number) => [formatBRL(value), 'Valor']}
+                    contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                  />
+                  <Bar dataKey="value" radius={[0, 4, 4, 0]}>
+                    {chartData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={['#f59e0b', '#3b82f6', '#14b8a6', '#ef4444', '#6366f1'][index % 5]} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        </div>
 
         {/* TRANSACTION LIST */}
         <div className="flex flex-col gap-4">
@@ -455,14 +551,16 @@ import { Label } from "@/components/ui/label";
                             </SelectContent>
                           </Select>
 
-                           <Select value={t.destino || ""} onValueChange={(v) => updateRow(t.id, { destino: v })}>
+                            <Select value={t.destino || ""} onValueChange={(v) => {
+                              updateRow(t.id, { destino: v });
+                            }}>
                             <SelectTrigger className="h-6 text-[11px] bg-white border border-slate-200 rounded-md px-2 w-fit gap-1 text-slate-600 font-medium">
                               <span>{t.destino === "Cliente" && t.clienteNome ? `Cliente — ${t.clienteNome}` : (t.destino || "Destino")}</span>
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="Loja" className="text-[11px]">Loja</SelectItem>
-                              <SelectItem value="Depósito" className="text-[11px]">Depósito</SelectItem>
-                              <SelectItem value="Cliente" className="text-[11px]">Cliente</SelectItem>
+                                {["Loja", "Depósito", "Cliente", "Aluguel", "IPTU", "Condomínio", "Seguro", "Outros"].map(opt => (
+                                  <SelectItem key={opt} value={opt} className="text-[11px]">{opt}</SelectItem>
+                                ))}
                             </SelectContent>
                           </Select>
 
