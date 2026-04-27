@@ -4,7 +4,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { TRANSACOES, TOTAL_FATURA, SUBTOTAL_ISABELA, SUBTOTAL_CLAUDIO, SUBTOTAL_DANIEL } from '../data/transactions';
-import { Download, AlertCircle, Filter, FilterX, Eye, EyeOff } from "lucide-react";
+ import { Download, AlertCircle, Filter, FilterX, Eye, EyeOff, FileText } from "lucide-react";
+ import jsPDF from 'jspdf';
+ import html2canvas from 'html2canvas';
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -17,6 +19,48 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
+   const exportPDF = async () => {
+     const element = document.getElementById('pdf-content');
+     if (!element) return;
+     
+     // Temporarily remove overflow and height constraints for full capture
+     const originalStyle = element.style.cssText;
+     element.style.height = 'auto';
+     element.style.overflow = 'visible';
+     
+     const canvas = await html2canvas(element, { 
+       scale: 2, 
+       useCORS: true,
+       logging: false,
+       windowWidth: element.scrollWidth,
+       windowHeight: element.scrollHeight
+     });
+     
+     element.style.cssText = originalStyle;
+     
+     const imgData = canvas.toDataURL('image/png');
+     const pdf = new jsPDF('l', 'mm', 'a4'); // landscape
+     const pageWidth = pdf.internal.pageSize.getWidth();
+     const pageHeight = pdf.internal.pageSize.getHeight();
+     const imgWidth = pageWidth;
+     const imgHeight = (canvas.height * pageWidth) / canvas.width;
+     
+     let heightLeft = imgHeight;
+     let position = 0;
+     
+     pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+     heightLeft -= pageHeight;
+     
+     while (heightLeft > 0) {
+       position = heightLeft - imgHeight;
+       pdf.addPage();
+       pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+       heightLeft -= pageHeight;
+     }
+     
+     pdf.save('Fatura_C6_Abril_2026.pdf');
+   };
+ 
 const Index = () => {
   const { transacoes, setTransacoes, config, updateTransacao } = useAppContext();
   const [filterTitular, setFilterTitular] = useState<string>("Todos");
