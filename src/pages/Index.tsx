@@ -41,7 +41,7 @@ import {
   
     // 1. SINGLE SOURCE OF TRUTH
     const [edits, setEdits] = useState<Record<string, {
-      titulares?: string[];
+      titular?: string;
       cidade?: string;
       destino?: string;
       clienteNome?: string;
@@ -81,10 +81,10 @@ import {
     const rows = useMemo(() =>
       TRANSACOES.map(t => {
         const e = edits[`${t.id}`] ?? {};
-        const rowTitulares = e.titulares ?? [t.titular];
+        const rowTitular = e.titular ?? t.titular;
         return {
           ...t,
-          titulares: rowTitulares,
+          titular: rowTitular,
           cidade:      e.cidade      ?? t.cidade,
           destino:     e.destino     ?? t.destino ?? t.tipo,
           clienteNome: e.clienteNome ?? t.clienteNome ?? '',
@@ -97,10 +97,8 @@ import {
     // 3. CARD TOTALS — always from rows
     const getTitularSum = useCallback((titular: string) => {
       return rows.reduce((s, t) => {
-        const rowTits = (t as any).titulares as string[];
-        if (!rowTits.includes(titular)) return s;
-        const splitFactor = rowTits.length;
-        const val = t.valor / splitFactor;
+        if (t.titular !== titular) return s;
+        const val = t.valor;
         if (t.tipo === 'Crédito' || t.tipo === 'Estorno') return s - Math.abs(val);
         return s + val;
       }, 0);
