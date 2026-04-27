@@ -76,7 +76,15 @@ import {
       const rawRows = TRANSACOES.map(t => {
         const e = edits[`${t.id}`] || {};
         const isNegative = t.tipo === 'Crédito' || t.tipo === 'Estorno' || t.tipo === 'Pagamento';
-        const val = e.valor !== undefined ? Number(e.valor) : t.valor;
+        // Try to get updated value from edits, otherwise use transaction's default value
+        let val = t.valor;
+        if (e.valor !== undefined) {
+          const parsed = typeof e.valor === 'string' 
+            ? parseFloat(e.valor.replace(/[R$\s.]/g, '').replace(',', '.'))
+            : Number(e.valor);
+          if (!isNaN(parsed)) val = parsed;
+        }
+        
         const finalVal = isNegative ? -Math.abs(val) : val;
         return {
           ...t,
