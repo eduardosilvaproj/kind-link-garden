@@ -221,11 +221,11 @@ const Index = () => {
                      </TableRow>
                    ))}
                    <TableRow className="bg-slate-100 font-black text-[11px]">
-                       <TableCell className="w-[130px] text-[11px] font-bold">TOTAL</TableCell>
-                       <TableCell className="text-right tabular-nums w-[22%] text-[11px] font-bold py-1">{formatBRL(crossTable.reduce((acc, r) => acc + r.Isabela, 0)).replace("R$", "").trim()}</TableCell>
-                       <TableCell className="text-right tabular-nums w-[22%] text-[11px] font-bold py-1">{formatBRL(crossTable.reduce((acc, r) => acc + r.Claudio, 0)).replace("R$", "").trim()}</TableCell>
-                       <TableCell className="text-right tabular-nums w-[22%] text-[11px] font-bold py-1">{formatBRL(crossTable.reduce((acc, r) => acc + r.Daniel, 0)).replace("R$", "").trim()}</TableCell>
-                       <TableCell className="text-right tabular-nums bg-slate-200 w-[22%] text-[11px] font-bold py-1">{formatBRL(crossTable.reduce((acc, r) => acc + r.total, 0)).replace("R$", "").trim()}</TableCell>
+                       <TableCell className="w-[130px] text-[12px] font-bold">TOTAL</TableCell>
+                       <TableCell className="text-right tabular-nums w-[22%] text-[12px] font-bold py-1">{formatBRL(crossTable.reduce((acc, r) => acc + r.Isabela, 0)).replace("R$", "").trim()}</TableCell>
+                       <TableCell className="text-right tabular-nums w-[22%] text-[12px] font-bold py-1">{formatBRL(crossTable.reduce((acc, r) => acc + r.Claudio, 0)).replace("R$", "").trim()}</TableCell>
+                       <TableCell className="text-right tabular-nums w-[22%] text-[12px] font-bold py-1">{formatBRL(crossTable.reduce((acc, r) => acc + r.Daniel, 0)).replace("R$", "").trim()}</TableCell>
+                       <TableCell className="text-right tabular-nums bg-slate-200 w-[22%] text-[12px] font-bold py-1">{formatBRL(crossTable.reduce((acc, r) => acc + r.total, 0)).replace("R$", "").trim()}</TableCell>
                    </TableRow>
                  </TableBody>
                </Table>
