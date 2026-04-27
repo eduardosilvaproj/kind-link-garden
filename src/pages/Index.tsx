@@ -591,6 +591,23 @@ import {
                           {["Loja", "Depósito", "Cliente", "Aluguel", "IPTU", "Condomínio", "Seguro", "Outros"].map(opt => (
                             <SelectItem key={opt} value={opt} className="text-[11px]">{opt}</SelectItem>
                           ))}
+                        </SelectContent>
+                      </Select>
+                    </TableCell>
+                    <TableCell className="px-6 py-3 text-right font-bold tabular-nums text-sm">
+                      <Input 
+                        type="text"
+                        defaultValue={t.valor}
+                        onBlur={(e) => {
+                          const val = parseFloat(e.target.value.replace(/[R$\s.]/g, '').replace(',', '.'));
+                          if (!isNaN(val)) updateRow(t.id, { valor: val });
+                        }}
+                        className={cn("h-8 text-right font-bold border-slate-200 bg-white w-[100px] ml-auto px-2", (t.tipo === "Estorno" || t.tipo === "Crédito") ? "text-green-600" : "text-slate-900")}
+                      />
+                    </TableCell>
+                    <TableCell className="px-6 py-3 text-right font-mono text-[12px] tabular-nums bg-slate-50/30 text-slate-500">
+                      {formatBRL((t as any).saldoAcumulado)}
+                    </TableCell>
                    </TableRow>
                    );
                  })}
