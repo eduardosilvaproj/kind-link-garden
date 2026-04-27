@@ -580,6 +580,43 @@ import {
             </Table>
           </Card>
         </div>
+        {/* PARTICIPATION TABLE */}
+        <Card className="shadow-sm">
+          <CardHeader className="py-3 px-6 border-b bg-slate-50/50">
+            <CardTitle className="text-sm font-bold uppercase text-slate-500">Distribuição Final e Participação</CardTitle>
+          </CardHeader>
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-slate-50/50">
+                <TableHead className="font-bold text-[11px] uppercase px-6">Titular</TableHead>
+                <TableHead className="text-right font-bold text-[11px] uppercase px-6">Total Acumulado</TableHead>
+                <TableHead className="text-right font-bold text-[11px] uppercase px-6">Participação %</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {[
+                { name: 'Isabela', val: somaIsabela, color: 'text-amber-600' },
+                { name: 'Claudio', val: somaClaudio, color: 'text-blue-600' },
+                { name: 'Daniel', val: somaDaniel, color: 'text-teal-600' }
+              ].map(tit => {
+                const total = somaIsabela + somaClaudio + somaDaniel;
+                const percentage = total > 0 ? (tit.val / total) * 100 : 0;
+                return (
+                  <TableRow key={tit.name}>
+                    <TableCell className="font-bold text-[12px] px-6 py-3">{tit.name}</TableCell>
+                    <TableCell className={cn("text-right font-black tabular-nums text-[14px] px-6 py-3", tit.color)}>
+                      {formatBRL(tit.val)}
+                    </TableCell>
+                    <TableCell className="text-right font-medium text-slate-500 text-[12px] px-6 py-3">
+                      {percentage.toFixed(1)}%
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </Card>
+
       </div>
     </div>
   );
