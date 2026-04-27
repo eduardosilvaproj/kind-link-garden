@@ -78,9 +78,9 @@ import { Label } from "@/components/ui/label";
      const creditos = transacoesEfetivas.filter(t => t.tipo === 'Crédito').reduce((acc, t) => acc + t.valor, 0);
      const estornos = transacoesEfetivas.filter(t => t.tipo === 'Estorno').reduce((acc, t) => acc + Math.abs(t.valor), 0);
      
-     const isabelaTotal = transacoesEfetivas.filter(t => t.titular === 'Isabela' && t.tipo !== 'Crédito' && t.tipo !== 'Estorno').reduce((acc, t) => acc + t.valor, 0);
-     const claudioTotal = transacoesEfetivas.filter(t => t.titular === 'Claudio' && t.tipo !== 'Crédito' && t.tipo !== 'Estorno').reduce((acc, t) => acc + t.valor, 0);
-     const danielTotal = transacoesEfetivas.filter(t => t.titular === 'Daniel' && t.tipo !== 'Crédito' && t.tipo !== 'Estorno').reduce((acc, t) => acc + t.valor, 0);
+      const isabelaTotal = transacoesEfetivas.filter(t => t.titular === 'Isabela' && t.tipo !== 'Crédito' && t.tipo !== 'Estorno' && t.valor > 0).reduce((acc, t) => acc + t.valor, 0);
+      const claudioTotal = transacoesEfetivas.filter(t => t.titular === 'Claudio' && t.tipo !== 'Crédito' && t.tipo !== 'Estorno' && t.valor > 0).reduce((acc, t) => acc + t.valor, 0);
+      const danielTotal = transacoesEfetivas.filter(t => t.titular === 'Daniel' && t.tipo !== 'Crédito' && t.tipo !== 'Estorno' && t.valor > 0).reduce((acc, t) => acc + t.valor, 0);
 
     return {
       compras,
