@@ -33,12 +33,16 @@ import { Label } from "@/components/ui/label";
    const [showPayments, setShowPayments] = useState(false);
  
    const [rowEdits, setRowEdits] = useState<Record<number, RowEdit>>(() => {
-     const saved = localStorage.getItem('rowEdits');
-     return saved ? JSON.parse(saved) : {};
+     try {
+       const saved = localStorage.getItem('faturaRowEdits');
+       return saved ? JSON.parse(saved) : {};
+     } catch (e) {
+       return {};
+     }
    });
  
    useEffect(() => {
-     localStorage.setItem('rowEdits', JSON.stringify(rowEdits));
+     localStorage.setItem('faturaRowEdits', JSON.stringify(rowEdits));
    }, [rowEdits]);
  
    const transacoesEfetivas = useMemo(() => {
