@@ -33,8 +33,8 @@ export const exportToXLSX = (transacoes: Transacao[], config: Config) => {
      "Não identificado"
    ].filter(label => activeCities.includes(label) || label === "Não identificado");
    
-   const summaryRows = [...cityRows, "Encargos", "Total"];
-   const titulares = config.titulares;
+    const summaryRows = [...cityRows, "Encargos", "Total"];
+    const titulares = config.titulares;
     const resumoData = summaryRows.map(label => {
       const row: any = { 'Cidade': label };
       let totalRow = 0;
@@ -42,23 +42,22 @@ export const exportToXLSX = (transacoes: Transacao[], config: Config) => {
         let val = 0;
         if (label === "Total") {
           val = transacoes.reduce((acc, t) => {
-            if (!t.titulares.includes(titular.id)) return acc;
-            const share = t.valor / t.titulares.length;
-            if (t.tipo === 'Crédito' || t.tipo === 'Estorno') return acc - Math.abs(share);
-            if (t.tipo === 'Pagamento') return acc;
-            return acc + share;
+            if (t.titular !== titular.id) return acc;
+            const isNegative = t.tipo === 'Crédito' || t.tipo === 'Estorno' || t.tipo === 'Pagamento';
+            const finalVal = isNegative ? -Math.abs(t.valor) : t.valor;
+            return acc + finalVal;
           }, 0);
         } else if (label === "Encargos") {
           val = transacoes.reduce((acc, t) => {
-            if (t.tipo === 'Encargo Bancário' && t.titulares.includes(titular.id)) {
-              return acc + (t.valor / t.titulares.length);
+            if (t.tipo === 'Encargo Bancário' && t.titular === titular.id) {
+              return acc + t.valor;
             }
             return acc;
           }, 0);
         } else {
           val = transacoes.reduce((acc, t) => {
-            if (t.cidade === label && t.titulares.includes(titular.id) && !['Crédito', 'Estorno', 'Pagamento', 'Encargo Bancário'].includes(t.tipo)) {
-              return acc + (t.valor / t.titulares.length);
+            if (t.cidade === label && t.titular === titular.id && !['Crédito', 'Estorno', 'Pagamento', 'Encargo Bancário'].includes(t.tipo)) {
+              return acc + t.valor;
             }
             return acc;
           }, 0);
