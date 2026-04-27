@@ -14,7 +14,8 @@ import {
   DropdownMenuContent, 
   DropdownMenuTrigger 
 } from "@/components/ui/dropdown-menu";
-import { Transacao } from "../types";
+import { Transacao } from "../types/index";
+import { processTransactions, getAggregatedData } from "../lib/financeCalculations";
 import { cn } from "@/lib/utils";
 import { exportToXLSX } from "../lib/exportUtils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -72,91 +73,10 @@ import {
     }, []);
 
     // 2. COMPUTED DATA — Deriving the effective transaction list with Per-Titular Grouping and Resets
-    const rows = useMemo(() => {
-      const rawRows = TRANSACOES.map(t => {
-        const e = edits[`${t.id}`] || {};
-        const isNegative = t.tipo === 'Crédito' || t.tipo === 'Estorno' || t.tipo === 'Pagamento';
-        // Try to get updated value from edits, otherwise use transaction's default value
-        let val = t.valor;
-        if (e.valor !== undefined) {
-          const parsed = typeof e.valor === 'string' 
-            ? parseFloat(e.valor.replace(/[R$\s.]/g, '').replace(',', '.'))
-            : Number(e.valor);
-          if (!isNaN(parsed)) val = parsed;
-        }
-        
-        const finalVal = isNegative ? -Math.abs(val) : val;
-        return {
-          ...t,
-          titular:     e.titular     ?? t.titular,
-          cidade:      e.cidade      ?? t.cidade,
-          destino:     e.destino     ?? t.destino ?? t.tipo,
-          clienteNome: e.clienteNome ?? t.clienteNome ?? '',
-          conferido:   e.conferido   ?? false,
-          nome:        e.nome        ?? t.nome,
-          valor:       val,
-          finalVal
-        };
-      });
-
-      // Group by titular then sort/process within group
-      // We sort by titular name first, then by data (date) or ID to keep consistent order
-      const grouped = [...rawRows].sort((a, b) => {
-        if (a.titular !== b.titular) return a.titular.localeCompare(b.titular);
-        return a.id - b.id; // Secondary sort to maintain stable running balance
-      });
-
-      const balances: Record<string, number> = {};
-      
-      return grouped.map(t => {
-        if (!balances[t.titular]) balances[t.titular] = 0;
-        balances[t.titular] += t.finalVal;
-        
-        return {
-          ...t,
-          saldoAcumulado: balances[t.titular]
-        };
-      });
-    }, [edits]);
+    const rows = useMemo(() => processTransactions(TRANSACOES, edits), [edits]);
   
     // 3. AGGREGATED CALCULATIONS — Centralized logic for all components
-    const aggregatedData = useMemo(() => {
-      const totals: Record<string, number> = { Isabela: 0, Claudio: 0, Daniel: 0 };
-      const CIDADES = ['Araraquara', 'Bauru', 'Ribeirão Preto', 'São Carlos', 'Online', 'Não identificado'];
-      const categories = [...CIDADES, 'Encargos'];
-      const crossTab: Record<string, any> = {};
-      
-      categories.forEach(cat => {
-        crossTab[cat] = { Isabela: 0, Claudio: 0, Daniel: 0, label: cat, total: 0 };
-      });
-
-      rows.forEach(t => {
-        const titular = t.titular;
-        const val = t.valor;
-        const isNegative = t.tipo === 'Crédito' || t.tipo === 'Estorno' || t.tipo === 'Pagamento';
-        const finalVal = isNegative ? -Math.abs(val) : val;
-
-        // Global totals for cards
-        if (totals.hasOwnProperty(titular)) {
-          totals[titular] += finalVal;
-        }
-
-        // City distribution (crossTab)
-        let category = t.cidade;
-        if (t.tipo === 'Encargo Bancário') category = 'Encargos';
-        if (!category || !categories.includes(category)) category = 'Não identificado';
-
-        if (crossTab[category] && crossTab[category].hasOwnProperty(titular)) {
-          crossTab[category][titular] += finalVal;
-          crossTab[category].total += finalVal;
-        }
-      });
-
-      return { 
-        totals, 
-        crossTab: Object.values(crossTab) 
-      };
-    }, [rows]);
+    const aggregatedData = useMemo(() => getAggregatedData(rows), [rows]);
 
     const { totals: titularTotals, crossTab } = aggregatedData;
     const somaIsabela = titularTotals['Isabela'] || 0;
