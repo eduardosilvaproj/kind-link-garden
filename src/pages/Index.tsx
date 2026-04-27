@@ -208,10 +208,10 @@ const Index = () => {
              </Badge>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={() => exportToXLSX(transacoes, config)} className="flex gap-2">
+             <Button variant="outline" size="sm" onClick={() => exportToXLSX(transacoes, config)} className="flex gap-2 no-print">
               <Download className="w-4 h-4" /> Exportar Excel
             </Button>
-            <Button variant="outline" size="sm" onClick={exportPDF} className="flex gap-2">
+             <Button variant="outline" size="sm" onClick={exportPDF} className="flex gap-2 no-print">
               <FileText className="w-4 h-4" /> Exportar PDF
             </Button>
           </div>
