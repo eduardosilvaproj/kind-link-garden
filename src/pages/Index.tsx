@@ -108,7 +108,11 @@ import {
       rows.forEach(t => {
         const titular = t.titular;
         const val = t.valor;
-        const isNegative = t.tipo === 'Crédito' || t.tipo === 'Estorno';
+        
+        // Handle both negative and positive values correctly based on type
+        const isNegative = t.tipo === 'Crédito' || t.tipo === 'Estorno' || t.tipo === 'Pagamento';
+        // If type says it's a credit but value is positive, make it negative. 
+        // If type is expense but value is negative, keep it (as a credit).
         const finalVal = isNegative ? -Math.abs(val) : val;
 
         // Update Titular Totals (for Cards and Participation table)
@@ -117,17 +121,15 @@ import {
         }
 
         // Update CrossTab (Distribution Table)
-        // We only sum positive expenses for distribution, excluding credits/estornos from the city breakdown 
-        // to maintain consistency with previous logic, unless they are specific costs.
-        if (!isNegative && val > 0) {
-          let category = t.cidade;
-          if (t.tipo === 'Encargo Bancário') category = 'Encargos';
-          if (!category || !categories.includes(category)) category = 'Não identificado';
+        // Distribution table usually shows gross expenses, but we should include estornos/credits to balance it?
+        // For now, let's include everything so the sum of distribution matches cards.
+        let category = t.cidade;
+        if (t.tipo === 'Encargo Bancário') category = 'Encargos';
+        if (!category || !categories.includes(category)) category = 'Não identificado';
 
-          if (crossTab[category] && crossTab[category].hasOwnProperty(titular)) {
-            crossTab[category][titular] += val;
-            crossTab[category].total += val;
-          }
+        if (crossTab[category] && crossTab[category].hasOwnProperty(titular)) {
+          crossTab[category][titular] += finalVal;
+          crossTab[category].total += finalVal;
         }
       });
 
@@ -138,9 +140,9 @@ import {
     }, [rows]);
 
     const { totals: titularTotals, crossTab } = aggregatedData;
-    const somaIsabela = titularTotals['Isabela'];
-    const somaClaudio = titularTotals['Claudio'];
-    const somaDaniel  = titularTotals['Daniel'];
+    const somaIsabela = titularTotals['Isabela'] || 0;
+    const somaClaudio = titularTotals['Claudio'] || 0;
+    const somaDaniel  = titularTotals['Daniel']  || 0;
   
     const totalConferidos = useMemo(() =>
       rows.filter(t => t.conferido).length,
