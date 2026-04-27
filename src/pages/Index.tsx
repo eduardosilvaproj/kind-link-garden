@@ -117,7 +117,7 @@ import {
 
     const chartData = useMemo(() => {
       const filtered = rows.filter(t => {
-        if (filterTitular !== "Todos" && t.titular !== filterTitular) return false;
+        if (filterTitular !== "Todos" && !t.titulares.includes(filterTitular)) return false;
         if (t.tipo === 'Crédito' || t.tipo === 'Estorno' || t.tipo === 'Pagamento') return false;
         if (t.valor <= 0) return false;
         return true;
@@ -146,11 +146,11 @@ import {
            .filter(t => {
              if (t.tipo === 'Crédito' || t.tipo === 'Estorno') return false;
              if (t.valor <= 0) return false;
-             if (t.titular !== titular) return false;
+             if (!t.titulares.includes(titular)) return false;
              if (cidade === 'Encargos') return t.tipo === 'Encargo Bancário';
-             return t.cidade === cidade;
-           })
-           .reduce((s, t) => s + t.valor, 0);
+              return t.cidade === cidade;
+            })
+            .reduce((s, t) => s + (t.valor / t.titulares.length), 0);
        }
        result[cidade].total = result[cidade].Isabela + result[cidade].Claudio + result[cidade].Daniel;
      }
@@ -159,7 +159,7 @@ import {
 
    const filteredTransacoes = useMemo(() => {
      return rows.filter(t => {
-       if (filterTitular !== "Todos" && t.titular !== filterTitular) return false;
+        if (filterTitular !== "Todos" && !t.titulares.includes(filterTitular)) return false;
        if (showOnlyUnidentified && t.cidade !== "Não identificado") return false;
        if (!showPayments && (t.tipo === "Pagamento" || t.tipo === "Crédito")) return false;
        return true;
