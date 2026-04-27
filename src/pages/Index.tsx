@@ -70,9 +70,7 @@ import html2canvas from 'html2canvas';
      });
    };
  
-   const checkedCount = useMemo(() => transacoesEfetivas.filter(t => t.conferido).length, [transacoesEfetivas]);
-
-   const checkedCount = useMemo(() => transacoes.filter(t => t.conferido).length, [transacoes]);
+    const checkedCount = useMemo(() => transacoesEfetivas.filter(t => t.conferido).length, [transacoesEfetivas]);
  
    const totals = useMemo(() => {
      const compras = transacoesEfetivas.filter(t => !['Crédito', 'Estorno', 'Pagamento', 'Encargo Bancário'].includes(t.tipo)).reduce((acc, t) => acc + t.valor, 0);
@@ -108,11 +106,11 @@ import html2canvas from 'html2canvas';
       titularIds.forEach(titularId => {
         let val = 0;
         if (label === 'Encargos') {
-          val = transacoes
+          val = transacoesEfetivas
             .filter(t => t.titular === titularId && t.tipo === 'Encargo Bancário')
             .reduce((acc, t) => acc + t.valor, 0);
         } else {
-          val = transacoes
+          val = transacoesEfetivas
             .filter(t => 
               t.titular === titularId &&
               (label === "Online" ? (t.cidade === "Online" || t.cidade === "Online / Digital") : t.cidade === label) &&
@@ -130,16 +128,16 @@ import html2canvas from 'html2canvas';
       row.total = total;
       return row;
     });
-  }, [transacoes]);
+  }, [transacoesEfetivas]);
 
   const filteredTransacoes = useMemo(() => {
-    return transacoes.filter(t => {
+    return transacoesEfetivas.filter(t => {
       if (filterTitular !== "Todos" && t.titular !== filterTitular) return false;
       if (showOnlyUnidentified && t.cidade !== "Não identificado") return false;
       if (!showPayments && (t.tipo === "Pagamento" || t.tipo === "Crédito")) return false;
       return true;
     });
-  }, [transacoes, filterTitular, showOnlyUnidentified, showPayments]);
+  }, [transacoesEfetivas, filterTitular, showOnlyUnidentified, showPayments]);
 
   const getTitularColor = (id: string) => {
     const lower = id.toLowerCase();
@@ -242,11 +240,11 @@ import html2canvas from 'html2canvas';
                Total calculado: {formatBRL(totals.totalCalculado)} {isValid ? '✓' : '✗'}
              </Badge>
              <Badge variant="outline" className="text-[10px] font-bold uppercase px-3 py-1 bg-white border-slate-200 text-slate-600">
-               ✓ Conferidos: {checkedCount} / {transacoes.length}
+               ✓ Conferidos: {checkedCount} / {transacoesEfetivas.length}
              </Badge>
           </div>
           <div className="flex items-center gap-2">
-             <Button variant="outline" size="sm" onClick={() => exportToXLSX(transacoes, config)} className="flex gap-2 no-print">
+             <Button variant="outline" size="sm" onClick={() => exportToXLSX(transacoesEfetivas, config)} className="flex gap-2 no-print">
               <Download className="w-4 h-4" /> Exportar Excel
             </Button>
              <Button variant="outline" size="sm" onClick={exportPDF} className="flex gap-2 no-print">
