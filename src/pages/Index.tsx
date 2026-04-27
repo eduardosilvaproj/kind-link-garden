@@ -502,9 +502,9 @@ import {
                             {config.titulares.map(tit => (
                               <DropdownMenuCheckboxItem
                                 key={tit.id}
-                                checked={t.titulares.includes(tit.id)}
+                                checked={((t as any).titulares as string[]).includes(tit.id)}
                                 onCheckedChange={(checked) => {
-                                  let newTitulares = [...t.titulares];
+                                  let newTitulares = [...((t as any).titulares as string[])];
                                   if (checked) {
                                     if (!newTitulares.includes(tit.id)) newTitulares.push(tit.id);
                                   } else {
