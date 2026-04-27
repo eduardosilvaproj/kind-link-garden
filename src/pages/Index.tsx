@@ -492,9 +492,11 @@ import {
                    </TableHead>
                    <TableHead className="w-[100px] px-6">Titular</TableHead>
                   <TableHead className="w-[100px] px-6">Data</TableHead>
-                   <TableHead className="px-6">Estabelecimento & Classificação</TableHead>
-                   <TableHead className="text-right px-6 w-[140px]">Valor</TableHead>
-                   <TableHead className="text-right px-6 w-[140px] bg-slate-50/80">Saldo</TableHead>
+                    <TableHead className="px-6">Estabelecimento</TableHead>
+                    <TableHead className="px-6 w-[130px]">Cidade</TableHead>
+                    <TableHead className="px-6 w-[110px]">Destino</TableHead>
+                    <TableHead className="text-right px-6 w-[110px]">Valor</TableHead>
+                    <TableHead className="text-right px-6 w-[130px] bg-slate-50/80">Saldo</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
