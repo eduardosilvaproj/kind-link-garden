@@ -35,28 +35,40 @@ export const exportToXLSX = (transacoes: Transacao[], config: Config) => {
    
    const summaryRows = [...cityRows, "Encargos", "Total"];
    const titulares = config.titulares;
-   const resumoData = summaryRows.map(label => {
-     const row: any = { 'Cidade': label };
-     let totalRow = 0;
-     titulares.forEach(titular => {
-       let val = 0;
-       if (label === "Total") {
-         const purc = transacoes.filter(t => t.titular === titular.id && !['Crédito', 'Estorno', 'Pagamento', 'Encargo Bancário'].includes(t.tipo)).reduce((acc, t) => acc + t.valor, 0);
-         const enc = transacoes.filter(t => t.titular === titular.id && t.tipo === 'Encargo Bancário').reduce((acc, t) => acc + t.valor, 0);
-         const cred = transacoes.filter(t => t.titular === titular.id && t.tipo === 'Crédito').reduce((acc, t) => acc + t.valor, 0);
-         const est = transacoes.filter(t => t.titular === titular.id && t.tipo === 'Estorno').reduce((acc, t) => acc + Math.abs(t.valor), 0);
-         val = purc + enc - cred - est;
-       } else if (label === "Encargos") {
-         val = transacoes.filter(t => t.titular === titular.id && t.tipo === 'Encargo Bancário').reduce((acc, t) => acc + t.valor, 0);
-       } else {
-         val = transacoes.filter(t => t.cidade === label && t.titular === titular.id && !['Crédito', 'Estorno', 'Pagamento', 'Encargo Bancário'].includes(t.tipo)).reduce((acc, t) => acc + t.valor, 0);
-       }
-       row[titular.nome] = val;
-       totalRow += val;
-     });
-     row['Total'] = totalRow;
-     return row;
-   });
+    const resumoData = summaryRows.map(label => {
+      const row: any = { 'Cidade': label };
+      let totalRow = 0;
+      titulares.forEach(titular => {
+        let val = 0;
+        if (label === "Total") {
+          val = transacoes.reduce((acc, t) => {
+            if (!t.titulares.includes(titular.id)) return acc;
+            const share = t.valor / t.titulares.length;
+            if (t.tipo === 'Crédito' || t.tipo === 'Estorno') return acc - Math.abs(share);
+            if (t.tipo === 'Pagamento') return acc;
+            return acc + share;
+          }, 0);
+        } else if (label === "Encargos") {
+          val = transacoes.reduce((acc, t) => {
+            if (t.tipo === 'Encargo Bancário' && t.titulares.includes(titular.id)) {
+              return acc + (t.valor / t.titulares.length);
+            }
+            return acc;
+          }, 0);
+        } else {
+          val = transacoes.reduce((acc, t) => {
+            if (t.cidade === label && t.titulares.includes(titular.id) && !['Crédito', 'Estorno', 'Pagamento', 'Encargo Bancário'].includes(t.tipo)) {
+              return acc + (t.valor / t.titulares.length);
+            }
+            return acc;
+          }, 0);
+        }
+        row[titular.nome] = val;
+        totalRow += val;
+      });
+      row['Total'] = totalRow;
+      return row;
+    });
 
   const wsResumo = XLSX.utils.json_to_sheet(resumoData);
   XLSX.utils.book_append_sheet(wb, wsResumo, 'Resumo');
