@@ -71,17 +71,13 @@ import {
       });
     }, []);
 
-    // 2. COMPUTED DATA — Deriving the effective transaction list with Running Totals
+    // 2. COMPUTED DATA — Deriving the effective transaction list with Per-Titular Grouping and Resets
     const rows = useMemo(() => {
-      let runningBalance = 0;
-      return TRANSACOES.map(t => {
+      const rawRows = TRANSACOES.map(t => {
         const e = edits[`${t.id}`] || {};
         const isNegative = t.tipo === 'Crédito' || t.tipo === 'Estorno' || t.tipo === 'Pagamento';
         const val = e.valor !== undefined ? Number(e.valor) : t.valor;
         const finalVal = isNegative ? -Math.abs(val) : val;
-        
-        runningBalance += finalVal;
-        
         return {
           ...t,
           titular:     e.titular     ?? t.titular,
@@ -91,7 +87,26 @@ import {
           conferido:   e.conferido   ?? false,
           nome:        e.nome        ?? t.nome,
           valor:       val,
-          saldoAcumulado: runningBalance
+          finalVal
+        };
+      });
+
+      // Group by titular then sort/process within group
+      // We sort by titular name first, then by data (date) or ID to keep consistent order
+      const grouped = [...rawRows].sort((a, b) => {
+        if (a.titular !== b.titular) return a.titular.localeCompare(b.titular);
+        return a.id - b.id; // Secondary sort to maintain stable running balance
+      });
+
+      const balances: Record<string, number> = {};
+      
+      return grouped.map(t => {
+        if (!balances[t.titular]) balances[t.titular] = 0;
+        balances[t.titular] += t.finalVal;
+        
+        return {
+          ...t,
+          saldoAcumulado: balances[t.titular]
         };
       });
     }, [edits]);
