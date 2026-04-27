@@ -95,6 +95,7 @@ import {
     [edits]);
   
     // 3. AGGREGATED CALCULATIONS — Centralized logic for all components
+    // We use "edits" as a dependency to ensure any UI change triggers a recalculation
     const aggregatedData = useMemo(() => {
       const totals: Record<string, number> = { Isabela: 0, Claudio: 0, Daniel: 0 };
       const CIDADES = ['Araraquara', 'Bauru', 'Ribeirão Preto', 'São Carlos', 'Online', 'Não identificado'];
@@ -109,20 +110,13 @@ import {
         const titular = t.titular;
         const val = t.valor;
         
-        // Handle both negative and positive values correctly based on type
         const isNegative = t.tipo === 'Crédito' || t.tipo === 'Estorno' || t.tipo === 'Pagamento';
-        // If type says it's a credit but value is positive, make it negative. 
-        // If type is expense but value is negative, keep it (as a credit).
         const finalVal = isNegative ? -Math.abs(val) : val;
 
-        // Update Titular Totals (for Cards and Participation table)
         if (totals.hasOwnProperty(titular)) {
           totals[titular] += finalVal;
         }
 
-        // Update CrossTab (Distribution Table)
-        // Distribution table usually shows gross expenses, but we should include estornos/credits to balance it?
-        // For now, let's include everything so the sum of distribution matches cards.
         let category = t.cidade;
         if (t.tipo === 'Encargo Bancário') category = 'Encargos';
         if (!category || !categories.includes(category)) category = 'Não identificado';
@@ -137,7 +131,7 @@ import {
         totals, 
         crossTab: Object.values(crossTab) 
       };
-    }, [rows]);
+    }, [rows, edits]); // Added edits here just to be absolutely sure, though rows already depends on it
 
     const { totals: titularTotals, crossTab } = aggregatedData;
     const somaIsabela = titularTotals['Isabela'] || 0;
