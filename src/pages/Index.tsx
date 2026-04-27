@@ -12,9 +12,6 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip, Cell, CartesianGrid } from 'recharts';
 
 type RowEdit = { titular?: string; cidade?: string; destino?: string; clienteNome?: string; conferido?: boolean; nome?: string; valor?: number; };
 const CIDADES_FIXAS = ['Araraquara','Bauru','Ribeirão Preto','São Carlos','Online','Não identificado'];
@@ -30,9 +27,9 @@ export default function Index() {
   const [filterTitular, setFilterTitular] = useState('Todos');
   const [showPendentes, setShowPendentes] = useState(false);
   const [showPagamentos, setShowPagamentos] = useState(false);
-  const [edits, setEdits] = useState<Record<string, RowEdit>>(() => { try { const raw = localStorage.getItem('fatura_edits_v3'); return raw ? JSON.parse(raw) : {}; } catch { return {}; } });
+  const [edits, setEdits] = useState<Record<string, RowEdit>>(() => { try { const raw = localStorage.getItem('fatura_edits_v4'); return raw ? JSON.parse(raw) : {}; } catch { return {}; } });
   
-  useEffect(() => { localStorage.setItem('fatura_edits_v3', JSON.stringify(edits)); }, [edits]);
+  useEffect(() => { localStorage.setItem('fatura_edits_v4', JSON.stringify(edits)); }, [edits]);
   
   const updateRow = (id: number, patch: Partial<RowEdit>) => { setEdits(prev => { const key = String(id); return { ...prev, [key]: { ...prev[key], ...patch } }; }); };
   const updateBatch = (ids: number[], patch: Partial<RowEdit>) => { setEdits(prev => { const next = { ...prev }; ids.forEach(id => { const key = String(id); next[key] = { ...next[key], ...patch }; }); return next; }); };
@@ -51,9 +48,11 @@ export default function Index() {
         valor: e.valor !== undefined ? e.valor : t.valor
       };
     });
+    
     const sorted = [...raw].sort((a,b) => a.titular.localeCompare(b.titular) || a.id - b.id);
     let currentTitular = '';
     let accumulated = 0;
+    
     return sorted.map(t => {
       if (t.titular !== currentTitular) {
         currentTitular = t.titular;
@@ -65,9 +64,9 @@ export default function Index() {
     });
   }, [edits]);
 
-  const somaIsabela = useMemo(() => rows.filter(t => t.titular === 'Isabela' && t.tipo !== 'Crédito' && t.tipo !== 'Estorno' && t.valor > 0).reduce((s, t) => s + t.valor, 0), [rows]);
-  const somaClaudio = useMemo(() => rows.filter(t => t.titular === 'Claudio' && t.tipo !== 'Crédito' && t.tipo !== 'Estorno' && t.valor > 0).reduce((s, t) => s + t.valor, 0), [rows]);
-  const somaDaniel = useMemo(() => rows.filter(t => t.titular === 'Daniel' && t.tipo !== 'Crédito' && t.tipo !== 'Estorno' && t.valor > 0).reduce((s, t) => s + t.valor, 0), [rows]);
+  const somaIsabela = useMemo(() => rows.filter(t => t.titular === 'Isabela' && t.tipo !== 'Crédito' && t.tipo !== 'Estorno' && t.tipo !== 'Pagamento').reduce((s, t) => s + t.valor, 0), [rows]);
+  const somaClaudio = useMemo(() => rows.filter(t => t.titular === 'Claudio' && t.tipo !== 'Crédito' && t.tipo !== 'Estorno' && t.tipo !== 'Pagamento').reduce((s, t) => s + t.valor, 0), [rows]);
+  const somaDaniel = useMemo(() => rows.filter(t => t.titular === 'Daniel' && t.tipo !== 'Crédito' && t.tipo !== 'Estorno' && t.tipo !== 'Pagamento').reduce((s, t) => s + t.valor, 0), [rows]);
   const totalConferidos = useMemo(() => rows.filter(t => t.conferido).length, [rows]);
   
   const crossTab = useMemo(() => [...CIDADES_FIXAS, 'Encargos'].map(label => {
@@ -75,7 +74,7 @@ export default function Index() {
     TITULARES_FIXOS.forEach(tit => {
       cols[tit] = rows.filter(t => {
         if (t.titular !== tit) return false;
-        if (t.tipo === 'Crédito' || t.tipo === 'Estorno') return false;
+        if (t.tipo === 'Crédito' || t.tipo === 'Estorno' || t.tipo === 'Pagamento') return false;
         if (label === 'Encargos') return t.tipo === 'Encargo Bancário';
         return t.cidade === label && t.tipo !== 'Encargo Bancário';
       }).reduce((s, t) => s + t.valor, 0);
@@ -90,114 +89,106 @@ export default function Index() {
     return true;
   }), [rows, filterTitular, showPendentes, showPagamentos]);
 
-  const exportPDF = async () => {
-    const pdf = new jsPDF({ orientation: 'landscape' });
-    pdf.text('Fatura C6 - Abril 2026', 14, 15);
-    autoTable(pdf, {
-      startY: 20,
-      head: [['Cidade', 'Isabela', 'Claudio', 'Daniel', 'Total']],
-      body: crossTab.map(r => [r.label, fmt(r.Isabela), fmt(r.Claudio), fmt(r.Daniel), fmt(r.total)])
+  const exportPDF = () => {
+    const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+    pdf.setFontSize(14); pdf.setFont('helvetica', 'bold');
+    pdf.text('Classificador de Fatura C6 Bank — Abril 2026', 14, 16);
+    pdf.setFontSize(10); pdf.setFont('helvetica', 'normal');
+    pdf.text(`Total Fatura: ${brl(TOTAL_FATURA)}`, 14, 23);
+    pdf.text(`Isabela: ${fmt(somaIsabela)}   Claudio: ${fmt(somaClaudio)}   Daniel: ${fmt(somaDaniel)}`, 14, 29);
+    autoTable(pdf, { 
+      startY: 34, 
+      head: [['Cidade','Isabela','Claudio','Daniel','Total']], 
+      body: crossTab.map(r => [r.label, fmt((r as any).Isabela), fmt((r as any).Claudio), fmt((r as any).Daniel), fmt(r.total)]), 
+      foot: [['TOTAL', fmt(somaIsabela), fmt(somaClaudio), fmt(somaDaniel), fmt(somaIsabela+somaClaudio+somaDaniel)]], 
+      styles: { fontSize: 9, cellPadding: 3 }, 
+      headStyles: { fillColor: [31,56,100], textColor: 255, fontStyle: 'bold' }, 
+      footStyles: { fillColor: [220,220,220], fontStyle: 'bold' }, 
+      columnStyles: { 0:{cellWidth:45}, 1:{halign:'right'}, 2:{halign:'right'}, 3:{halign:'right'}, 4:{halign:'right',fontStyle:'bold'} } 
     });
-    pdf.save('Fatura_C6.pdf');
+    const body = rows.filter(t => t.tipo !== 'Crédito' && t.tipo !== 'Pagamento').map(t => [String(t.id), t.conferido ? '✓' : '', t.titular, t.data, t.nome, t.cidade, t.destino === 'Cliente' && t.clienteNome ? `Cliente — ${t.clienteNome}` : (t.destino || t.tipo), t.parcela || '—', brl(Math.abs(t.valor))]);
+    autoTable(pdf, { 
+      startY: (pdf as any).lastAutoTable.finalY + 8, 
+      head: [['#','✓','Titular','Data','Estabelecimento','Cidade','Destino','Parc.','Valor']], 
+      body, 
+      rowPageBreak: 'avoid', 
+      pageBreak: 'auto', 
+      styles: { fontSize: 8, cellPadding: 2, overflow: 'linebreak' }, 
+      headStyles: { fillColor: [31,56,100], textColor: 255, fontStyle: 'bold' }, 
+      alternateRowStyles: { fillColor: [248,248,248] }, 
+      columnStyles: { 0:{cellWidth:8,halign:'center'}, 1:{cellWidth:8,halign:'center'}, 2:{cellWidth:22}, 3:{cellWidth:16}, 4:{cellWidth:60}, 5:{cellWidth:32}, 6:{cellWidth:28}, 7:{cellWidth:14,halign:'center'}, 8:{cellWidth:24,halign:'right',fontStyle:'bold'} }, 
+      didParseCell: d => { if (d.section !== 'body') return; const tit = body[d.row.index]?.[2]; if (tit === 'Isabela') d.cell.styles.textColor = [180,100,0]; else if (tit === 'Claudio') d.cell.styles.textColor = [0,80,160]; else if (tit === 'Daniel') d.cell.styles.textColor = [0,120,80]; }, 
+      didDrawPage: d => { pdf.setFontSize(8); pdf.text(`Página ${d.pageNumber} de ${pdf.getNumberOfPages()}`, pdf.internal.pageSize.getWidth()-30, pdf.internal.pageSize.getHeight()-5); } 
+    });
+    pdf.save('Fatura_C6_Abril_2026.pdf');
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 pb-12">
-      <div className="max-w-[1400px] mx-auto p-6 space-y-6">
-        <header className="bg-white border p-4 rounded-xl shadow-sm flex justify-between items-center">
-          <div className="flex items-center gap-4">
-            <h1 className="text-xl font-bold">Classificador C6</h1>
-            <Badge variant="outline">Total Fatura: {brl(TOTAL_FATURA)}</Badge>
-            <Badge variant="outline">Conferidos: {totalConferidos}/{rows.length}</Badge>
+    <div className="min-h-screen bg-slate-50 text-slate-900 pb-16">
+      <div className="p-6 max-w-[1400px] mx-auto flex flex-col gap-6">
+        <header className="flex justify-between items-center bg-white border rounded-xl px-6 py-4 shadow-sm">
+          <div className="flex items-center gap-3 flex-wrap">
+            <h1 className="text-xl font-bold">Classificador de Fatura C6 Bank</h1>
+            <Badge className="text-[10px] font-bold uppercase px-3 py-1 bg-green-100 text-green-700 border-green-200">Total: {brl(TOTAL_FATURA)} ✓</Badge>
+            <Badge variant="outline" className="text-[10px] font-bold uppercase px-3 py-1">✓ Conferidos: {totalConferidos} / {rows.length}</Badge>
           </div>
           <div className="flex gap-2">
-            <Button size="sm" variant="outline" onClick={() => exportToXLSX(rows, config)}><Download className="w-4 h-4 mr-2"/>Excel</Button>
-            <Button size="sm" variant="outline" onClick={exportPDF}><FileText className="w-4 h-4 mr-2"/>PDF</Button>
+            <Button variant="outline" size="sm" onClick={() => exportToXLSX(rows, config)} className="gap-2"><Download className="w-4 h-4" /> Exportar Excel</Button>
+            <Button variant="outline" size="sm" onClick={exportPDF} className="gap-2"><FileText className="w-4 h-4" /> Exportar PDF</Button>
           </div>
         </header>
-
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          {[{id:'Isabela',val:somaIsabela,c:'bg-amber-500'},{id:'Claudio',val:somaClaudio,c:'bg-blue-500'},{id:'Daniel',val:somaDaniel,c:'bg-teal-500'}].map(tit=>(
-            <Card key={tit.id}>
-              <CardContent className="p-4 flex items-center gap-4">
-                <div className={cn("w-10 h-10 rounded-full flex items-center justify-center text-white font-bold", tit.c)}>{titularInitials(tit.id)}</div>
-                <div><p className="text-xs text-slate-500 font-bold uppercase">{tit.id}</p><p className="text-lg font-black">{brl(tit.val)}</p></div>
-              </CardContent>
-            </Card>
-          ))}
-          <Card className="bg-slate-900 text-white"><CardContent className="p-4 flex items-center gap-4">
-            <div className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center"><FileText className="w-5 h-5"/></div>
-            <div><p className="text-xs text-slate-400 font-bold uppercase">Total Geral</p><p className="text-lg font-black">{brl(TOTAL_FATURA)}</p></div>
-          </CardContent></Card>
+        <div className="grid grid-cols-4 gap-4">
+          <div className="bg-white rounded-xl border shadow-sm p-4"><p className="text-xs font-bold text-slate-500 uppercase mb-1">Isabela (Líquido)</p><p className="text-2xl font-black text-amber-600">{brl(somaIsabela)}</p></div>
+          <div className="bg-white rounded-xl border shadow-sm p-4"><p className="text-xs font-bold text-slate-500 uppercase mb-1">Claudio (Líquido)</p><p className="text-2xl font-black text-blue-600">{brl(somaClaudio)}</p></div>
+          <div className="bg-white rounded-xl border shadow-sm p-4"><p className="text-xs font-bold text-slate-500 uppercase mb-1">Daniel (Adicional)</p><p className="text-2xl font-black text-teal-600">{brl(somaDaniel)}</p></div>
+          <div className="bg-slate-900 rounded-xl shadow-sm p-4"><p className="text-xs font-bold text-slate-400 uppercase mb-1">Total Fatura</p><p className="text-2xl font-black text-white">{brl(TOTAL_FATURA)}</p></div>
         </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <Card className="lg:col-span-2">
-            <Table>
-              <TableHeader><TableRow className="bg-slate-50"><TableHead>Cidade</TableHead><TableHead className="text-right">Isabela</TableHead><TableHead className="text-right">Claudio</TableHead><TableHead className="text-right">Daniel</TableHead><TableHead className="text-right">Total</TableHead></TableRow></TableHeader>
-              <TableBody>
-                {crossTab.map((r,i)=>(
-                  <TableRow key={i} className={cn(r.label==='Não identificado'&&'bg-amber-50')}>
-                    <TableCell className="font-medium">{r.label}</TableCell>
-                    <TableCell className="text-right">{fmt(r.Isabela)}</TableCell><TableCell className="text-right">{fmt(r.Claudio)}</TableCell><TableCell className="text-right">{fmt(r.Daniel)}</TableCell><TableCell className="text-right font-bold">{brl(r.total)}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </Card>
-          <Card className="p-4">
-            <h3 className="text-sm font-bold uppercase mb-4 text-slate-500">Gastos por Cidade</h3>
-            <div className="h-[300px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={crossTab.filter(r=>r.total>0)} layout="vertical">
-                  <XAxis type="number" hide/><YAxis dataKey="label" type="category" width={80} style={{fontSize:'10px'}}/><RechartsTooltip formatter={(v:any)=>brl(v)}/><Bar dataKey="total" fill="#3b82f6" radius={[0,4,4,0]}/>
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </Card>
+        <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
+          <div className="px-6 py-3 border-b bg-slate-50"><p className="text-xs font-bold uppercase text-slate-500">Distribuição Cidade × Titular</p></div>
+          <table className="w-full text-[12px]">
+            <thead><tr className="bg-slate-50 text-[11px] uppercase text-slate-500"><th className="text-left px-6 py-2 font-bold">Cidade</th><th className="text-right px-6 py-2 font-bold">Isabela</th><th className="text-right px-6 py-2 font-bold">Claudio</th><th className="text-right px-6 py-2 font-bold">Daniel</th><th className="text-right px-6 py-2 font-bold bg-slate-100">Total</th></tr></thead>
+            <tbody>
+              {crossTab.map(row => (<tr key={row.label} className={cn('border-t', row.label === 'Não identificado' && row.total > 0 ? 'bg-amber-50' : '', row.label === 'Encargos' ? 'bg-red-50' : '')}><td className="px-6 py-2 font-medium">{row.label}</td><td className="text-right px-6 py-2 tabular-nums">{fmt((row as any).Isabela)}</td><td className="text-right px-6 py-2 tabular-nums">{fmt((row as any).Claudio)}</td><td className="text-right px-6 py-2 tabular-nums">{fmt((row as any).Daniel)}</td><td className="text-right px-6 py-2 tabular-nums font-bold bg-slate-50">{fmt(row.total)}</td></tr>))}
+              <tr className="border-t bg-slate-100 font-bold"><td className="px-6 py-3">TOTAL</td><td className="text-right px-6 py-3 tabular-nums">{brl(somaIsabela)}</td><td className="text-right px-6 py-3 tabular-nums">{brl(somaClaudio)}</td><td className="text-right px-6 py-3 tabular-nums">{brl(somaDaniel)}</td><td className="text-right px-6 py-3 tabular-nums bg-slate-200">{brl(somaIsabela+somaClaudio+somaDaniel)}</td></tr>
+            </tbody>
+          </table>
         </div>
-
-        <Card>
-          <div className="p-4 border-b flex justify-between items-center bg-slate-50/50">
-            <div className="flex gap-4">
-              <Select value={filterTitular} onValueChange={setFilterTitular}>
-                <SelectTrigger className="w-40 h-8 bg-white"><Filter className="w-3 h-3 mr-2"/> {filterTitular}</SelectTrigger>
-                <SelectContent><SelectItem value="Todos">Todos</SelectItem>{TITULARES_FIXOS.map(t=><SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
-              </Select>
-              <div className="flex items-center gap-2 px-2 border rounded bg-white h-8"><Switch id="p" checked={showPendentes} onCheckedChange={setShowPendentes} className="scale-75"/><Label htmlFor="p" className="text-[10px] font-bold">PENDENTES</Label></div>
-              <div className="flex items-center gap-2 px-2 border rounded bg-white h-8"><Switch id="pay" checked={showPagamentos} onCheckedChange={setShowPagamentos} className="scale-75"/><Label htmlFor="pay" className="text-[10px] font-bold">PAGAMENTOS</Label></div>
+        <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
+          <div className="px-6 py-3 border-b bg-slate-50 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Select value={filterTitular} onValueChange={setFilterTitular}><SelectTrigger className="h-8 w-[160px] bg-white"><Filter className="w-3 h-3 mr-1" /><SelectValue /></SelectTrigger><SelectContent><SelectItem value="Todos">Todos</SelectItem><SelectItem value="Isabela">Isabela</SelectItem><SelectItem value="Claudio">Claudio</SelectItem><SelectItem value="Daniel">Daniel</SelectItem></SelectContent></Select>
+              <div className="flex items-center gap-2 bg-white px-3 py-1 rounded-md border h-8"><Switch id="pend" checked={showPendentes} onCheckedChange={setShowPendentes} className="scale-75" /><Label htmlFor="pend" className="text-[11px] font-bold uppercase cursor-pointer">Pendentes</Label></div>
+              <div className="flex items-center gap-2 bg-white px-3 py-1 rounded-md border h-8"><Switch id="pgto" checked={showPagamentos} onCheckedChange={setShowPagamentos} className="scale-75" /><Label htmlFor="pgto" className="text-[11px] font-bold uppercase cursor-pointer">Pagamentos</Label></div>
             </div>
-            <span className="text-xs font-bold text-slate-400">{filtradas.length} transações</span>
+            <span className="text-[11px] font-bold text-slate-400 uppercase">{filtradas.length} transações</span>
           </div>
-          <Table>
-            <TableHeader><TableRow className="text-[10px] uppercase bg-slate-50"><TableHead className="w-8">#</TableHead><TableHead className="w-8">✓</TableHead><TableHead>Titular</TableHead><TableHead>Estabelecimento</TableHead><TableHead>Cidade</TableHead><TableHead className="text-right">Valor</TableHead><TableHead className="text-right bg-slate-100/50">Acumulado</TableHead></TableRow></TableHeader>
-            <TableBody>
-              {filtradas.map(t=>(
-                <TableRow key={t.id} className={cn(rowBg(t.tipo, t.cidade))}>
-                  <TableCell className="text-[10px] text-slate-400 font-mono">{t.id}</TableCell>
-                  <TableCell><input type="checkbox" checked={t.conferido} onChange={e=>updateRow(t.id,{conferido:e.target.checked})} className="accent-green-600"/></TableCell>
-                  <TableCell>
-                    <Select value={t.titular} onValueChange={v=>updateRow(t.id,{titular:v})}>
-                      <SelectTrigger className="h-7 w-24 text-[10px] font-bold"><div className={cn("w-4 h-4 rounded-full mr-2", titularBg(t.titular))}></div>{t.titular}</SelectTrigger>
-                      <SelectContent>{TITULARES_FIXOS.map(tit=><SelectItem key={tit} value={tit}>{tit}</SelectItem>)}</SelectContent>
-                    </Select>
-                  </TableCell>
-                  <TableCell><Input value={t.nome} onChange={e=>updateRow(t.id,{nome:e.target.value})} className="h-7 text-xs font-bold"/></TableCell>
-                  <TableCell>
-                    <Select value={t.cidade} onValueChange={v=>updateRow(t.id,{cidade:v})}>
-                      <SelectTrigger className="h-7 w-32 text-[10px]"><SelectValue/></SelectTrigger>
-                      <SelectContent>{CIDADES_FIXAS.map(c=><SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
-                    </Select>
-                  </TableCell>
-                  <TableCell className="text-right font-bold tabular-nums">
-                    <Input defaultValue={t.valor} onBlur={e=>{const v=parseFloat(e.target.value); if(!isNaN(v))updateRow(t.id,{valor:v});}} className="h-7 w-24 text-right text-xs font-bold ml-auto"/>
-                  </TableCell>
-                  <TableCell className="text-right font-mono text-xs text-slate-500 bg-slate-50/50">{brl(t.saldoAcumulado)}</TableCell>
-                </TableRow>
+          <table className="w-full text-sm">
+            <thead><tr className="text-[11px] uppercase text-slate-500 bg-slate-50 border-b"><th className="w-9 px-2 text-center">#</th><th className="w-10 px-2 text-center"><input type="checkbox" className="w-4 h-4 rounded" checked={filtradas.length > 0 && filtradas.every(t => t.conferido)} onChange={e => updateBatch(filtradas.map(t => t.id), { conferido: e.target.checked })} /></th><th className="w-24 px-4 text-left">Titular</th><th className="w-24 px-4 text-left">Data</th><th className="px-4 text-left">Estabelecimento & Classificação</th><th className="w-32 px-4 text-right">Valor</th><th className="w-32 px-4 text-right bg-slate-50">Saldo</th></tr></thead>
+            <tbody>
+              {filtradas.map(t => (
+                <tr key={t.id} className={cn('border-b transition-colors', rowBg(t.tipo, t.cidade), t.conferido ? 'border-l-4 border-l-green-600' : '')}>
+                  <td className="px-2 py-3 text-center text-[11px] text-slate-400 font-mono">{t.id}</td>
+                  <td className="px-2 py-3 text-center"><input type="checkbox" className="w-4 h-4 rounded accent-green-600" checked={!!t.conferido} onChange={e => updateRow(t.id, { conferido: e.target.checked })} /></td>
+                  <td className="px-4 py-3"><Select value={t.titular} onValueChange={v => updateRow(t.id, { titular: v })}><SelectTrigger className={cn('w-10 h-8 p-0 rounded-full flex items-center justify-center font-bold text-[10px] border-none shadow-none focus:ring-0', titularBg(t.titular))}><span>{titularInitials(t.titular)}▾</span></SelectTrigger><SelectContent><SelectItem value="Isabela">Isabela</SelectItem><SelectItem value="Claudio">Claudio</SelectItem><SelectItem value="Daniel">Daniel</SelectItem></SelectContent></Select></td>
+                  <td className="px-4 py-3 text-slate-500 font-medium">{t.data}</td>
+                  <td className="px-4 py-3">
+                    <div className="flex flex-col gap-1">
+                      <Input value={t.nome} onChange={e => updateRow(t.id, { nome: e.target.value })} className="h-7 text-sm border-none shadow-none bg-transparent p-0 px-1 font-bold w-full max-w-md" />
+                      <div className="flex gap-2 items-center flex-wrap">
+                        <Select value={t.cidade} onValueChange={v => updateRow(t.id, { cidade: v })}><SelectTrigger className="h-6 text-[11px] bg-white border border-slate-200 rounded-md px-2 w-fit gap-1 text-slate-600"><SelectValue placeholder="Cidade" /></SelectTrigger><SelectContent>{['Araraquara','Bauru','Ribeirão Preto','São Carlos','Online','Não identificado','—'].map(c => (<SelectItem key={c} value={c} className="text-[11px]">{c}</SelectItem>))}</SelectContent></Select>
+                        <Select value={t.destino || ''} onValueChange={v => updateRow(t.id, { destino: v })}><SelectTrigger className="h-6 text-[11px] bg-white border border-slate-200 rounded-md px-2 w-fit gap-1 text-slate-600"><span>{t.destino === 'Cliente' && t.clienteNome ? `Cliente — ${t.clienteNome}` : (t.destino || 'Destino')}</span></SelectTrigger><SelectContent><SelectItem value="Loja" className="text-[11px]">Loja</SelectItem><SelectItem value="Depósito" className="text-[11px]">Depósito</SelectItem><SelectItem value="Cliente" className="text-[11px]">Cliente</SelectItem><SelectItem value="Fornecedor" className="text-[11px]">Fornecedor</SelectItem><SelectItem value="Serviço Digital" className="text-[11px]">Serviço Digital</SelectItem><SelectItem value="Encargo Bancário" className="text-[11px]">Encargo Bancário</SelectItem></SelectContent></Select>
+                        {t.destino === 'Cliente' && (<Input placeholder="Nome do cliente" value={t.clienteNome || ''} onChange={e => updateRow(t.id, { clienteNome: e.target.value })} className="h-6 w-36 text-[11px] px-2 border-slate-200" />)}
+                        {t.parcela && t.parcela !== '—' && (<span className="h-6 inline-flex items-center text-[11px] font-medium border border-slate-200 text-slate-500 rounded-md px-2">{t.parcela}</span>)}
+                      </div>
+                    </div>
+                  </td>
+                  <td className={cn('px-4 py-3 text-right font-bold tabular-nums text-base', t.tipo === 'Estorno' ? 'text-green-600' : '', t.tipo === 'Crédito' ? 'text-blue-600' : '')}>{brl(t.valor)}</td>
+                  <td className="px-4 py-3 text-right font-mono text-xs text-slate-400 bg-slate-50/50">{brl(t.saldoAcumulado)}</td>
+                </tr>
               ))}
-            </TableBody>
-          </Table>
-        </Card>
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );
