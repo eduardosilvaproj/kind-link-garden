@@ -178,14 +178,24 @@ import {
    const isValid = Math.abs(somaIsabela + somaClaudio + somaDaniel - 11019.68) < 500;
 
 
-   const filteredTransacoes = useMemo(() => {
-     return rows.filter(t => {
-          if (filterTitular !== "Todos" && t.titular !== filterTitular) return false;
-       if (showOnlyUnidentified && t.cidade !== "Não identificado") return false;
-       if (!showPayments && (t.tipo === "Pagamento" || t.tipo === "Crédito")) return false;
-       return true;
-     });
-   }, [rows, filterTitular, showOnlyUnidentified, showPayments]);
+    const filteredData = useMemo(() => {
+      const filtered = rows.filter(t => {
+        if (filterTitular !== "Todos" && t.titular !== filterTitular) return false;
+        if (showOnlyUnidentified && t.cidade !== "Não identificado") return false;
+        if (!showPayments && (t.tipo === "Pagamento" || t.tipo === "Crédito")) return false;
+        return true;
+      });
+      
+      const sum = filtered.reduce((acc, t) => {
+        const isNegative = t.tipo === 'Crédito' || t.tipo === 'Estorno' || t.tipo === 'Pagamento';
+        return acc + (isNegative ? -Math.abs(t.valor) : t.valor);
+      }, 0);
+
+      return { items: filtered, totalSum: sum };
+    }, [rows, filterTitular, showOnlyUnidentified, showPayments]);
+
+    const filteredTransacoes = filteredData.items;
+    const totalTransacoesFiltradas = filteredData.totalSum;
 
   const getTitularColor = (id: string) => {
     const lower = id.toLowerCase();
@@ -487,7 +497,7 @@ import {
                    <TableHead className="w-[100px] px-6">Titular</TableHead>
                   <TableHead className="w-[100px] px-6">Data</TableHead>
                   <TableHead className="px-6">Estabelecimento & Classificação</TableHead>
-                  <TableHead className="text-right px-6 w-[150px]">Valor</TableHead>
+                  <TableHead className="text-right px-6 w-[180px]">Valor</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -581,6 +591,20 @@ import {
                     </TableCell>
                   </TableRow>
                 ))}
+                
+                {/* TOTAL ROW FOR TRANSACTIONS */}
+                <TableRow className="bg-slate-50 font-black border-t-2">
+                  <TableCell className="px-2 py-4" colSpan={2}></TableCell>
+                  <TableCell className="px-6 py-4 text-[11px] uppercase text-slate-400">Total Exibido</TableCell>
+                  <TableCell className="px-6 py-4" colSpan={2}>
+                    <Badge variant="outline" className="text-[10px] font-bold bg-white text-slate-500 border-slate-200">
+                      {filteredTransacoes.length} Itens
+                    </Badge>
+                  </TableCell>
+                  <TableCell className={cn("px-6 py-4 text-right tabular-nums text-lg", totalTransacoesFiltradas < 0 ? "text-green-600" : "text-slate-900")}>
+                    {formatBRL(totalTransacoesFiltradas)}
+                  </TableCell>
+                </TableRow>
               </TableBody>
             </Table>
           </Card>
