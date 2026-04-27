@@ -88,23 +88,38 @@ import {
     [edits]);
   
     // 3. CARD TOTALS — always from rows
-   const somaIsabela = useMemo(() =>
-     rows
-       .filter(t => t.titular === 'Isabela' && t.tipo !== 'Crédito' && t.tipo !== 'Estorno' && t.valor > 0)
-       .reduce((s, t) => s + t.valor, 0),
-   [rows]);
- 
-   const somaClaudio = useMemo(() =>
-     rows
-       .filter(t => t.titular === 'Claudio' && t.tipo !== 'Crédito' && t.tipo !== 'Estorno' && t.valor > 0)
-       .reduce((s, t) => s + t.valor, 0),
-   [rows]);
- 
-   const somaDaniel = useMemo(() =>
-     rows
-       .filter(t => t.titular === 'Daniel' && t.tipo !== 'Crédito' && t.tipo !== 'Estorno' && t.valor > 0)
-       .reduce((s, t) => s + t.valor, 0),
-   [rows]);
+    const somaIsabela = useMemo(() => {
+      const total = rows
+        .filter(t => t.titular === 'Isabela')
+        .reduce((s, t) => {
+          if (t.tipo === 'Crédito' || t.tipo === 'Estorno') return s - Math.abs(t.valor);
+          return s + t.valor;
+        }, 0);
+      console.log('Soma Isabela:', total);
+      return total;
+    }, [rows]);
+
+    const somaClaudio = useMemo(() => {
+      const total = rows
+        .filter(t => t.titular === 'Claudio')
+        .reduce((s, t) => {
+          if (t.tipo === 'Crédito' || t.tipo === 'Estorno') return s - Math.abs(t.valor);
+          return s + t.valor;
+        }, 0);
+      console.log('Soma Claudio:', total);
+      return total;
+    }, [rows]);
+
+    const somaDaniel = useMemo(() => {
+      const total = rows
+        .filter(t => t.titular === 'Daniel')
+        .reduce((s, t) => {
+          if (t.tipo === 'Crédito' || t.tipo === 'Estorno') return s - Math.abs(t.valor);
+          return s + t.valor;
+        }, 0);
+      console.log('Soma Daniel:', total);
+      return total;
+    }, [rows]);
   
     const totalConferidos = useMemo(() =>
       rows.filter(t => t.conferido).length,
