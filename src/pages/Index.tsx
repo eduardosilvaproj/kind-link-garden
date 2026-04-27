@@ -357,7 +357,7 @@ import html2canvas from 'html2canvas';
                        onChange={(e) => {
                          const checked = e.target.checked;
                          const ids = filteredTransacoes.map(t => t.id);
-                         updateBatchTransacoes(ids, { conferido: checked });
+                          updateBatchRows(ids, { conferido: checked });
                        }}
                      />
                    </TableHead>
@@ -378,11 +378,11 @@ import html2canvas from 'html2canvas';
                          type="checkbox" 
                          className="w-4 h-4 rounded border-slate-300 accent-[#198754]"
                          checked={!!t.conferido}
-                         onChange={(e) => updateTransacao(t.id, { conferido: e.target.checked })}
+                          onChange={(e) => updateRow(t.id, { conferido: e.target.checked })}
                        />
                      </TableCell>
                      <TableCell className="px-6 py-3">
-                       <Select value={t.titular} onValueChange={(v) => updateTransacao(t.id, { titular: v })}>
+                        <Select value={t.titular} onValueChange={(v) => updateRow(t.id, { titular: v })}>
                          <SelectTrigger className={cn("w-10 h-8 p-0 rounded-full flex items-center justify-center font-bold text-[10px] border-none shadow-none focus:ring-0", getTitularColor(t.titular))}>
                            <SelectValue>{getTitularInitials(t.titular)}▾</SelectValue>
                          </SelectTrigger>
@@ -400,11 +400,11 @@ import html2canvas from 'html2canvas';
                       <div className="flex flex-col gap-2">
                         <Input 
                           value={t.nome} 
-                          onChange={(e) => updateTransacao(t.id, { nome: e.target.value })}
+                           onChange={(e) => updateRow(t.id, { nome: e.target.value })}
                           className="h-7 text-sm border-none shadow-none bg-transparent hover:bg-white focus:bg-white p-0 px-1 font-bold w-full max-w-md"
                         />
                         <div className="flex gap-2 items-center">
-                          <Select value={t.cidade} onValueChange={(v) => updateTransacao(t.id, { cidade: v })}>
+                           <Select value={t.cidade} onValueChange={(v) => updateRow(t.id, { cidade: v })}>
                             <SelectTrigger className="h-6 text-[11px] bg-white border border-slate-200 rounded-md px-2 w-fit gap-1 text-slate-600 font-medium">
                               <SelectValue placeholder="Cidade" />
                             </SelectTrigger>
@@ -415,7 +415,7 @@ import html2canvas from 'html2canvas';
                             </SelectContent>
                           </Select>
 
-                          <Select value={t.destino || ""} onValueChange={(v) => updateTransacao(t.id, { destino: v })}>
+                           <Select value={t.destino || ""} onValueChange={(v) => updateRow(t.id, { destino: v })}>
                             <SelectTrigger className="h-6 text-[11px] bg-white border border-slate-200 rounded-md px-2 w-fit gap-1 text-slate-600 font-medium">
                               <span>{t.destino === "Cliente" && t.clienteNome ? `Cliente — ${t.clienteNome}` : (t.destino || "Destino")}</span>
                             </SelectTrigger>
@@ -430,7 +430,7 @@ import html2canvas from 'html2canvas';
                             <Input
                               placeholder="Nome"
                               value={t.clienteNome || ""}
-                              onChange={(e) => updateTransacao(t.id, { clienteNome: e.target.value })}
+                               onChange={(e) => updateRow(t.id, { clienteNome: e.target.value })}
                               className="h-6 w-32 text-[11px] px-2 border-slate-200"
                             />
                           )}
