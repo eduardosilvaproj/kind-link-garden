@@ -132,28 +132,66 @@ const Index = () => {
     return val.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   };
 
-  const exportPDF = async () => {
-    const element = document.getElementById('pdf-content');
-    if (!element) return;
-    const canvas = await html2canvas(element, { scale: 2, useCORS: true });
-    const imgData = canvas.toDataURL('image/png');
-    const pdf = new jsPDF('l', 'mm', 'a4');
-    const pageWidth = pdf.internal.pageSize.getWidth();
-    const pageHeight = pdf.internal.pageSize.getHeight();
-    const imgWidth = pageWidth;
-    const imgHeight = (canvas.height * pageWidth) / canvas.width;
-    let heightLeft = imgHeight;
-    let position = 0;
-    pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-    heightLeft -= pageHeight;
-    while (heightLeft > 0) {
-      position = heightLeft - imgHeight;
-      pdf.addPage();
-      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-      heightLeft -= pageHeight;
-    }
-    pdf.save('Fatura_C6_Abril_2026.pdf');
-  };
+   const exportPDF = async () => {
+     const buttons = document.querySelectorAll('.no-print');
+     buttons.forEach(b => (b as HTMLElement).style.display = 'none');
+ 
+     const element = document.getElementById('pdf-content');
+     if (!element) return;
+ 
+     const scrollables = element.querySelectorAll('[style*="overflow"]');
+     const origStyles: string[] = [];
+     scrollables.forEach((el, i) => {
+       origStyles[i] = (el as HTMLElement).style.cssText;
+       (el as HTMLElement).style.overflow = 'visible';
+       (el as HTMLElement).style.height = 'auto';
+       (el as HTMLElement).style.maxHeight = 'none';
+     });
+ 
+     const canvas = await html2canvas(element, {
+       scale: 1.5,
+       useCORS: true,
+       logging: false,
+       windowWidth: 1400,
+     });
+ 
+     scrollables.forEach((el, i) => {
+       (el as HTMLElement).style.cssText = origStyles[i];
+     });
+ 
+     buttons.forEach(b => (b as HTMLElement).style.display = '');
+ 
+     const pdf = new jsPDF({
+       orientation: 'landscape',
+       unit: 'mm',
+       format: 'a4',
+     });
+ 
+     const pageWidth = pdf.internal.pageSize.getWidth();
+     const pageHeight = pdf.internal.pageSize.getHeight();
+     const margin = 8;
+     const contentWidth = pageWidth - margin * 2;
+     const imgHeightMm = (canvas.height * contentWidth) / canvas.width;
+ 
+     let yOffset = 0;
+     let pageNum = 0;
+ 
+     while (yOffset < imgHeightMm) {
+       if (pageNum > 0) pdf.addPage();
+       const sourceY = (yOffset / imgHeightMm) * canvas.height;
+       const sourceH = (pageHeight / imgHeightMm) * canvas.height;
+       const tempCanvas = document.createElement('canvas');
+       tempCanvas.width = canvas.width;
+       tempCanvas.height = sourceH;
+       const ctx = tempCanvas.getContext('2d')!;
+       ctx.drawImage(canvas, 0, -sourceY);
+       const sliceData = tempCanvas.toDataURL('image/png');
+       pdf.addImage(sliceData, 'PNG', margin, margin, contentWidth, pageHeight - margin * 2);
+       yOffset += pageHeight;
+       pageNum++;
+     }
+     pdf.save('Fatura_C6_Abril_2026.pdf');
+   };
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 pb-12">
