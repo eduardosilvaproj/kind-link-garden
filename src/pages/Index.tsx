@@ -223,7 +223,14 @@ import { Label } from "@/components/ui/label";
        startY: (pdf as any).lastAutoTable.finalY + 8,
        head: [['#', '✓', 'Titular', 'Data', 'Estabelecimento', 'Cidade', 'Destino', 'Parc.', 'Valor']],
        body: tableBody,
-       styles: { fontSize: 8, cellPadding: 2, overflow: 'linebreak' },
+       styles: { 
+         fontSize: 8, 
+         cellPadding: 2, 
+         overflow: 'linebreak',
+         cellWidth: 'wrap',
+       },
+       rowPageBreak: 'avoid',
+       pageBreak: 'auto',
        headStyles: { fillColor: [31, 56, 100], textColor: 255, fontStyle: 'bold' },
        alternateRowStyles: { fillColor: [248, 248, 248] },
        columnStyles: {
