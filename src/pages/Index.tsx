@@ -183,17 +183,17 @@ import { Label } from "@/components/ui/label";
      pdf.text(`Total Fatura: R$ ${totals.totalCalculado.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, 14, 23);
      pdf.text(`Isabela: ${fmt(totals.isabela)}   Claudio: ${fmt(totals.claudio)}   Daniel: ${fmt(totals.daniel)}`, 14, 29);
  
-     autoTable(pdf, {
-       startY: 34,
-       head: [['Cidade', 'Isabela', 'Claudio', 'Daniel', 'Total']],
-       body: crossTable.map(row => [
-         row.label,
-         fmt(row.Isabela),
-         fmt(row.Claudio),
-         fmt(row.Daniel),
-         fmt(row.total)
-       ]),
-       foot: [['TOTAL', fmt(crossTable.reduce((acc, r) => acc + r.Isabela, 0)), fmt(crossTable.reduce((acc, r) => acc + r.Claudio, 0)), fmt(crossTable.reduce((acc, r) => acc + r.Daniel, 0)), fmt(crossTable.reduce((acc, r) => acc + r.total, 0))]],
+      autoTable(pdf, {
+        startY: 34,
+        head: [['Cidade', 'Isabela', 'Claudio', 'Daniel', 'Total']],
+        body: crossTab.map(row => [
+          row.label,
+          fmt(row.Isabela),
+          fmt(row.Claudio),
+          fmt(row.Daniel),
+          fmt(row.total)
+        ]),
+        foot: [['TOTAL', fmt(crossTab.reduce((acc, r) => acc + r.Isabela, 0)), fmt(crossTab.reduce((acc, r) => acc + r.Claudio, 0)), fmt(crossTab.reduce((acc, r) => acc + r.Daniel, 0)), fmt(crossTab.reduce((acc, r) => acc + r.total, 0))]],
        styles: { fontSize: 9, cellPadding: 3 },
        headStyles: { fillColor: [31, 56, 100], textColor: 255, fontStyle: 'bold' },
        footStyles: { fillColor: [220, 220, 220], fontStyle: 'bold' },
@@ -206,7 +206,7 @@ import { Label } from "@/components/ui/label";
        },
      });
  
-     const tableBody = transacoesEfetivas
+      const tableBody = rows
        .filter(t => t.tipo !== 'Crédito' && t.tipo !== 'Pagamento')
        .map(t => [
          String(t.id),
@@ -279,12 +279,12 @@ import { Label } from "@/components/ui/label";
             <Badge className={cn("text-[10px] font-bold uppercase px-3 py-1", isValid ? "bg-green-100 text-green-700 border-green-200" : "bg-red-100 text-red-700 border-red-200")}>
                Total calculado: {formatBRL(totals.totalCalculado)} {isValid ? '✓' : '✗'}
              </Badge>
-             <Badge variant="outline" className="text-[10px] font-bold uppercase px-3 py-1 bg-white border-slate-200 text-slate-600">
-               ✓ Conferidos: {checkedCount} / {transacoesEfetivas.length}
-             </Badge>
+              <Badge variant="outline" className="text-[10px] font-bold uppercase px-3 py-1 bg-white border-slate-200 text-slate-600">
+                ✓ Conferidos: {totalConferidos} / {rows.length}
+              </Badge>
           </div>
           <div className="flex items-center gap-2">
-             <Button variant="outline" size="sm" onClick={() => exportToXLSX(transacoesEfetivas, config)} className="flex gap-2 no-print">
+              <Button variant="outline" size="sm" onClick={() => exportToXLSX(rows, config)} className="flex gap-2 no-print">
               <Download className="w-4 h-4" /> Exportar Excel
             </Button>
              <Button variant="outline" size="sm" onClick={exportPDF} className="flex gap-2 no-print">
@@ -337,7 +337,7 @@ import { Label } from "@/components/ui/label";
               </TableRow>
             </TableHeader>
             <TableBody>
-              {crossTable.map((row, idx) => (
+               {crossTab.map((row, idx) => (
                 <TableRow key={idx} className={cn(row.label === 'Não identificado' && row.total > 0 ? 'bg-amber-50' : row.label === 'Encargos' ? 'bg-red-50' : '')}>
                   <TableCell className="font-medium text-[12px] px-6 py-2">{row.label}</TableCell>
                   <TableCell className="text-right tabular-nums text-[12px] px-6 py-2">{row.Isabela > 0.01 ? formatBRL(row.Isabela) : '—'}</TableCell>
@@ -348,10 +348,10 @@ import { Label } from "@/components/ui/label";
               ))}
               <TableRow className="bg-slate-100 font-black">
                 <TableCell className="px-6 py-3 text-[12px]">TOTAL</TableCell>
-                <TableCell className="text-right tabular-nums text-[12px] px-6 py-3">{formatBRL(crossTable.reduce((acc, r) => acc + r.Isabela, 0))}</TableCell>
-                <TableCell className="text-right tabular-nums text-[12px] px-6 py-3">{formatBRL(crossTable.reduce((acc, r) => acc + r.Claudio, 0))}</TableCell>
-                <TableCell className="text-right tabular-nums text-[12px] px-6 py-3">{formatBRL(crossTable.reduce((acc, r) => acc + r.Daniel, 0))}</TableCell>
-                <TableCell className="text-right tabular-nums bg-slate-200 text-[12px] px-6 py-3">{formatBRL(crossTable.reduce((acc, r) => acc + r.total, 0))}</TableCell>
+                 <TableCell className="text-right tabular-nums text-[12px] px-6 py-3">{formatBRL(crossTab.reduce((acc, r) => acc + r.Isabela, 0))}</TableCell>
+                 <TableCell className="text-right tabular-nums text-[12px] px-6 py-3">{formatBRL(crossTab.reduce((acc, r) => acc + r.Claudio, 0))}</TableCell>
+                 <TableCell className="text-right tabular-nums text-[12px] px-6 py-3">{formatBRL(crossTab.reduce((acc, r) => acc + r.Daniel, 0))}</TableCell>
+                 <TableCell className="text-right tabular-nums bg-slate-200 text-[12px] px-6 py-3">{formatBRL(crossTab.reduce((acc, r) => acc + r.total, 0))}</TableCell>
               </TableRow>
             </TableBody>
           </Table>
