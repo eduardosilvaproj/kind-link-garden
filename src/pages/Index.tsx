@@ -535,59 +535,46 @@ import {
                       </TableCell>
                     <TableCell className="px-6 py-3 font-medium text-slate-500">{t.data}</TableCell>
                     <TableCell className="px-6 py-3">
-                      <div className="flex flex-col gap-2">
-                        <Input 
-                          value={t.nome} 
-                           onChange={(e) => updateRow(t.id, { nome: e.target.value })}
-                          className="h-7 text-sm border-none shadow-none bg-transparent hover:bg-white focus:bg-white p-0 px-1 font-bold w-full max-w-md"
-                        />
-                        <div className="flex gap-2 items-center">
-                           <Select value={t.cidade} onValueChange={(v) => updateRow(t.id, { cidade: v })}>
-                            <SelectTrigger className="h-6 text-[11px] bg-white border border-slate-200 rounded-md px-2 w-fit gap-1 text-slate-600 font-medium">
-                              <SelectValue placeholder="Cidade" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {["Araraquara", "Bauru", "Ribeirão Preto", "São Carlos", "Online", "Não identificado", "—"].map(c => (
-                                <SelectItem key={c} value={c} className="text-[11px]">{c}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-
-                            <Select value={t.destino || ""} onValueChange={(v) => {
-                              updateRow(t.id, { destino: v });
-                            }}>
-                            <SelectTrigger className="h-6 text-[11px] bg-white border border-slate-200 rounded-md px-2 w-fit gap-1 text-slate-600 font-medium">
-                              <span>{t.destino === "Cliente" && t.clienteNome ? `Cliente — ${t.clienteNome}` : (t.destino || "Destino")}</span>
-                            </SelectTrigger>
-                            <SelectContent>
-                                {["Loja", "Depósito", "Cliente", "Aluguel", "IPTU", "Condomínio", "Seguro", "Outros"].map(opt => (
-                                  <SelectItem key={opt} value={opt} className="text-[11px]">{opt}</SelectItem>
-                                ))}
-                            </SelectContent>
-                          </Select>
-
-                          {t.destino === "Cliente" && (
-                            <Input
-                              placeholder="Nome"
-                              value={t.clienteNome || ""}
-                               onChange={(e) => updateRow(t.id, { clienteNome: e.target.value })}
-                              className="h-6 w-32 text-[11px] px-2 border-slate-200"
-                            />
-                          )}
-
-                          {t.parcela && t.parcela !== "—" && (
-                            <Badge variant="outline" className="h-6 text-[11px] font-medium border-slate-200 text-slate-500 rounded-md px-2">
-                              {t.parcela}
-                            </Badge>
-                          )}
-                        </div>
-                      </div>
+                      <Input 
+                        value={t.nome} 
+                        onChange={(e) => updateRow(t.id, { nome: e.target.value })}
+                        className="h-8 text-sm border-slate-200 shadow-none bg-white hover:border-slate-300 focus:border-blue-500 font-bold w-full max-w-md"
+                      />
                     </TableCell>
-                    <TableCell className={cn("px-6 py-3 text-right font-bold tabular-nums text-sm", (t.tipo === "Estorno" || t.tipo === "Crédito") ? "text-green-600" : "")}>
-                      <div className="flex flex-col items-end">
-                        <span>{formatBRL(t.valor)}</span>
-                        <span className="text-[9px] font-normal text-slate-400 uppercase leading-none">{t.tipo}</span>
-                      </div>
+                    <TableCell className="px-6 py-3">
+                      <Select value={t.cidade} onValueChange={(v) => updateRow(t.id, { cidade: v })}>
+                        <SelectTrigger className="h-8 text-[11px] bg-white border border-slate-200 rounded-md px-2 w-[120px] text-slate-600 font-medium">
+                          <SelectValue placeholder="Cidade" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {["Araraquara", "Bauru", "Ribeirão Preto", "São Carlos", "Online", "Não identificado", "—"].map(c => (
+                            <SelectItem key={c} value={c} className="text-[11px]">{c}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </TableCell>
+                    <TableCell className="px-6 py-3">
+                      <Select value={t.destino || ""} onValueChange={(v) => updateRow(t.id, { destino: v })}>
+                        <SelectTrigger className="h-8 text-[11px] bg-white border border-slate-200 rounded-md px-2 w-[100px] text-slate-600 font-medium">
+                          <SelectValue placeholder="Destino" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {["Loja", "Depósito", "Cliente", "Aluguel", "IPTU", "Condomínio", "Seguro", "Outros"].map(opt => (
+                            <SelectItem key={opt} value={opt} className="text-[11px]">{opt}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </TableCell>
+                    <TableCell className={cn("px-6 py-3 text-right font-bold tabular-nums text-sm")}>
+                      <Input 
+                        type="text"
+                        defaultValue={t.valor}
+                        onBlur={(e) => {
+                          const val = parseFloat(e.target.value.replace(/[R$\s.]/g, '').replace(',', '.'));
+                          if (!isNaN(val)) updateRow(t.id, { valor: val });
+                        }}
+                        className={cn("h-8 text-right font-bold border-slate-200 bg-white w-[100px] ml-auto px-2", (t.tipo === "Estorno" || t.tipo === "Crédito") ? "text-green-600" : "text-slate-900")}
+                      />
                     </TableCell>
                     <TableCell className="px-6 py-3 text-right font-mono text-[12px] tabular-nums bg-slate-50/30 text-slate-500">
                       {formatBRL((t as any).saldoAcumulado)}
