@@ -242,11 +242,9 @@ export default function Index() {
         String(t.id),
         t.conferido ? '✓' : '',
         t.titular,
-        t.data,
         t.nome,
         t.cidade,
         t.destino === 'Cliente' && t.clienteNome ? `Cliente — ${t.clienteNome}` : (t.destino || t.tipo),
-        t.parcela || '—',
         brl(Math.abs(t.valor)),
       ]);
 
@@ -254,7 +252,7 @@ export default function Index() {
       startY: (pdf as any).lastAutoTable.finalY + 6,
       margin: { left: 10, right: 10 },
       tableWidth: 'auto',
-      head: [['#', '✓', 'Titular', 'Data', 'Estabelecimento', 'Cidade', 'Destino', 'Parc.', 'Valor']],
+      head: [['#', '✓', 'Titular', 'Estabelecimento', 'Cidade', 'Destino', 'Valor']],
       body,
       rowPageBreak: 'avoid',
       pageBreak: 'auto',
@@ -264,13 +262,11 @@ export default function Index() {
       columnStyles: {
         0: { cellWidth: 12, halign: 'center' },
         1: { cellWidth: 8,  halign: 'center' },
-        2: { cellWidth: 24 },
-        3: { cellWidth: 16 },
-        4: { cellWidth: 'auto' },
+        2: { cellWidth: 26 },
+        3: { cellWidth: 'auto' },
+        4: { cellWidth: 38 },
         5: { cellWidth: 36 },
-        6: { cellWidth: 34 },
-        7: { cellWidth: 14, halign: 'center' },
-        8: { cellWidth: 28, halign: 'right', fontStyle: 'bold' },
+        6: { cellWidth: 30, halign: 'right', fontStyle: 'bold' },
       },
       didParseCell: d => {
         if (d.section !== 'body') return;
