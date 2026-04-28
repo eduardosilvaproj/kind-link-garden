@@ -136,35 +136,165 @@ export default function Index() {
 
   const exportPDF = () => {
     const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
-    pdf.setFontSize(14); pdf.setFont('helvetica', 'bold');
-    pdf.text('Classificador de Fatura C6 Bank — Abril 2026', 14, 16);
-    pdf.setFontSize(10); pdf.setFont('helvetica', 'normal');
-    pdf.text(`Total Fatura: ${brl(TOTAL_FATURA)}`, 14, 23);
-    pdf.text(`Isabela: ${fmt(somaIsabela)}   Claudio: ${fmt(somaClaudio)}   Daniel: ${fmt(somaDaniel)}`, 14, 29);
-    autoTable(pdf, { 
-      startY: 34, 
-      head: [['Cidade','Isabela','Claudio','Daniel','Total']], 
-      body: crossTab.map(r => [r.label, fmt((r as any).Isabela), fmt((r as any).Claudio), fmt((r as any).Daniel), fmt(r.total)]), 
-      foot: [['TOTAL', fmt(somaIsabela), fmt(somaClaudio), fmt(somaDaniel), fmt(somaIsabela+somaClaudio+somaDaniel)]], 
-      styles: { fontSize: 9, cellPadding: 3 }, 
-      headStyles: { fillColor: [31,56,100], textColor: 255, fontStyle: 'bold' }, 
-      footStyles: { fillColor: [220,220,220], fontStyle: 'bold' }, 
-      columnStyles: { 0:{cellWidth:45}, 1:{halign:'right'}, 2:{halign:'right'}, 3:{halign:'right'}, 4:{halign:'right',fontStyle:'bold'} } 
+    const W = pdf.internal.pageSize.getWidth();   // 297mm
+
+    // ── Header bar (dark background like the app) ──
+    pdf.setFillColor(15, 23, 42); // slate-900
+    pdf.rect(0, 0, W, 20, 'F');
+
+    // Title
+    pdf.setFontSize(13);
+    pdf.setFont('helvetica', 'bold');
+    pdf.setTextColor(255, 255, 255);
+    pdf.text('Classificador de Fatura C6 Bank', 10, 13);
+
+    // Total badge (green pill)
+    pdf.setFillColor(220, 252, 231); // green-100
+    pdf.roundedRect(120, 7, 52, 8, 2, 2, 'F');
+    pdf.setFontSize(8);
+    pdf.setTextColor(22, 101, 52); // green-800
+    pdf.text(`TOTAL: ${brl(TOTAL_FATURA)} ✓`, 123, 12.5);
+
+    // Conferidos badge
+    pdf.setFillColor(241, 245, 249); // slate-100
+    pdf.roundedRect(175, 7, 45, 8, 2, 2, 'F');
+    pdf.setTextColor(71, 85, 105); // slate-500
+    pdf.text(`✓ Conferidos: ${totalConferidos} / ${rows.length}`, 178, 12.5);
+
+    // Export date top right
+    pdf.setTextColor(148, 163, 184);
+    pdf.text(`Exportado em ${new Date().toLocaleDateString('pt-BR')}`, W - 50, 13);
+
+    // ── Metric cards row ──
+    const cards = [
+      { label: 'ISABELA (LÍQUIDO)', value: brl(somaIsabela), color: [251, 191, 36] as [number,number,number] },
+      { label: 'CLAUDIO (LÍQUIDO)', value: brl(somaClaudio), color: [59, 130, 246] as [number,number,number] },
+      { label: 'DANIEL (ADICIONAL)', value: brl(somaDaniel), color: [20, 184, 166] as [number,number,number] },
+      { label: 'TOTAL FATURA', value: brl(TOTAL_FATURA), color: [255, 255, 255] as [number,number,number], dark: true },
+    ];
+
+    const cardW = (W - 20) / 4;
+    cards.forEach((card, i) => {
+      const x = 10 + i * (cardW + 1.5);
+      const y = 23;
+      // card background
+      if (card.dark) {
+        pdf.setFillColor(15, 23, 42);
+      } else {
+        pdf.setFillColor(255, 255, 255);
+      }
+      pdf.setDrawColor(226, 232, 240);
+      pdf.roundedRect(x, y, cardW, 18, 2, 2, card.dark ? 'F' : 'FD');
+      // label
+      pdf.setFontSize(7);
+      pdf.setFont('helvetica', 'bold');
+      pdf.setTextColor(card.dark ? 148 : 100, card.dark ? 163 : 116, card.dark ? 184 : 139);
+      pdf.text(card.label, x + 3, y + 6);
+      // value
+      pdf.setFontSize(12);
+      pdf.setFont('helvetica', 'bold');
+      pdf.setTextColor(...card.color);
+      pdf.text(card.value, x + 3, y + 14);
     });
-    const body = rows.filter(t => t.tipo !== 'Crédito' && t.tipo !== 'Pagamento').map(t => [String(t.id), t.conferido ? '✓' : '', t.titular, t.data, t.nome, t.cidade, t.destino === 'Cliente' && t.clienteNome ? `Cliente — ${t.clienteNome}` : (t.destino || t.tipo), t.parcela || '—', brl(Math.abs(t.valor))]);
-    autoTable(pdf, { 
-      startY: (pdf as any).lastAutoTable.finalY + 8, 
-      head: [['#','✓','Titular','Data','Estabelecimento','Cidade','Destino','Parc.','Valor']], 
-      body, 
-      rowPageBreak: 'avoid', 
-      pageBreak: 'auto', 
-      styles: { fontSize: 8, cellPadding: 2, overflow: 'linebreak' }, 
-      headStyles: { fillColor: [31,56,100], textColor: 255, fontStyle: 'bold' }, 
-      alternateRowStyles: { fillColor: [248,248,248] }, 
-      columnStyles: { 0:{cellWidth:8,halign:'center'}, 1:{cellWidth:8,halign:'center'}, 2:{cellWidth:22}, 3:{cellWidth:16}, 4:{cellWidth:60}, 5:{cellWidth:32}, 6:{cellWidth:28}, 7:{cellWidth:14,halign:'center'}, 8:{cellWidth:24,halign:'right',fontStyle:'bold'} }, 
-      didParseCell: d => { if (d.section !== 'body') return; const tit = body[d.row.index]?.[2]; if (tit === 'Isabela') d.cell.styles.textColor = [180,100,0]; else if (tit === 'Claudio') d.cell.styles.textColor = [0,80,160]; else if (tit === 'Daniel') d.cell.styles.textColor = [0,120,80]; }, 
-      didDrawPage: d => { pdf.setFontSize(8); pdf.text(`Página ${d.pageNumber} de ${pdf.getNumberOfPages()}`, pdf.internal.pageSize.getWidth()-30, pdf.internal.pageSize.getHeight()-5); } 
+
+    // ── Section title ──
+    pdf.setFontSize(8);
+    pdf.setFont('helvetica', 'bold');
+    pdf.setTextColor(100, 116, 139);
+    pdf.text('DISTRIBUIÇÃO CIDADE × TITULAR', 10, 47);
+
+    // ── Cross-tab table ──
+    autoTable(pdf, {
+      startY: 49,
+      head: [['Cidade', 'Isabela', 'Claudio', 'Daniel', 'Total']],
+      body: crossTab.map(r => [
+        r.label,
+        r.Isabela > 0.009 ? brl(r.Isabela) : '—',
+        r.Claudio > 0.009 ? brl(r.Claudio) : '—',
+        r.Daniel  > 0.009 ? brl(r.Daniel)  : '—',
+        brl(r.total),
+      ]),
+      foot: [['TOTAL', brl(somaIsabela), brl(somaClaudio), brl(somaDaniel), brl(somaIsabela+somaClaudio+somaDaniel)]],
+      styles: { fontSize: 9, cellPadding: 3 },
+      headStyles: { fillColor: [31, 56, 100], textColor: 255, fontStyle: 'bold' },
+      footStyles: { fillColor: [220, 220, 220], fontStyle: 'bold' },
+      columnStyles: {
+        0: { cellWidth: 50 },
+        1: { halign: 'right' },
+        2: { halign: 'right' },
+        3: { halign: 'right' },
+        4: { halign: 'right', fontStyle: 'bold' },
+      },
+      didParseCell: (d) => {
+        if (d.section === 'body' && d.column.index === 0) {
+          if (d.cell.text[0] === 'Não identificado') d.cell.styles.fillColor = [255, 249, 196];
+          if (d.cell.text[0] === 'Encargos') d.cell.styles.fillColor = [254, 226, 226];
+        }
+      },
     });
+
+    // ── Transactions table ──
+    const body = rows
+      .filter(t => t.tipo !== 'Crédito' && t.tipo !== 'Pagamento')
+      .map(t => [
+        String(t.id),
+        t.conferido ? '✓' : '',
+        t.titular,
+        t.data,
+        t.nome,
+        t.cidade,
+        t.destino === 'Cliente' && t.clienteNome ? `Cliente — ${t.clienteNome}` : (t.destino || t.tipo),
+        t.parcela || '—',
+        brl(Math.abs(t.valor)),
+      ]);
+
+    autoTable(pdf, {
+      startY: (pdf as any).lastAutoTable.finalY + 6,
+      head: [['#', '✓', 'Titular', 'Data', 'Estabelecimento', 'Cidade', 'Destino', 'Parc.', 'Valor']],
+      body,
+      rowPageBreak: 'avoid',
+      pageBreak: 'auto',
+      styles: { fontSize: 8, cellPadding: 2.5, overflow: 'linebreak' },
+      headStyles: { fillColor: [31, 56, 100], textColor: 255, fontStyle: 'bold' },
+      alternateRowStyles: { fillColor: [248, 250, 252] },
+      columnStyles: {
+        0: { cellWidth: 12, halign: 'center' },
+        1: { cellWidth: 8,  halign: 'center' },
+        2: { cellWidth: 22 },
+        3: { cellWidth: 16 },
+        4: { cellWidth: 58 },
+        5: { cellWidth: 30 },
+        6: { cellWidth: 28 },
+        7: { cellWidth: 14, halign: 'center' },
+        8: { cellWidth: 26, halign: 'right', fontStyle: 'bold' },
+      },
+      didParseCell: d => {
+        if (d.section !== 'body') return;
+        const tit = body[d.row.index]?.[2];
+        if (tit === 'Isabela') d.cell.styles.textColor = [180, 100, 0];
+        else if (tit === 'Claudio') d.cell.styles.textColor = [0, 80, 160];
+        else if (tit === 'Daniel')  d.cell.styles.textColor = [0, 120, 80];
+      },
+      didDrawPage: d => {
+        // page header on pages 2+
+        if (d.pageNumber > 1) {
+          pdf.setFillColor(15, 23, 42);
+          pdf.rect(0, 0, W, 8, 'F');
+          pdf.setFontSize(8);
+          pdf.setTextColor(255, 255, 255);
+          pdf.text('Classificador de Fatura C6 Bank — Abril 2026', 10, 5.5);
+        }
+        // page number
+        pdf.setFontSize(8);
+        pdf.setTextColor(148, 163, 184);
+        pdf.text(
+          `Página ${d.pageNumber} de ${pdf.getNumberOfPages()}`,
+          W - 30,
+          pdf.internal.pageSize.getHeight() - 4,
+        );
+      },
+    });
+
     pdf.save('Fatura_C6_Abril_2026.pdf');
   };
 
