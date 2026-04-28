@@ -111,8 +111,13 @@ export default function Index() {
         if (showPendentes && t.cidade !== 'Não identificado') return false;
         if (!showPagamentos && (t.tipo === 'Crédito' || t.tipo === 'Pagamento')) return false;
         if (search.trim()) {
-          const s = search.toLowerCase();
-          if (!t.nome.toLowerCase().includes(s) && !t.raw.toLowerCase().includes(s)) return false;
+          const s = search.toLowerCase().trim();
+          const matchesNome  = t.nome.toLowerCase().includes(s);
+          const matchesValor = t.valor.toFixed(2).includes(s) || 
+                               t.valor.toLocaleString('pt-BR', {minimumFractionDigits:2}).includes(s);
+          const matchesCidade   = t.cidade.toLowerCase().includes(s);
+          const matchesTitular  = t.titular.toLowerCase().includes(s);
+          if (!matchesNome && !matchesValor && !matchesCidade && !matchesTitular) return false;
         }
         return true;
       })
