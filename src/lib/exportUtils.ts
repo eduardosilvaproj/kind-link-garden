@@ -4,22 +4,22 @@ import { Transacao, Config } from '../types';
 export const exportToXLSX = (transacoes: Transacao[], config: Config) => {
   const wb = XLSX.utils.book_new();
   
-   // Sheet 1: Transações
-   const dataTransacoes = transacoes.map(t => {
-     const titular = config.titulares.find(tit => tit.id === t.titular);
-     return {
-       'Titular': titular?.nome || t.titular,
-       'Data': t.data,
-       'Estabelecimento (Raw)': t.raw,
-       'Nome Limpo': t.nome,
-       'Cidade/Unidade': t.cidade,
-       'Tipo': t.tipo,
-       'Destino': t.destino === "Cliente" && t.clienteNome ? `Cliente — ${t.clienteNome}` : (t.destino || ""),
-       'Parcela': t.parcela,
-       'Valor': t.valor
-     };
-   });
-  const wsTransacoes = XLSX.utils.json_to_sheet(dataTransacoes);
+    // Sheet 1: Transações
+    const headers = ['#', '✓', 'Titular', 'Estabelecimento', 'Cidade', 'Destino', 'Valor (R$)', 'Obs'];
+    const dataTransacoes = transacoes.map(t => {
+      const titular = config.titulares.find(tit => tit.id === t.titular);
+      return [
+        t.id,
+        t.conferido ? '✓' : '',
+        titular?.nome || t.titular,
+        t.nome,
+        t.cidade,
+        t.destino || t.tipo,
+        t.valor,
+        t.obs || ''
+      ];
+    });
+   const wsTransacoes = XLSX.utils.aoa_to_sheet([headers, ...dataTransacoes]);
   XLSX.utils.book_append_sheet(wb, wsTransacoes, 'Transações');
   
    // Sheet 2: Resumo
