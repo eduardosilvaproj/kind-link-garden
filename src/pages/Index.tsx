@@ -27,6 +27,14 @@ export default function Index() {
   const [filterTitular, setFilterTitular] = useState('Todos');
   const [showPendentes, setShowPendentes] = useState(false);
   const [showPagamentos, setShowPagamentos] = useState(false);
+  const [search, setSearch] = useState('');
+  const [sortField, setSortField] = useState<'id' | 'nome' | 'valor' | 'data' | 'titular' | 'cidade'>('id');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+
+  const toggleSort = (field: typeof sortField) => {
+    if (sortField === field) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    else { setSortField(field); setSortDir('asc'); }
+  };
   const [edits, setEdits] = useState<Record<string, RowEdit>>(() => { try { const raw = localStorage.getItem('fatura_edits_v4'); return raw ? JSON.parse(raw) : {}; } catch { return {}; } });
   
   useEffect(() => { localStorage.setItem('fatura_edits_v4', JSON.stringify(edits)); }, [edits]);
@@ -96,12 +104,30 @@ export default function Index() {
     });
   }, [edits]);
 
-  const filtradas = useMemo(() => rows.filter(t => {
-    if (filterTitular !== 'Todos' && t.titular !== filterTitular) return false;
-    if (showPendentes && t.cidade !== 'Não identificado') return false;
-    if (!showPagamentos && (t.tipo === 'Crédito' || t.tipo === 'Pagamento')) return false;
-    return true;
-  }), [rows, filterTitular, showPendentes, showPagamentos]);
+  const filtradas = useMemo(() => {
+    return rows
+      .filter(t => {
+        if (filterTitular !== 'Todos' && t.titular !== filterTitular) return false;
+        if (showPendentes && t.cidade !== 'Não identificado') return false;
+        if (!showPagamentos && (t.tipo === 'Crédito' || t.tipo === 'Pagamento')) return false;
+        if (search.trim()) {
+          const s = search.toLowerCase();
+          if (!t.nome.toLowerCase().includes(s) && !t.raw.toLowerCase().includes(s)) return false;
+        }
+        return true;
+      })
+      .sort((a, b) => {
+        let va: any, vb: any;
+        if (sortField === 'id') { va = a.id; vb = b.id; }
+        if (sortField === 'nome') { va = a.nome; vb = b.nome; }
+        if (sortField === 'valor') { va = a.valor; vb = b.valor; }
+        if (sortField === 'titular') { va = a.titular; vb = b.titular; }
+        if (sortField === 'cidade') { va = a.cidade; vb = b.cidade; }
+        if (sortField === 'data') { va = a.id; vb = b.id; }
+        if (typeof va === 'string') return sortDir === 'asc' ? va.localeCompare(vb) : vb.localeCompare(va);
+        return sortDir === 'asc' ? va - vb : vb - va;
+      });
+  }, [rows, filterTitular, showPendentes, showPagamentos, search, sortField, sortDir]);
 
   const exportPDF = () => {
     const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
@@ -204,6 +230,20 @@ export default function Index() {
               <Select value={filterTitular} onValueChange={setFilterTitular}><SelectTrigger className="h-8 w-[160px] bg-white"><Filter className="w-3 h-3 mr-1" /><SelectValue /></SelectTrigger><SelectContent><SelectItem value="Todos">Todos</SelectItem><SelectItem value="Isabela">Isabela</SelectItem><SelectItem value="Claudio">Claudio</SelectItem><SelectItem value="Daniel">Daniel</SelectItem></SelectContent></Select>
               <div className="flex items-center gap-2 bg-white px-3 py-1 rounded-md border h-8"><Switch id="pend" checked={showPendentes} onCheckedChange={setShowPendentes} className="scale-75" /><Label htmlFor="pend" className="text-[11px] font-bold uppercase cursor-pointer">Pendentes</Label></div>
               <div className="flex items-center gap-2 bg-white px-3 py-1 rounded-md border h-8"><Switch id="pgto" checked={showPagamentos} onCheckedChange={setShowPagamentos} className="scale-75" /><Label htmlFor="pgto" className="text-[11px] font-bold uppercase cursor-pointer">Pagamentos</Label></div>
+              <div className="relative">
+                <Input
+                  placeholder="🔍 Buscar estabelecimento..."
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                  className="h-8 w-56 text-sm bg-white pr-7"
+                />
+                {search && (
+                  <button
+                    onClick={() => setSearch('')}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs"
+                  >✕</button>
+                )}
+              </div>
             </div>
             <span className="text-[11px] font-bold text-slate-400 uppercase">{filtradas.length} transações</span>
           </div>
