@@ -148,6 +148,10 @@ export default function Index() {
     pdf.setTextColor(255, 255, 255);
     pdf.text('Classificador de Fatura C6 Bank', 10, 13);
 
+    // Export date top right
+    pdf.setTextColor(148, 163, 184);
+    pdf.text(`Exportado em ${new Date().toLocaleDateString('pt-BR')}`, W - 50, 13);
+
     const cards = [
       { label: 'ISABELA (LÍQUIDO)', value: brl(somaIsabela), color: [251, 191, 36] as [number,number,number] },
       { label: 'CLAUDIO (LÍQUIDO)', value: brl(somaClaudio), color: [59, 130, 246] as [number,number,number] },
