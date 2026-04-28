@@ -163,6 +163,19 @@ export default function Index() {
     pdf.save('Fatura_C6_Abril_2026.pdf');
   };
 
+  // Helper component for sortable header
+  const SortTh = ({ field, label, className }: { field: typeof sortField, label: string, className?: string }) => (
+    <th
+      className={cn("px-4 py-2 cursor-pointer select-none hover:bg-slate-100 transition-colors", className)}
+      onClick={() => toggleSort(field)}
+    >
+      <span className="flex items-center gap-1">
+        {label}
+        {sortField === field ? (sortDir === 'asc' ? ' ↑' : ' ↓') : ' ↕'}
+      </span>
+    </th>
+  );
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 pb-16">
       <div className="p-6 max-w-[1400px] mx-auto flex flex-col gap-6">
@@ -248,7 +261,24 @@ export default function Index() {
             <span className="text-[11px] font-bold text-slate-400 uppercase">{filtradas.length} transações</span>
           </div>
           <table className="w-full text-sm">
-            <thead><tr className="text-[11px] uppercase text-slate-500 bg-slate-50 border-b"><th className="w-9 px-2 text-center">#</th><th className="w-10 px-2 text-center"><input type="checkbox" className="w-4 h-4 rounded" checked={filtradas.length > 0 && filtradas.every(t => t.conferido)} onChange={e => updateBatch(filtradas.map(t => t.id), { conferido: e.target.checked })} /></th><th className="w-24 px-4 text-left">Titular</th><th className="w-24 px-4 text-left">Data</th><th className="px-4 text-left">Estabelecimento & Classificação</th><th className="w-32 px-4 text-right">Valor</th><th className="w-32 px-4 text-right bg-slate-50">Saldo</th></tr></thead>
+            <thead>
+              <tr className="text-[11px] uppercase text-slate-500 bg-slate-50 border-b">
+                <SortTh field="id" label="#" className="w-9 px-2 text-center" />
+                <th className="w-10 px-2 text-center">
+                  <input
+                    type="checkbox"
+                    className="w-4 h-4 rounded"
+                    checked={filtradas.length > 0 && filtradas.every(t => t.conferido)}
+                    onChange={e => updateBatch(filtradas.map(t => t.id), { conferido: e.target.checked })}
+                  />
+                </th>
+                <SortTh field="titular" label="Titular" className="w-24 px-4 text-left" />
+                <SortTh field="data" label="Data" className="w-24 px-4 text-left" />
+                <SortTh field="nome" label="Estabelecimento & Classificação" className="px-4 text-left" />
+                <SortTh field="valor" label="Valor" className="w-32 px-4 text-right" />
+                <th className="w-32 px-4 text-right bg-slate-50">Saldo</th>
+              </tr>
+            </thead>
             <tbody>
               {filtradas.map(t => (
                 <tr key={t.id} className={cn('border-b transition-colors', rowBg(t.tipo, t.cidade), t.conferido ? 'border-l-4 border-l-green-600' : '')}>
