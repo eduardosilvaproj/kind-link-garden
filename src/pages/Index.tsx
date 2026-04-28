@@ -148,19 +148,6 @@ export default function Index() {
     pdf.setTextColor(255, 255, 255);
     pdf.text('Classificador de Fatura C6 Bank', 10, 13);
 
-    // Total badge (green pill)
-    pdf.setFillColor(220, 252, 231); // green-100
-    pdf.roundedRect(120, 7, 52, 8, 2, 2, 'F');
-    pdf.setFontSize(8);
-    pdf.setTextColor(22, 101, 52); // green-800
-    pdf.text(`TOTAL: ${brl(TOTAL_FATURA)} ✓`, 123, 12.5);
-
-    // Conferidos badge
-    pdf.setFillColor(241, 245, 249); // slate-100
-    pdf.roundedRect(175, 7, 45, 8, 2, 2, 'F');
-    pdf.setTextColor(71, 85, 105); // slate-500
-    pdf.text(`✓ Conferidos: ${totalConferidos} / ${rows.length}`, 178, 12.5);
-
     // Export date top right
     pdf.setTextColor(148, 163, 184);
     pdf.text(`Exportado em ${new Date().toLocaleDateString('pt-BR')}`, W - 50, 13);
