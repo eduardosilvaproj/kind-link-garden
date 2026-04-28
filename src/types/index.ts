@@ -40,10 +40,11 @@ export type Cidade =
    valor: number;
    conferido?: boolean;
    cidade: string;
-   tipo: TipoDestino;
-   destino?: string;
-   clienteNome?: string;
- };
+    tipo: TipoDestino;
+    destino?: string;
+    clienteNome?: string;
+    obs?: string;
+  };
 
 export type AutoRule = {
   keyword: string;
