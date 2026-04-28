@@ -206,6 +206,8 @@ export default function Index() {
     // ── Cross-tab table ──
     autoTable(pdf, {
       startY: 49,
+      margin: { left: 10, right: 10 },
+      tableWidth: 'auto',
       head: [['Cidade', 'Isabela', 'Claudio', 'Daniel', 'Total']],
       body: crossTab.map(r => [
         r.label,
@@ -250,6 +252,8 @@ export default function Index() {
 
     autoTable(pdf, {
       startY: (pdf as any).lastAutoTable.finalY + 6,
+      margin: { left: 10, right: 10 },
+      tableWidth: 'auto',
       head: [['#', '✓', 'Titular', 'Data', 'Estabelecimento', 'Cidade', 'Destino', 'Parc.', 'Valor']],
       body,
       rowPageBreak: 'avoid',
@@ -260,13 +264,13 @@ export default function Index() {
       columnStyles: {
         0: { cellWidth: 12, halign: 'center' },
         1: { cellWidth: 8,  halign: 'center' },
-        2: { cellWidth: 22 },
+        2: { cellWidth: 24 },
         3: { cellWidth: 16 },
-        4: { cellWidth: 58 },
-        5: { cellWidth: 30 },
-        6: { cellWidth: 28 },
+        4: { cellWidth: 'auto' },
+        5: { cellWidth: 36 },
+        6: { cellWidth: 34 },
         7: { cellWidth: 14, halign: 'center' },
-        8: { cellWidth: 26, halign: 'right', fontStyle: 'bold' },
+        8: { cellWidth: 28, halign: 'right', fontStyle: 'bold' },
       },
       didParseCell: d => {
         if (d.section !== 'body') return;
