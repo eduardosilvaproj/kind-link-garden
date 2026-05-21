@@ -5,10 +5,14 @@ import { useToast } from '@/hooks/use-toast';
 
 interface PDFUploadProps {
   onUpload: (file: File) => void;
+  isLoading?: boolean;
 }
 
-export function PDFUpload({ onUpload }: PDFUploadProps) {
+
+export function PDFUpload({ onUpload, isLoading: externalLoading }: PDFUploadProps) {
   const [isUploading, setIsUploading] = useState(false);
+  const loading = isUploading || externalLoading;
+
   const { toast } = useToast();
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -25,16 +29,19 @@ export function PDFUpload({ onUpload }: PDFUploadProps) {
     }
 
     setIsUploading(true);
-    // Simulating processing
-    setTimeout(() => {
-      onUpload(file);
-      setIsUploading(false);
+    try {
+      await onUpload(file);
+    } catch (error) {
       toast({
-        title: "Fatura processada",
-        description: "Os dados de Maio foram carregados com sucesso.",
+        title: "Erro no processamento",
+        description: "Não foi possível processar a fatura.",
+        variant: "destructive",
       });
-    }, 1500);
+    } finally {
+      setIsUploading(false);
+    }
   };
+
 
   return (
     <div className="flex flex-col items-center justify-center border-2 border-dashed border-slate-300 rounded-xl p-12 bg-white gap-4">
@@ -53,16 +60,17 @@ export function PDFUpload({ onUpload }: PDFUploadProps) {
           accept=".pdf"
           onChange={handleFileChange}
           className="absolute inset-0 opacity-0 cursor-pointer"
-          disabled={isUploading}
+          disabled={loading}
         />
-        <Button disabled={isUploading} className="gap-2">
-          {isUploading ? (
+        <Button disabled={loading} className="gap-2">
+          {loading ? (
             <Loader2 className="w-4 h-4 animate-spin" />
           ) : (
             <Upload className="w-4 h-4" />
           )}
-          {isUploading ? "Processando..." : "Selecionar PDF"}
+          {loading ? "Processando..." : "Selecionar PDF"}
         </Button>
+
       </div>
     </div>
   );
