@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { TRANSACOES, TOTAL_FATURA } from '../data/transactions';
 import { DEFAULT_CONFIG } from '../data/defaultConfig';
 import { exportToXLSX } from '../lib/exportUtils';
-import { Download, FileText, Filter } from 'lucide-react';
+import { Download, FileText, Filter, Calendar } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
@@ -12,6 +12,9 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { MonthTabs } from '@/components/MonthTabs';
+import { PDFUpload } from '@/components/PDFUpload';
+
 
 type RowEdit = { titular?: string; cidade?: string; destino?: string; clienteNome?: string; conferido?: boolean; nome?: string; valor?: number; };
 const CIDADES_FIXAS = ['Araraquara','Bauru','Ribeirão Preto','São Carlos','Online','Não identificado'];
@@ -24,12 +27,15 @@ const rowBg = (tipo: string, cidade: string) => { if (tipo === 'Encargo Bancári
 
 export default function Index() {
   const config = DEFAULT_CONFIG;
+  const [activeTab, setActiveTab] = useState('abril');
+  const [mayTransactions, setMayTransactions] = useState<any[]>([]);
   const [filterTitular, setFilterTitular] = useState('Todos');
   const [showPendentes, setShowPendentes] = useState(false);
   const [showPagamentos, setShowPagamentos] = useState(false);
   const [search, setSearch] = useState('');
   const [sortField, setSortField] = useState<'id' | 'nome' | 'valor' | 'data' | 'titular' | 'cidade'>('id');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+
 
   const toggleSort = (field: typeof sortField) => {
     if (sortField === field) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
@@ -43,7 +49,8 @@ export default function Index() {
   const updateBatch = (ids: number[], patch: Partial<RowEdit>) => { setEdits(prev => { const next = { ...prev }; ids.forEach(id => { const key = String(id); next[key] = { ...next[key], ...patch }; }); return next; }); };
   
   const rows = useMemo(() => {
-    const raw = TRANSACOES.map(t => {
+    const baseData = activeTab === 'abril' ? TRANSACOES : mayTransactions;
+    const raw = baseData.map(t => {
       const e = edits[String(t.id)] ?? {};
       return { 
         ...t, 
@@ -56,6 +63,7 @@ export default function Index() {
         valor: e.valor !== undefined ? e.valor : t.valor
       };
     });
+
     
     const sorted = [...raw].sort((a,b) => a.titular.localeCompare(b.titular) || a.id - b.id);
     let currentTitular = '';
@@ -70,7 +78,8 @@ export default function Index() {
       accumulated += (isNegative ? -Math.abs(t.valor) : t.valor);
       return { ...t, saldoAcumulado: accumulated };
     });
-  }, [edits]);
+  }, [edits, activeTab, mayTransactions]);
+
 
   const somaIsabela = useMemo(() => rows.filter(t => t.titular === 'Isabela' && t.tipo !== 'Crédito' && t.tipo !== 'Estorno' && t.tipo !== 'Pagamento').reduce((s, t) => s + t.valor, 0), [rows]);
   const somaClaudio = useMemo(() => rows.filter(t => t.titular === 'Claudio' && t.tipo !== 'Crédito' && t.tipo !== 'Estorno' && t.tipo !== 'Pagamento').reduce((s, t) => s + t.valor, 0), [rows]);
@@ -79,7 +88,8 @@ export default function Index() {
   
   const crossTab = useMemo(() => {
     const CIDADES = ['Araraquara','Bauru','Ribeirão Preto','São Carlos','Online','Não identificado'];
-    const effective = TRANSACOES.map(t => {
+    const baseData = activeTab === 'abril' ? TRANSACOES : mayTransactions;
+    const effective = baseData.map(t => {
       const e = edits[String(t.id)] ?? {};
       return {
         id: t.id,
@@ -89,6 +99,7 @@ export default function Index() {
         valor:   t.valor,
       };
     });
+
     return [...CIDADES, 'Encargos'].map(label => {
       const get = (tit: string) => effective
         .filter(t => {
@@ -102,7 +113,8 @@ export default function Index() {
       const Daniel  = get('Daniel');
       return { label, Isabela, Claudio, Daniel, total: Isabela + Claudio + Daniel };
     });
-  }, [edits]);
+  }, [edits, activeTab, mayTransactions]);
+
 
   const filtradas = useMemo(() => {
     return rows
@@ -301,22 +313,51 @@ export default function Index() {
     <div className="min-h-screen bg-slate-50 text-slate-900 pb-16">
       <div className="p-6 max-w-[1400px] mx-auto flex flex-col gap-6">
         <header className="flex justify-between items-center bg-white border rounded-xl px-6 py-4 shadow-sm">
-          <div className="flex items-center gap-3 flex-wrap">
-            <h1 className="text-xl font-bold">Classificador de Fatura C6 Bank</h1>
-            <Badge className="text-[10px] font-bold uppercase px-3 py-1 bg-green-100 text-green-700 border-green-200">Total: {brl(TOTAL_FATURA)} ✓</Badge>
-            <Badge variant="outline" className="text-[10px] font-bold uppercase px-3 py-1">✓ Conferidos: {totalConferidos} / {rows.length}</Badge>
+          <div className="flex flex-col gap-4">
+            <div className="flex items-center gap-3 flex-wrap">
+              <h1 className="text-xl font-bold">Classificador de Fatura C6 Bank</h1>
+              <Badge className="text-[10px] font-bold uppercase px-3 py-1 bg-green-100 text-green-700 border-green-200">
+                Total: {brl(activeTab === 'abril' ? TOTAL_FATURA : rows.reduce((s, r) => s + (['Crédito', 'Estorno', 'Pagamento'].includes(r.tipo) ? -r.valor : r.valor), 0))} ✓
+              </Badge>
+              <Badge variant="outline" className="text-[10px] font-bold uppercase px-3 py-1">✓ Conferidos: {totalConferidos} / {rows.length}</Badge>
+            </div>
+            <MonthTabs activeTab={activeTab} onTabChange={setActiveTab} />
           </div>
           <div className="flex gap-2">
             <Button variant="outline" size="sm" onClick={() => exportToXLSX(rows, config)} className="gap-2"><Download className="w-4 h-4" /> Exportar Excel</Button>
             <Button variant="outline" size="sm" onClick={exportPDF} className="gap-2"><FileText className="w-4 h-4" /> Exportar PDF</Button>
           </div>
         </header>
+
         <div className="grid grid-cols-4 gap-4">
           <div className="bg-white rounded-xl border shadow-sm p-4"><p className="text-xs font-bold text-slate-500 uppercase mb-1">Isabela (Líquido)</p><p className="text-2xl font-black text-amber-600">{brl(somaIsabela)}</p></div>
           <div className="bg-white rounded-xl border shadow-sm p-4"><p className="text-xs font-bold text-slate-500 uppercase mb-1">Claudio (Líquido)</p><p className="text-2xl font-black text-blue-600">{brl(somaClaudio)}</p></div>
           <div className="bg-white rounded-xl border shadow-sm p-4"><p className="text-xs font-bold text-slate-500 uppercase mb-1">Daniel (Adicional)</p><p className="text-2xl font-black text-teal-600">{brl(somaDaniel)}</p></div>
-          <div className="bg-slate-900 rounded-xl shadow-sm p-4"><p className="text-xs font-bold text-slate-400 uppercase mb-1">Total Fatura</p><p className="text-2xl font-black text-white">{brl(TOTAL_FATURA)}</p></div>
+          <div className="bg-slate-900 rounded-xl shadow-sm p-4"><p className="text-xs font-bold text-slate-400 uppercase mb-1">Total Fatura</p><p className="text-2xl font-black text-white">{brl(activeTab === 'abril' ? TOTAL_FATURA : rows.reduce((s, r) => s + (['Crédito', 'Estorno', 'Pagamento'].includes(r.tipo) ? -r.valor : r.valor), 0))}</p></div>
         </div>
+
+        {activeTab === 'maio' && mayTransactions.length === 0 ? (
+          <PDFUpload onUpload={(file) => {
+            // Find parcelas from April that should exist in May
+            const parcelasToStay = TRANSACOES.filter(t => {
+              if (!t.parcela || t.parcela === '—') return false;
+              const [atual, total] = t.parcela.split('/').map(Number);
+              return atual < total;
+            }).map(t => {
+              const [atual, total] = t.parcela.split('/').map(Number);
+              return {
+                ...t,
+                id: t.id + 1000, // New ID for May
+                data: 'Maio 2026',
+                parcela: `${atual + 1}/${total}`
+              };
+            });
+            
+            setMayTransactions(parcelasToStay);
+          }} />
+        ) : (
+          <>
+
         <div key={`crosstab-${crossTab.map(r => r.total).join('-')}`} className="bg-white rounded-xl border shadow-sm overflow-hidden">
           <div className="px-6 py-3 border-b bg-slate-50">
             <p className="text-xs font-bold uppercase text-slate-500">Distribuição Cidade × Titular</p>
@@ -425,7 +466,9 @@ export default function Index() {
             </tbody>
           </table>
         </div>
+        )}
       </div>
     </div>
   );
 }
+
