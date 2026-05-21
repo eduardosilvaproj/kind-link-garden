@@ -466,9 +466,11 @@ export default function Index() {
             </tbody>
           </table>
         </div>
+        </>
         )}
       </div>
     </div>
   );
 }
+
 
