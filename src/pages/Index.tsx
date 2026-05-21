@@ -14,6 +14,10 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { MonthTabs } from '@/components/MonthTabs';
 import { PDFUpload } from '@/components/PDFUpload';
+import { parseC6PDF, identifyTransaction } from '@/lib/pdfParser';
+import { Trash2, RefreshCw } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+
 
 
 type RowEdit = { titular?: string; cidade?: string; destino?: string; clienteNome?: string; conferido?: boolean; nome?: string; valor?: number; };
@@ -26,7 +30,9 @@ const titularInitials = (t: string) => { if (t === 'Isabela') return 'IS'; if (t
 const rowBg = (tipo: string, cidade: string) => { if (tipo === 'Encargo Bancário') return 'bg-red-50'; if (tipo === 'Crédito') return 'bg-blue-50'; if (tipo === 'Estorno') return 'bg-green-50'; if (cidade === 'Não identificado') return 'bg-amber-50'; return ''; };
 
 export default function Index() {
+  const { toast } = useToast();
   const config = DEFAULT_CONFIG;
+
   const [activeTab, setActiveTab] = useState('abril');
   const [mayTransactions, setMayTransactions] = useState<any[]>([]);
   const [filterTitular, setFilterTitular] = useState('Todos');
@@ -337,26 +343,80 @@ export default function Index() {
         </div>
 
         {activeTab === 'maio' && mayTransactions.length === 0 ? (
-          <PDFUpload onUpload={(file) => {
-            // Find parcelas from April that should exist in May
-            const parcelasToStay = TRANSACOES.filter(t => {
-              if (!t.parcela || t.parcela === '—') return false;
-              const [atual, total] = t.parcela.split('/').map(Number);
-              return atual < total;
-            }).map(t => {
-              const [atual, total] = t.parcela.split('/').map(Number);
-              return {
-                ...t,
-                id: t.id + 1000, // New ID for May
-                data: 'Maio 2026',
-                parcela: `${atual + 1}/${total}`
-              };
-            });
-            
-            setMayTransactions(parcelasToStay);
+          <PDFUpload onUpload={async (file) => {
+            try {
+              // 1. Identify parcelas that carry over from April
+              const parcelasToStay = TRANSACOES.filter(t => {
+                if (!t.parcela || t.parcela === '—') return false;
+                const [atual, total] = t.parcela.split('/').map(Number);
+                return atual < total;
+              }).map(t => {
+                const [atual, total] = t.parcela.split('/').map(Number);
+                return {
+                  ...t,
+                  id: t.id + 10000, 
+                  data: 'Maio 2026',
+                  parcela: `${atual + 1}/${total}`,
+                  conferido: false
+                };
+              });
+
+              // 2. Parse new transactions from PDF
+              const newTransactions = await parseC6PDF(file);
+              
+              setMayTransactions([...parcelasToStay, ...newTransactions]);
+              toast({
+                title: "Fatura de Maio carregada",
+                description: `${newTransactions.length} novas transações identificadas e ${parcelasToStay.length} parcelas automáticas aplicadas.`,
+              });
+            } catch (err) {
+              console.error(err);
+              throw err;
+            }
           }} />
         ) : (
           <>
+          {activeTab === 'maio' && (
+            <div className="flex justify-end gap-2 mb-2">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="text-amber-600 hover:text-amber-700 hover:bg-amber-50 gap-2 border-amber-200"
+                onClick={() => {
+                  const updated = mayTransactions.map(t => {
+                    if (t.parcela) return t; // Keep parcelas as is
+                    const identified = identifyTransaction(t.raw, t.valor, TRANSACOES);
+                    return {
+                      ...t,
+                      ...identified
+                    };
+                  });
+                  setMayTransactions(updated);
+                  toast({
+                    title: "Mapeamento Atualizado",
+                    description: "As transações foram re-identificadas com base no histórico.",
+                  });
+                }}
+              >
+                <RefreshCw className="w-4 h-4" /> Recarregar Mapeamento
+              </Button>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="text-red-600 hover:text-red-700 hover:bg-red-50 gap-2 border-red-200"
+                onClick={() => {
+                  setMayTransactions([]);
+                  toast({
+                    title: "Upload excluído",
+                    description: "Os dados de Maio foram limpos.",
+                  });
+                }}
+              >
+                <Trash2 className="w-4 h-4" /> Excluir Upload
+              </Button>
+            </div>
+          )}
+
 
         <div key={`crosstab-${crossTab.map(r => r.total).join('-')}`} className="bg-white rounded-xl border shadow-sm overflow-hidden">
           <div className="px-6 py-3 border-b bg-slate-50">
