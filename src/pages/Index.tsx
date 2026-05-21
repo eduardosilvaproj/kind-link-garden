@@ -345,21 +345,24 @@ export default function Index() {
         {activeTab === 'maio' && mayTransactions.length === 0 ? (
           <PDFUpload onUpload={async (file) => {
             try {
-              // 1. Identify parcelas that carry over from April
+              // 1. Identify parcelas that carry over from April (including fixed installments)
               const parcelasToStay = TRANSACOES.filter(t => {
                 if (!t.parcela || t.parcela === '—') return false;
                 const [atual, total] = t.parcela.split('/').map(Number);
-                return atual < total;
+                // Matches both ongoing installments (3/10) and single/final ones if needed
+                // But specifically for carrying over to next month, we want those where current < total
+                return !isNaN(atual) && !isNaN(total) && atual < total;
               }).map(t => {
                 const [atual, total] = t.parcela.split('/').map(Number);
                 return {
                   ...t,
                   id: t.id + 10000, 
-                  data: 'Maio 2026',
+                  data: '01 mai', // Corrected date format
                   parcela: `${atual + 1}/${total}`,
                   conferido: false
                 };
               });
+
 
               // 2. Parse new transactions from PDF
               const newTransactions = await parseC6PDF(file);
