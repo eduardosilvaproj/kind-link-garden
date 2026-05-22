@@ -1,7 +1,15 @@
-
 import { describe, it, expect, vi } from 'vitest';
+
+// Mock pdfjs-dist before importing pdfParser
+vi.mock('pdfjs-dist', () => ({
+  GlobalWorkerOptions: { workerSrc: '' },
+  getDocument: vi.fn(),
+  version: 'mock'
+}));
+
 import { identifyTransaction, parseC6PDF } from '../pdfParser';
 import { Transacao } from '../pdfParser';
+
 
 const mockHistory: Transacao[] = [
   {
