@@ -54,8 +54,23 @@ export default function Index() {
   const updateRow = (id: number, patch: Partial<RowEdit>) => { setEdits(prev => { const key = String(id); return { ...prev, [key]: { ...prev[key], ...patch } }; }); };
   const updateBatch = (ids: number[], patch: Partial<RowEdit>) => { setEdits(prev => { const next = { ...prev }; ids.forEach(id => { const key = String(id); next[key] = { ...next[key], ...patch }; }); return next; }); };
   
+  const historicalTransactions = useMemo(() => {
+    return TRANSACOES.map(t => {
+      const e = edits[String(t.id)] ?? {};
+      return {
+        ...t,
+        titular: e.titular !== undefined ? e.titular : t.titular,
+        cidade: e.cidade !== undefined ? e.cidade : t.cidade,
+        destino: e.destino !== undefined ? e.destino : (t.destino ?? t.tipo),
+        clienteNome: e.clienteNome !== undefined ? e.clienteNome : (t.clienteNome ?? ''),
+        nome: e.nome !== undefined ? e.nome : t.nome,
+        valor: e.valor !== undefined ? e.valor : t.valor
+      };
+    });
+  }, [edits]);
+
   const rows = useMemo(() => {
-    const baseData = activeTab === 'abril' ? TRANSACOES : mayTransactions;
+    const baseData = activeTab === 'abril' ? historicalTransactions : mayTransactions;
     const raw = baseData.map(t => {
       const e = edits[String(t.id)] ?? {};
       return { 
@@ -70,7 +85,6 @@ export default function Index() {
       };
     });
 
-    
     const sorted = [...raw].sort((a,b) => a.titular.localeCompare(b.titular) || a.id - b.id);
     let currentTitular = '';
     let accumulated = 0;
@@ -84,7 +98,8 @@ export default function Index() {
       accumulated += (isNegative ? -Math.abs(t.valor) : t.valor);
       return { ...t, saldoAcumulado: accumulated };
     });
-  }, [edits, activeTab, mayTransactions]);
+  }, [edits, activeTab, mayTransactions, historicalTransactions]);
+
 
 
   const somaIsabela = useMemo(() => rows.filter(t => t.titular === 'Isabela' && t.tipo !== 'Crédito' && t.tipo !== 'Estorno' && t.tipo !== 'Pagamento').reduce((s, t) => s + t.valor, 0), [rows]);
@@ -345,33 +360,31 @@ export default function Index() {
         {activeTab === 'maio' && mayTransactions.length === 0 ? (
           <PDFUpload onUpload={async (file) => {
             try {
-              // 1. Identify parcelas that carry over from April (including fixed installments)
-              const parcelasToStay = TRANSACOES.filter(t => {
+              // 1. Identify parcelas that carry over from April (using edited data)
+              const parcelasToStay = historicalTransactions.filter(t => {
                 if (!t.parcela || t.parcela === '—') return false;
                 const [atual, total] = t.parcela.split('/').map(Number);
-                // Matches both ongoing installments (3/10) and single/final ones if needed
-                // But specifically for carrying over to next month, we want those where current < total
                 return !isNaN(atual) && !isNaN(total) && atual < total;
               }).map(t => {
                 const [atual, total] = t.parcela.split('/').map(Number);
                 return {
                   ...t,
                   id: t.id + 10000, 
-                  data: '01 mai', // Corrected date format
+                  data: '01 mai',
                   parcela: `${atual + 1}/${total}`,
                   conferido: false
                 };
               });
 
-
-              // 2. Parse new transactions from PDF
-              const newTransactions = await parseC6PDF(file);
+              // 2. Parse new transactions from PDF using historical edited data
+              const newTransactions = await parseC6PDF(file, historicalTransactions);
               
               setMayTransactions([...parcelasToStay, ...newTransactions]);
               toast({
                 title: "Fatura de Maio carregada",
                 description: `${newTransactions.length} novas transações identificadas e ${parcelasToStay.length} parcelas automáticas aplicadas.`,
               });
+
             } catch (err) {
               console.error(err);
               throw err;
@@ -387,8 +400,8 @@ export default function Index() {
                 className="text-amber-600 hover:text-amber-700 hover:bg-amber-50 gap-2 border-amber-200"
                 onClick={() => {
                   const updated = mayTransactions.map(t => {
-                    if (t.parcela) return t; // Keep parcelas as is
-                    const identified = identifyTransaction(t.raw, t.valor, TRANSACOES);
+                    if (t.parcela && t.parcela !== '—') return t; // Keep parcelas as is
+                    const identified = identifyTransaction(t.raw, t.valor, historicalTransactions);
                     return {
                       ...t,
                       ...identified
@@ -397,8 +410,9 @@ export default function Index() {
                   setMayTransactions(updated);
                   toast({
                     title: "Mapeamento Atualizado",
-                    description: "As transações foram re-identificadas com base no histórico.",
+                    description: "As transações foram re-identificadas com base no histórico editado.",
                   });
+
                 }}
               >
                 <RefreshCw className="w-4 h-4" /> Recarregar Mapeamento
