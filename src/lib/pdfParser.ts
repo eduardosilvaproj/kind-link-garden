@@ -137,7 +137,7 @@ export const parseC6PDF = async (file: File, historicalTransactions: Transacao[]
   // Description (text until we find a price or installment)
   // Optional installment (N/M)
   // Price (optional minus sign, digits, comma, 2 digits)
-  const transactionRegex = /(\d{2}\/\d{2})\s+(.*?)\s+(?:(\d+\/\d+)\s+)?(-?\d+(?:.\d+)?,\d{2})/g;
+  const transactionRegex = /(\d{2}\/\d{2})\s+(.*?)\s+(?:(\d+\/\d+)\s+)?(-?\d+(?:\.\d+)?,\d{2})/g;
   
   const transactions: Transacao[] = [];
   let match;
