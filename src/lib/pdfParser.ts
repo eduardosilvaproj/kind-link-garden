@@ -84,7 +84,7 @@ export const identifyTransaction = (description: string, value: number, transact
   }
 
   // Threshold for inheritance
-  if (bestMatch && bestScore > 0.6) {
+  if (bestMatch && bestScore > 0.4) {
     return {
       nome: bestMatch.nome,
       titular: bestMatch.titular,
