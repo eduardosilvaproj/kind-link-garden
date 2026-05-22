@@ -1,4 +1,7 @@
-import { TRANSACOES } from "../data/transactions";
+import * as pdfjsLib from 'pdfjs-dist';
+
+// Configure worker
+pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
 
 export interface Transacao {
   id: number;
@@ -17,28 +20,83 @@ export interface Transacao {
 }
 
 /**
+ * Normalizes a string for comparison by removing accents and making it lowercase.
+ */
+const normalize = (str: string) => {
+  return str
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim();
+};
+
+/**
+ * Calculates a simple similarity score between two strings (0 to 1).
+ */
+const getSimilarity = (s1: string, s2: string): number => {
+  const n1 = normalize(s1);
+  const n2 = normalize(s2);
+  
+  if (n1 === n2) return 1;
+  
+  // Substring check (if one contains the other)
+  if (n1.includes(n2) || n2.includes(n1)) {
+    return Math.min(n1.length, n2.length) / Math.max(n1.length, n2.length);
+  }
+  
+  // Check common prefix
+  let commonPrefix = 0;
+  const minLen = Math.min(n1.length, n2.length);
+  for (let i = 0; i < minLen; i++) {
+    if (n1[i] === n2[i]) commonPrefix++;
+    else break;
+  }
+  
+  const prefixScore = commonPrefix / Math.max(n1.length, n2.length);
+  if (prefixScore > 0.4) return prefixScore;
+
+  // Basic word overlap
+  const words1 = n1.split(/\s+/).filter(w => w.length > 2);
+  const words2 = n2.split(/\s+/).filter(w => w.length > 2);
+  const common = words1.filter(w => words2.some(w2 => w2.includes(w) || w.includes(w2)));
+  
+  return (common.length * 2) / (words1.length + words2.length);
+};
+
+
+/**
  * Maps description to existing categories/titulars based on previous data.
  */
 export const identifyTransaction = (description: string, value: number, transactions: Transacao[]): Partial<Transacao> => {
-  const normalizedDesc = description.toLowerCase();
-  
-  // Find a previous transaction with similar raw description
-  const match = transactions.find(t => 
-    t.raw.toLowerCase().includes(normalizedDesc) || 
-    normalizedDesc.includes(t.raw.toLowerCase())
-  );
+  if (!transactions || transactions.length === 0) return {};
 
-  if (match) {
+  // Try to find a match by similarity
+  let bestMatch: Transacao | null = null;
+  let bestScore = 0;
+
+  for (const t of transactions) {
+    const score = getSimilarity(description, t.raw);
+    if (score > bestScore) {
+      bestScore = score;
+      bestMatch = t;
+    }
+    if (bestScore === 1) break;
+  }
+
+  // Threshold for inheritance
+  if (bestMatch && bestScore > 0.4) {
     return {
-      nome: match.nome,
-      titular: match.titular,
-      cidade: match.cidade,
-      tipo: match.tipo,
-      destino: match.destino || match.tipo
+      nome: bestMatch.nome,
+      titular: bestMatch.titular,
+      cidade: bestMatch.cidade,
+      tipo: bestMatch.tipo,
+      destino: bestMatch.destino,
+      clienteNome: bestMatch.clienteNome
     };
   }
 
-  // Fallbacks based on common keywords
+  // Fallbacks based on common keywords if no good historical match
+  const normalizedDesc = normalize(description);
   if (normalizedDesc.includes('mercadopago') || normalizedDesc.includes('mercadolivre')) {
     return { cidade: 'Online', tipo: 'Loja', titular: 'Isabela' };
   }
@@ -54,42 +112,75 @@ export const identifyTransaction = (description: string, value: number, transact
 };
 
 /**
- * Enhanced PDF Parsing logic.
- * Currently simulates extraction but maps correctly to the data structure.
+ * Enhanced PDF Parsing logic using pdfjs-dist.
  */
-export const parseC6PDF = async (file: File): Promise<Transacao[]> => {
-  // In a real scenario, we'd use pdf.js or similar.
-  // Here we simulate the extraction of "new" rows that would be in a May statement.
+export const parseC6PDF = async (file: File, historicalTransactions: Transacao[] = []): Promise<Transacao[]> => {
+  const arrayBuffer = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
   
-  const baseId = Date.now();
-  
-  // Simulated extracted rows from a PDF
-  const extractedRows = [
-    { data: '05 mai', raw: 'AMAZON.COM.BR', valor: 89.90 },
-    { data: '10 mai', raw: 'REGINA PANIFICADORA', valor: 45.00 },
-    { data: '12 mai', raw: 'POSTO MIRANTE', valor: 150.00 },
-    { data: '15 mai', raw: 'NETFLIX.COM', valor: 55.90 },
-    { data: '18 mai', raw: 'DROGARIA RAIA', valor: 124.30 },
-  ];
+  let fullText = '';
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    const textContent = await page.getTextContent();
+    const pageText = textContent.items.map((item: any) => item.str).join(' ');
+    fullText += pageText + '\n';
+  }
 
-  const transactions = extractedRows.map((row, index) => {
-    const identified = identifyTransaction(row.raw, row.valor, TRANSACOES);
-    return {
+  // Regex to match C6 bank transaction lines
+  // Format examples: 
+  // 05/05 AMAZON.COM.BR 89,90
+  // 10/05 REGINA PANIFICADORA 2/10 45,00
+  // 12/05 ESTORNO COMPRA -15,99
+  
+  // This regex looks for:
+  // Date (DD/MM)
+  // Description (text until we find a price or installment)
+  // Optional installment (N/M)
+  // Price (optional minus sign, digits, comma, 2 digits)
+  const transactionRegex = /(\d{2}\/\d{2})\s+(.*?)\s+(?:(\d+\/\d+)\s+)?(-?\d+(?:\.\d+)?,\d{2})/g;
+  
+  const transactions: Transacao[] = [];
+  let match;
+  const baseId = Date.now();
+  let index = 0;
+
+  while ((match = transactionRegex.exec(fullText)) !== null) {
+    const [_, date, rawDesc, parcela, valorStr] = match;
+    
+    // Convert valorStr "89,90" or "-15,99" to number
+    const valor = parseFloat(valorStr.replace('.', '').replace(',', '.'));
+    
+    // Identify using history
+    const identified = identifyTransaction(rawDesc, valor, historicalTransactions);
+    
+    // Convert date "05/05" to "05 mai" format used in app
+    const months = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+    const [day, month] = date.split('/');
+    const monthIndex = parseInt(month) - 1;
+    const formattedDate = `${day} ${months[monthIndex] || month}`;
+
+    transactions.push({
       id: baseId + index,
       titular: identified.titular || 'Isabela',
-      cartao: '1691',
-      data: row.data,
-      raw: row.raw,
-      nome: identified.nome || row.raw,
-      parcela: '',
-      valor: row.valor,
+      cartao: '1691', // Default or extracted if possible
+      data: formattedDate,
+      raw: rawDesc.trim(),
+      nome: identified.nome || rawDesc.trim(),
+      parcela: parcela || '—',
+      valor: Math.abs(valor),
       cidade: identified.cidade || 'Não identificado',
-      tipo: identified.tipo || 'Loja',
+      tipo: valor < 0 ? 'Estorno' : (identified.tipo || 'Loja'),
       destino: identified.destino,
+      clienteNome: identified.clienteNome,
       conferido: false
-    };
-  });
+    });
+    
+    index++;
+  }
+
+  if (transactions.length === 0) {
+    throw new Error('Nenhuma transação encontrada no PDF. Verifique se o arquivo é uma fatura do C6 Bank válida.');
+  }
 
   return transactions;
 };
-
