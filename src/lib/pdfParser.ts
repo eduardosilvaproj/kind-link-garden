@@ -38,17 +38,31 @@ const getSimilarity = (s1: string, s2: string): number => {
   const n2 = normalize(s2);
   
   if (n1 === n2) return 1;
+  
+  // Substring check (if one contains the other)
   if (n1.includes(n2) || n2.includes(n1)) {
     return Math.min(n1.length, n2.length) / Math.max(n1.length, n2.length);
   }
   
-  // Very basic overlap check
-  const words1 = n1.split(/\s+/);
-  const words2 = n2.split(/\s+/);
-  const common = words1.filter(w => words2.includes(w));
+  // Check common prefix
+  let commonPrefix = 0;
+  const minLen = Math.min(n1.length, n2.length);
+  for (let i = 0; i < minLen; i++) {
+    if (n1[i] === n2[i]) commonPrefix++;
+    else break;
+  }
+  
+  const prefixScore = commonPrefix / Math.max(n1.length, n2.length);
+  if (prefixScore > 0.4) return prefixScore;
+
+  // Basic word overlap
+  const words1 = n1.split(/\s+/).filter(w => w.length > 2);
+  const words2 = n2.split(/\s+/).filter(w => w.length > 2);
+  const common = words1.filter(w => words2.some(w2 => w2.includes(w) || w.includes(w2)));
   
   return (common.length * 2) / (words1.length + words2.length);
 };
+
 
 /**
  * Maps description to existing categories/titulars based on previous data.
