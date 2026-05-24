@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { TRANSACOES, TOTAL_FATURA } from '../data/transactions';
+import { MAY_2026_TRANSACOES } from '../data/may2026Transactions';
 import { DEFAULT_CONFIG } from '../data/defaultConfig';
 import { exportToXLSX } from '../lib/exportUtils';
 import { Download, FileText, Filter, Calendar } from 'lucide-react';
@@ -29,12 +30,19 @@ const titularBg = (t: string) => { if (t === 'Isabela') return 'bg-amber-500 tex
 const titularInitials = (t: string) => { if (t === 'Isabela') return 'IS'; if (t === 'Claudio') return 'CL'; return 'DN'; };
 const rowBg = (tipo: string, cidade: string) => { if (tipo === 'Encargo Bancário') return 'bg-red-50'; if (tipo === 'Crédito') return 'bg-blue-50'; if (tipo === 'Estorno') return 'bg-green-50'; if (cidade === 'Não identificado') return 'bg-amber-50'; return ''; };
 
+const isCreditLike = (tipo: string) =>
+  ['Crédito', 'Estorno', 'Pagamento'].includes(tipo);
+
+const totalRows = (rows: Array<{ tipo: string; valor: number }>) =>
+  rows.reduce((s, r) => s + (isCreditLike(r.tipo) ? -Math.abs(r.valor) : r.valor), 0);
+
+
 export default function Index() {
   const { toast } = useToast();
   const config = DEFAULT_CONFIG;
 
   const [activeTab, setActiveTab] = useState('abril');
-  const [mayTransactions, setMayTransactions] = useState<any[]>([]);
+  const [mayTransactions, setMayTransactions] = useState<any[]>(MAY_2026_TRANSACOES);
   const [filterTitular, setFilterTitular] = useState('Todos');
   const [showPendentes, setShowPendentes] = useState(false);
   const [showPagamentos, setShowPagamentos] = useState(false);
@@ -101,6 +109,8 @@ export default function Index() {
   }, [edits, activeTab, mayTransactions, historicalTransactions]);
 
 
+
+  const totalFaturaAtiva = activeTab === 'abril' ? TOTAL_FATURA : totalRows(rows);
 
   const somaIsabela = useMemo(() => rows.filter(t => t.titular === 'Isabela' && t.tipo !== 'Crédito' && t.tipo !== 'Estorno' && t.tipo !== 'Pagamento').reduce((s, t) => s + t.valor, 0), [rows]);
   const somaClaudio = useMemo(() => rows.filter(t => t.titular === 'Claudio' && t.tipo !== 'Crédito' && t.tipo !== 'Estorno' && t.tipo !== 'Pagamento').reduce((s, t) => s + t.valor, 0), [rows]);
@@ -338,7 +348,7 @@ export default function Index() {
             <div className="flex items-center gap-3 flex-wrap">
               <h1 className="text-xl font-bold">Classificador de Fatura C6 Bank</h1>
               <Badge className="text-[10px] font-bold uppercase px-3 py-1 bg-green-100 text-green-700 border-green-200">
-                Total: {brl(activeTab === 'abril' ? TOTAL_FATURA : rows.reduce((s, r) => s + (['Crédito', 'Estorno', 'Pagamento'].includes(r.tipo) ? -r.valor : r.valor), 0))} ✓
+                Total: {brl(totalFaturaAtiva)} ✓
               </Badge>
               <Badge variant="outline" className="text-[10px] font-bold uppercase px-3 py-1">✓ Conferidos: {totalConferidos} / {rows.length}</Badge>
             </div>
@@ -354,7 +364,7 @@ export default function Index() {
           <div className="bg-white rounded-xl border shadow-sm p-4"><p className="text-xs font-bold text-slate-500 uppercase mb-1">Isabela (Líquido)</p><p className="text-2xl font-black text-amber-600">{brl(somaIsabela)}</p></div>
           <div className="bg-white rounded-xl border shadow-sm p-4"><p className="text-xs font-bold text-slate-500 uppercase mb-1">Claudio (Líquido)</p><p className="text-2xl font-black text-blue-600">{brl(somaClaudio)}</p></div>
           <div className="bg-white rounded-xl border shadow-sm p-4"><p className="text-xs font-bold text-slate-500 uppercase mb-1">Daniel (Adicional)</p><p className="text-2xl font-black text-teal-600">{brl(somaDaniel)}</p></div>
-          <div className="bg-slate-900 rounded-xl shadow-sm p-4"><p className="text-xs font-bold text-slate-400 uppercase mb-1">Total Fatura</p><p className="text-2xl font-black text-white">{brl(activeTab === 'abril' ? TOTAL_FATURA : rows.reduce((s, r) => s + (['Crédito', 'Estorno', 'Pagamento'].includes(r.tipo) ? -r.valor : r.valor), 0))}</p></div>
+          <div className="bg-slate-900 rounded-xl shadow-sm p-4"><p className="text-xs font-bold text-slate-400 uppercase mb-1">Total Fatura</p><p className="text-2xl font-black text-white">{brl(totalFaturaAtiva)}</p></div>
         </div>
 
         {activeTab === 'maio' && mayTransactions.length === 0 ? (
