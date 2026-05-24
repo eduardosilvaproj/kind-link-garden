@@ -19,6 +19,10 @@ export interface Transacao {
   conferido?: boolean;
 }
 
+const BANK_FEE_PATTERN = /^(anuidade|multa|iof|juros|encargos?)/i;
+const CREDIT_PATTERN = /(pagamento|credito|cr[eé]dito)/i;
+const REVERSAL_PATTERN = /(estorno)/i;
+
 const normalize = (str: string) => {
   return str
     .toLowerCase()
@@ -82,8 +86,16 @@ export const identifyTransaction = (description: string, value: number, transact
 
   const normalizedDesc = normalize(description);
   
-  if (normalizedDesc.includes('encargos') || normalizedDesc.includes('juros') || normalizedDesc.includes('iof') || normalizedDesc.includes('multa')) {
+  if (BANK_FEE_PATTERN.test(normalizedDesc)) {
     return { tipo: 'Encargo Bancário', cidade: 'Não identificado' };
+  }
+
+  if (CREDIT_PATTERN.test(normalizedDesc)) {
+    return { tipo: 'Pagamento/Crédito', cidade: 'Online' };
+  }
+
+  if (REVERSAL_PATTERN.test(normalizedDesc)) {
+    return { tipo: 'Estorno', cidade: 'Online' };
   }
 
   if (normalizedDesc.includes('mercadopago') || normalizedDesc.includes('mercadolivre')) {
