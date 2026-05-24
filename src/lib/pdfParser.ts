@@ -91,7 +91,7 @@ export const identifyTransaction = (description: string, value: number, transact
   }
 
   if (CREDIT_PATTERN.test(normalizedDesc)) {
-    return { tipo: 'Pagamento/Crédito', cidade: 'Online' };
+    return { tipo: 'Pagamento', cidade: 'Online' };
   }
 
   if (REVERSAL_PATTERN.test(normalizedDesc)) {
