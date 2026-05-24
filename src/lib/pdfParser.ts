@@ -115,28 +115,7 @@ const IGNORE_LINES = [
   'Cartão com final',
 ];
 
-const monthsMap: Record<string, string> = {
-  'jan': '01', 'fev': '02', 'mar': '03', 'abr': '04', 'mai': '05', 'jun': '06',
-  'jul': '07', 'ago': '08', 'set': '09', 'out': '10', 'nov': '11', 'dez': '12'
-};
-
-export const parseC6PDF = async (file: File, historicalTransactions: Transacao[] = []): Promise<Transacao[]> => {
-  const arrayBuffer = await file.arrayBuffer();
-  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-  
-  const lines: string[] = [];
-  for (let i = 1; i <= pdf.numPages; i++) {
-    const page = await pdf.getPage(i);
-    const textContent = await page.getTextContent();
-    
-    // Some PDFs have items that are already separated by lines
-    // We'll collect all strings and try to reconstruct lines if they seem joined by space
-    textContent.items.forEach((item: any) => {
-      const str = item.str.trim();
-      if (str) lines.push(str);
-    });
-  }
-
+export const processLines = (lines: string[], historicalTransactions: Transacao[] = []): Transacao[] => {
   const transactions: Transacao[] = [];
   let currentTitular = 'Isabela';
   let currentCartao = '1691';
@@ -178,7 +157,6 @@ export const parseC6PDF = async (file: File, historicalTransactions: Transacao[]
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
 
-    // Check for card header
     const cardMatch = line.match(/C6 Carbon (Virtual )?Final (\d{4}) - (.*)/i);
     if (cardMatch) {
       flushTransaction();
@@ -190,12 +168,10 @@ export const parseC6PDF = async (file: File, historicalTransactions: Transacao[]
       continue;
     }
 
-    // Ignore metadata
     if (IGNORE_LINES.some(ignore => line.includes(ignore))) {
       continue;
     }
 
-    // Start of a new transaction
     if (isDate(line)) {
       flushTransaction();
       currentTransaction = {
@@ -221,19 +197,15 @@ export const parseC6PDF = async (file: File, historicalTransactions: Transacao[]
           val = -Math.abs(val);
         }
         currentTransaction.valor = val;
-        // Usually value is the last thing, but we wait for next date or header to flush 
-        // because sometimes there's more text (rarely)
       } else {
-        // It's part of the description
         currentTransaction.raw = (currentTransaction.raw || '') + ' ' + line;
       }
     }
   }
 
-  // Final flush
   flushTransaction();
 
-  // Compatibility with old format if no transactions found with line-by-line
+  // Compatibility with old format
   if (transactions.length === 0) {
     const fullText = lines.join(' ');
     const transactionRegex = /(\d{2}\/\d{2})\s+(.*?)\s+(?:(\d+\/\d+)\s+)?(-?\d+(?:\.\d+)?,\d{2})/g;
@@ -263,6 +235,25 @@ export const parseC6PDF = async (file: File, historicalTransactions: Transacao[]
       });
     }
   }
+
+  return transactions;
+};
+
+export const parseC6PDF = async (file: File, historicalTransactions: Transacao[] = []): Promise<Transacao[]> => {
+  const arrayBuffer = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+  
+  const lines: string[] = [];
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    const textContent = await page.getTextContent();
+    textContent.items.forEach((item: any) => {
+      const str = item.str.trim();
+      if (str) lines.push(str);
+    });
+  }
+
+  const transactions = processLines(lines, historicalTransactions);
 
   if (transactions.length === 0) {
     throw new Error('Nenhuma transação encontrada no PDF. Verifique se o arquivo é uma fatura do C6 Bank válida.');
