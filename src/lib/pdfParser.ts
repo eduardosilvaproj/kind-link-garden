@@ -162,8 +162,8 @@ export const processLines = (lines: string[], historicalTransactions: Transacao[
 
   const isDate = (str: string) => /^\d{2} (jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez)$/i.test(str);
   const isValue = (str: string) => /^-?(R\$\s)?(\d{1,3}(\.\d{3})*,\d{2})$/.test(str);
-  const isInstallment = (str: string) => /^( - )?Parcela \d+\/\d+$/i.test(str);
-  const isEstorno = (str: string) => /^( - )?Estorno$/i.test(str);
+  const isInstallment = (str: string) => /^-?\s*Parcela \d+\/\d+$/i.test(str);
+  const isEstorno = (str: string) => /^-?\s*Estorno$/i.test(str);
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i].trim();
