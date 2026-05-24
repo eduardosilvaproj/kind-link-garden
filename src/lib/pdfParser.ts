@@ -161,13 +161,13 @@ export const processLines = (lines: string[], historicalTransactions: Transacao[
   };
 
   const isDate = (str: string) => /^\d{2} (jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez)$/i.test(str);
-  const isValue = (str: string) => /^-?(\d{1,3}(\.\d{3})*,\d{2})$/.test(str);
-  const isCardHeader = (str: string) => /C6 Carbon (Virtual )?Final (\d{4}) - (.*)/i.test(str);
-  const isInstallment = (str: string) => /^- Parcela \d+\/\d+$/i.test(str);
-  const isEstorno = (str: string) => /^- Estorno$/i.test(str);
+  const isValue = (str: string) => /^-?(R\$\s)?(\d{1,3}(\.\d{3})*,\d{2})$/.test(str);
+  const isInstallment = (str: string) => /^( - )?Parcela \d+\/\d+$/i.test(str);
+  const isEstorno = (str: string) => /^( - )?Estorno$/i.test(str);
 
   for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
+    const line = lines[i].trim();
+    if (!line) continue;
 
     const cardMatch = line.match(/C6 Carbon (Virtual )?Final (\d{4}) - (.*)/i);
     if (cardMatch) {
@@ -197,19 +197,20 @@ export const processLines = (lines: string[], historicalTransactions: Transacao[
 
     if (currentTransaction) {
       if (isInstallment(line)) {
-        currentTransaction.parcela = line.replace('- Parcela ', '');
+        currentTransaction.parcela = line.replace(/^( - )?Parcela /, '');
       } else if (isEstorno(line)) {
         currentTransaction.parcela = 'Estorno';
-        if (currentTransaction.valor !== undefined) {
-          currentTransaction.valor = -Math.abs(currentTransaction.valor);
-        }
       } else if (isValue(line)) {
-        let val = parseFloat(line.replace('.', '').replace(',', '.'));
+        let valStr = line.replace('R$', '').replace('.', '').replace(',', '.').trim();
+        let val = parseFloat(valStr);
+        
+        // Se já sabemos que é estorno, o valor deve ser negativo
         if (currentTransaction.parcela === 'Estorno') {
           val = -Math.abs(val);
         }
         currentTransaction.valor = val;
-      } else {
+      } else if (line !== '-') {
+        // Ignora apenas o traço isolado que às vezes aparece entre o nome e a parcela
         currentTransaction.raw = (currentTransaction.raw || '') + ' ' + line;
       }
     }
