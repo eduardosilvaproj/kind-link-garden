@@ -19,6 +19,10 @@ export interface Transacao {
   conferido?: boolean;
 }
 
+const BANK_FEE_PATTERN = /^(anuidade|multa|iof|juros|encargos?)/i;
+const CREDIT_PATTERN = /(pagamento|credito|cr[eé]dito)/i;
+const REVERSAL_PATTERN = /(estorno)/i;
+
 const normalize = (str: string) => {
   return str
     .toLowerCase()
@@ -82,8 +86,16 @@ export const identifyTransaction = (description: string, value: number, transact
 
   const normalizedDesc = normalize(description);
   
-  if (normalizedDesc.includes('encargos') || normalizedDesc.includes('juros') || normalizedDesc.includes('iof') || normalizedDesc.includes('multa')) {
+  if (BANK_FEE_PATTERN.test(normalizedDesc)) {
     return { tipo: 'Encargo Bancário', cidade: 'Não identificado' };
+  }
+
+  if (CREDIT_PATTERN.test(normalizedDesc)) {
+    return { tipo: 'Pagamento', cidade: 'Online' };
+  }
+
+  if (REVERSAL_PATTERN.test(normalizedDesc)) {
+    return { tipo: 'Estorno', cidade: 'Online' };
   }
 
   if (normalizedDesc.includes('mercadopago') || normalizedDesc.includes('mercadolivre')) {
@@ -139,7 +151,7 @@ export const processLines = (lines: string[], historicalTransactions: Transacao[
         parcela: currentTransaction.parcela || '—',
         valor: Math.abs(valor),
         cidade: identified.cidade || 'Não identificado',
-        tipo: valor < 0 || currentTransaction.parcela === 'Estorno' ? 'Estorno' : (identified.tipo || 'Loja'),
+        tipo: identified.tipo || (valor < 0 || currentTransaction.parcela === 'Estorno' ? 'Estorno' : 'Loja'),
         destino: identified.destino,
         clienteNome: identified.clienteNome,
         conferido: false
@@ -149,13 +161,13 @@ export const processLines = (lines: string[], historicalTransactions: Transacao[
   };
 
   const isDate = (str: string) => /^\d{2} (jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez)$/i.test(str);
-  const isValue = (str: string) => /^-?(\d{1,3}(\.\d{3})*,\d{2})$/.test(str);
-  const isCardHeader = (str: string) => /C6 Carbon (Virtual )?Final (\d{4}) - (.*)/i.test(str);
-  const isInstallment = (str: string) => /^- Parcela \d+\/\d+$/i.test(str);
-  const isEstorno = (str: string) => /^- Estorno$/i.test(str);
+  const isValue = (str: string) => /^-?(R\$\s)?(\d{1,3}(\.\d{3})*,\d{2})$/.test(str);
+  const isInstallment = (str: string) => /^-?\s*Parcela \d+\/\d+$/i.test(str);
+  const isEstorno = (str: string) => /^-?\s*Estorno$/i.test(str);
 
   for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
+    const line = lines[i].trim();
+    if (!line) continue;
 
     const cardMatch = line.match(/C6 Carbon (Virtual )?Final (\d{4}) - (.*)/i);
     if (cardMatch) {
@@ -185,19 +197,20 @@ export const processLines = (lines: string[], historicalTransactions: Transacao[
 
     if (currentTransaction) {
       if (isInstallment(line)) {
-        currentTransaction.parcela = line.replace('- Parcela ', '');
+        currentTransaction.parcela = line.replace(/^-?\s*Parcela /, '');
       } else if (isEstorno(line)) {
         currentTransaction.parcela = 'Estorno';
-        if (currentTransaction.valor !== undefined) {
-          currentTransaction.valor = -Math.abs(currentTransaction.valor);
-        }
       } else if (isValue(line)) {
-        let val = parseFloat(line.replace('.', '').replace(',', '.'));
+        let valStr = line.replace('R$', '').replace('.', '').replace(',', '.').trim();
+        let val = parseFloat(valStr);
+        
+        // Se já sabemos que é estorno, o valor deve ser negativo
         if (currentTransaction.parcela === 'Estorno') {
           val = -Math.abs(val);
         }
         currentTransaction.valor = val;
-      } else {
+      } else if (line !== '-') {
+        // Ignora apenas o traço isolado que às vezes aparece entre o nome e a parcela
         currentTransaction.raw = (currentTransaction.raw || '') + ' ' + line;
       }
     }
