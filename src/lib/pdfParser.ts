@@ -19,9 +19,6 @@ export interface Transacao {
   conferido?: boolean;
 }
 
-/**
- * Normalizes a string for comparison by removing accents and making it lowercase.
- */
 const normalize = (str: string) => {
   return str
     .toLowerCase()
@@ -30,21 +27,16 @@ const normalize = (str: string) => {
     .trim();
 };
 
-/**
- * Calculates a simple similarity score between two strings (0 to 1).
- */
 const getSimilarity = (s1: string, s2: string): number => {
   const n1 = normalize(s1);
   const n2 = normalize(s2);
   
   if (n1 === n2) return 1;
   
-  // Substring check (if one contains the other)
   if (n1.includes(n2) || n2.includes(n1)) {
     return Math.min(n1.length, n2.length) / Math.max(n1.length, n2.length);
   }
   
-  // Check common prefix
   let commonPrefix = 0;
   const minLen = Math.min(n1.length, n2.length);
   for (let i = 0; i < minLen; i++) {
@@ -55,7 +47,6 @@ const getSimilarity = (s1: string, s2: string): number => {
   const prefixScore = commonPrefix / Math.max(n1.length, n2.length);
   if (prefixScore > 0.4) return prefixScore;
 
-  // Basic word overlap
   const words1 = n1.split(/\s+/).filter(w => w.length > 2);
   const words2 = n2.split(/\s+/).filter(w => w.length > 2);
   const common = words1.filter(w => words2.some(w2 => w2.includes(w) || w.includes(w2)));
@@ -63,14 +54,9 @@ const getSimilarity = (s1: string, s2: string): number => {
   return (common.length * 2) / (words1.length + words2.length);
 };
 
-
-/**
- * Maps description to existing categories/titulars based on previous data.
- */
 export const identifyTransaction = (description: string, value: number, transactions: Transacao[]): Partial<Transacao> => {
   if (!transactions || transactions.length === 0) return {};
 
-  // Try to find a match by similarity
   let bestMatch: Transacao | null = null;
   let bestScore = 0;
 
@@ -83,7 +69,6 @@ export const identifyTransaction = (description: string, value: number, transact
     if (bestScore === 1) break;
   }
 
-  // Threshold for inheritance
   if (bestMatch && bestScore > 0.4) {
     return {
       nome: bestMatch.nome,
@@ -95,8 +80,12 @@ export const identifyTransaction = (description: string, value: number, transact
     };
   }
 
-  // Fallbacks based on common keywords if no good historical match
   const normalizedDesc = normalize(description);
+  
+  if (normalizedDesc.includes('encargos') || normalizedDesc.includes('juros') || normalizedDesc.includes('iof') || normalizedDesc.includes('multa')) {
+    return { tipo: 'Encargo Bancário', cidade: 'Não identificado' };
+  }
+
   if (normalizedDesc.includes('mercadopago') || normalizedDesc.includes('mercadolivre')) {
     return { cidade: 'Online', tipo: 'Loja', titular: 'Isabela' };
   }
@@ -111,71 +100,168 @@ export const identifyTransaction = (description: string, value: number, transact
   };
 };
 
-/**
- * Enhanced PDF Parsing logic using pdfjs-dist.
- */
+const IGNORE_LINES = [
+  'Subtotal deste cartão',
+  'Valores em reais',
+  'Cartão Virtual',
+  'Transações do cartão principal',
+  'Transações dos cartões adicionais',
+  'Vencimento:',
+  'Valor da fatura:',
+  'Melhor dia de compra:',
+  'Anuidade:',
+  'Isento',
+  'Desativado',
+  'Cartão com final',
+];
+
+const monthsMap: Record<string, string> = {
+  'jan': '01', 'fev': '02', 'mar': '03', 'abr': '04', 'mai': '05', 'jun': '06',
+  'jul': '07', 'ago': '08', 'set': '09', 'out': '10', 'nov': '11', 'dez': '12'
+};
+
 export const parseC6PDF = async (file: File, historicalTransactions: Transacao[] = []): Promise<Transacao[]> => {
   const arrayBuffer = await file.arrayBuffer();
   const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
   
-  let fullText = '';
+  const lines: string[] = [];
   for (let i = 1; i <= pdf.numPages; i++) {
     const page = await pdf.getPage(i);
     const textContent = await page.getTextContent();
-    const pageText = textContent.items.map((item: any) => item.str).join(' ');
-    fullText += pageText + '\n';
+    
+    // Some PDFs have items that are already separated by lines
+    // We'll collect all strings and try to reconstruct lines if they seem joined by space
+    textContent.items.forEach((item: any) => {
+      const str = item.str.trim();
+      if (str) lines.push(str);
+    });
   }
 
-  // Regex to match C6 bank transaction lines
-  // Format examples: 
-  // 05/05 AMAZON.COM.BR 89,90
-  // 10/05 REGINA PANIFICADORA 2/10 45,00
-  // 12/05 ESTORNO COMPRA -15,99
-  
-  // This regex looks for:
-  // Date (DD/MM)
-  // Description (text until we find a price or installment)
-  // Optional installment (N/M)
-  // Price (optional minus sign, digits, comma, 2 digits)
-  const transactionRegex = /(\d{2}\/\d{2})\s+(.*?)\s+(?:(\d+\/\d+)\s+)?(-?\d+(?:\.\d+)?,\d{2})/g;
-  
   const transactions: Transacao[] = [];
-  let match;
+  let currentTitular = 'Isabela';
+  let currentCartao = '1691';
+  let currentTransaction: Partial<Transacao> | null = null;
   const baseId = Date.now();
   let index = 0;
 
-  while ((match = transactionRegex.exec(fullText)) !== null) {
-    const [_, date, rawDesc, parcela, valorStr] = match;
-    
-    // Convert valorStr "89,90" or "-15,99" to number
-    const valor = parseFloat(valorStr.replace('.', '').replace(',', '.'));
-    
-    // Identify using history
-    const identified = identifyTransaction(rawDesc, valor, historicalTransactions);
-    
-    // Convert date "05/05" to "05 mai" format used in app
-    const months = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
-    const [day, month] = date.split('/');
-    const monthIndex = parseInt(month) - 1;
-    const formattedDate = `${day} ${months[monthIndex] || month}`;
+  const flushTransaction = () => {
+    if (currentTransaction && currentTransaction.data && currentTransaction.raw && currentTransaction.valor !== undefined) {
+      const rawDesc = currentTransaction.raw.trim();
+      const valor = currentTransaction.valor;
+      const identified = identifyTransaction(rawDesc, valor, historicalTransactions);
+      
+      transactions.push({
+        id: baseId + index++,
+        titular: currentTransaction.titular || identified.titular || currentTitular,
+        cartao: currentTransaction.cartao || currentCartao,
+        data: currentTransaction.data,
+        raw: rawDesc,
+        nome: identified.nome || rawDesc,
+        parcela: currentTransaction.parcela || '—',
+        valor: Math.abs(valor),
+        cidade: identified.cidade || 'Não identificado',
+        tipo: valor < 0 || currentTransaction.parcela === 'Estorno' ? 'Estorno' : (identified.tipo || 'Loja'),
+        destino: identified.destino,
+        clienteNome: identified.clienteNome,
+        conferido: false
+      });
+    }
+    currentTransaction = null;
+  };
 
-    transactions.push({
-      id: baseId + index,
-      titular: identified.titular || 'Isabela',
-      cartao: '1691', // Default or extracted if possible
-      data: formattedDate,
-      raw: rawDesc.trim(),
-      nome: identified.nome || rawDesc.trim(),
-      parcela: parcela || '—',
-      valor: Math.abs(valor),
-      cidade: identified.cidade || 'Não identificado',
-      tipo: valor < 0 ? 'Estorno' : (identified.tipo || 'Loja'),
-      destino: identified.destino,
-      clienteNome: identified.clienteNome,
-      conferido: false
-    });
-    
-    index++;
+  const isDate = (str: string) => /^\d{2} (jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez)$/i.test(str);
+  const isValue = (str: string) => /^-?(\d{1,3}(\.\d{3})*,\d{2})$/.test(str);
+  const isCardHeader = (str: string) => /C6 Carbon (Virtual )?Final (\d{4}) - (.*)/i.test(str);
+  const isInstallment = (str: string) => /^- Parcela \d+\/\d+$/i.test(str);
+  const isEstorno = (str: string) => /^- Estorno$/i.test(str);
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+
+    // Check for card header
+    const cardMatch = line.match(/C6 Carbon (Virtual )?Final (\d{4}) - (.*)/i);
+    if (cardMatch) {
+      flushTransaction();
+      currentCartao = cardMatch[2];
+      const fullName = cardMatch[3].toUpperCase();
+      if (fullName.includes('CLAUDIO')) currentTitular = 'Claudio';
+      else if (fullName.includes('DANIEL')) currentTitular = 'Daniel';
+      else currentTitular = 'Isabela';
+      continue;
+    }
+
+    // Ignore metadata
+    if (IGNORE_LINES.some(ignore => line.includes(ignore))) {
+      continue;
+    }
+
+    // Start of a new transaction
+    if (isDate(line)) {
+      flushTransaction();
+      currentTransaction = {
+        data: line.toLowerCase(),
+        raw: '',
+        titular: currentTitular,
+        cartao: currentCartao
+      };
+      continue;
+    }
+
+    if (currentTransaction) {
+      if (isInstallment(line)) {
+        currentTransaction.parcela = line.replace('- Parcela ', '');
+      } else if (isEstorno(line)) {
+        currentTransaction.parcela = 'Estorno';
+        if (currentTransaction.valor !== undefined) {
+          currentTransaction.valor = -Math.abs(currentTransaction.valor);
+        }
+      } else if (isValue(line)) {
+        let val = parseFloat(line.replace('.', '').replace(',', '.'));
+        if (currentTransaction.parcela === 'Estorno') {
+          val = -Math.abs(val);
+        }
+        currentTransaction.valor = val;
+        // Usually value is the last thing, but we wait for next date or header to flush 
+        // because sometimes there's more text (rarely)
+      } else {
+        // It's part of the description
+        currentTransaction.raw = (currentTransaction.raw || '') + ' ' + line;
+      }
+    }
+  }
+
+  // Final flush
+  flushTransaction();
+
+  // Compatibility with old format if no transactions found with line-by-line
+  if (transactions.length === 0) {
+    const fullText = lines.join(' ');
+    const transactionRegex = /(\d{2}\/\d{2})\s+(.*?)\s+(?:(\d+\/\d+)\s+)?(-?\d+(?:\.\d+)?,\d{2})/g;
+    let match;
+    while ((match = transactionRegex.exec(fullText)) !== null) {
+      const [_, date, rawDesc, parcela, valorStr] = match;
+      const valor = parseFloat(valorStr.replace('.', '').replace(',', '.'));
+      const identified = identifyTransaction(rawDesc, valor, historicalTransactions);
+      
+      const months = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+      const [day, month] = date.split('/');
+      const monthIndex = parseInt(month) - 1;
+      const formattedDate = `${day} ${months[monthIndex] || month}`;
+
+      transactions.push({
+        id: baseId + index++,
+        titular: identified.titular || 'Isabela',
+        cartao: '1691',
+        data: formattedDate,
+        raw: rawDesc.trim(),
+        nome: identified.nome || rawDesc.trim(),
+        parcela: parcela || '—',
+        valor: Math.abs(valor),
+        cidade: identified.cidade || 'Não identificado',
+        tipo: valor < 0 ? 'Estorno' : (identified.tipo || 'Loja'),
+        conferido: false
+      });
+    }
   }
 
   if (transactions.length === 0) {
