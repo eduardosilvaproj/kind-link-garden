@@ -32,9 +32,10 @@ export function PDFUpload({ onUpload, isLoading: externalLoading }: PDFUploadPro
     try {
       await onUpload(file);
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Não foi possível processar a fatura.";
       toast({
         title: "Erro no processamento",
-        description: "Não foi possível processar a fatura.",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
