@@ -197,7 +197,7 @@ export const processLines = (lines: string[], historicalTransactions: Transacao[
 
     if (currentTransaction) {
       if (isInstallment(line)) {
-        currentTransaction.parcela = line.replace(/^( - )?Parcela /, '');
+        currentTransaction.parcela = line.replace(/^-?\s*Parcela /, '');
       } else if (isEstorno(line)) {
         currentTransaction.parcela = 'Estorno';
       } else if (isValue(line)) {
