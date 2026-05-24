@@ -434,12 +434,12 @@ export default function Index() {
                 onClick={() => {
                   setMayTransactions([]);
                   toast({
-                    title: "Upload excluído",
-                    description: "Os dados de Maio foram limpos.",
+                    title: "Fatura de Maio removida",
+                    description: "Os dados de Maio foram limpos. Você pode enviar outro PDF.",
                   });
                 }}
               >
-                <Trash2 className="w-4 h-4" /> Excluir Upload
+                <Trash2 className="w-4 h-4" /> Excluir Fatura
               </Button>
             </div>
           )}
