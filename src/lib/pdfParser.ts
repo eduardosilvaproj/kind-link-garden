@@ -151,7 +151,7 @@ export const processLines = (lines: string[], historicalTransactions: Transacao[
         parcela: currentTransaction.parcela || '—',
         valor: Math.abs(valor),
         cidade: identified.cidade || 'Não identificado',
-        tipo: valor < 0 || currentTransaction.parcela === 'Estorno' ? 'Estorno' : (identified.tipo || 'Loja'),
+        tipo: identified.tipo || (valor < 0 || currentTransaction.parcela === 'Estorno' ? 'Estorno' : 'Loja'),
         destino: identified.destino,
         clienteNome: identified.clienteNome,
         conferido: false
