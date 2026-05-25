@@ -33,8 +33,16 @@ const rowBg = (tipo: string, cidade: string) => { if (tipo === 'Encargo Bancári
 const isCreditLike = (tipo: string) =>
   ['Crédito', 'Estorno', 'Pagamento'].includes(tipo);
 
+const isCredito = (tipo: string) => tipo === 'Crédito' || tipo === 'Pagamento';
+
 const totalRows = (rows: Array<{ tipo: string; valor: number }>) =>
   rows.reduce((s, r) => s + (isCreditLike(r.tipo) ? -Math.abs(r.valor) : r.valor), 0);
+
+const sumDespesas = (rows: Array<{ tipo: string; valor: number }>) =>
+  rows.filter(r => !isCredito(r.tipo)).reduce((s, r) => s + r.valor, 0);
+
+const sumCreditos = (rows: Array<{ tipo: string; valor: number }>) =>
+  rows.filter(r => isCredito(r.tipo)).reduce((s, r) => s + Math.abs(r.valor), 0);
 
 
 export default function Index() {
@@ -110,11 +118,14 @@ export default function Index() {
 
 
 
-  const totalFaturaAtiva = activeTab === 'abril' ? TOTAL_FATURA : totalRows(rows);
+  const totalDespesas = useMemo(() => sumDespesas(rows), [rows]);
+  const totalCreditos = useMemo(() => sumCreditos(rows), [rows]);
+  const totalLiquido = totalDespesas - totalCreditos;
+  const totalFaturaAtiva = activeTab === 'abril' ? TOTAL_FATURA : totalLiquido;
 
-  const somaIsabela = useMemo(() => rows.filter(t => t.titular === 'Isabela' && t.tipo !== 'Crédito' && t.tipo !== 'Estorno' && t.tipo !== 'Pagamento').reduce((s, t) => s + t.valor, 0), [rows]);
-  const somaClaudio = useMemo(() => rows.filter(t => t.titular === 'Claudio' && t.tipo !== 'Crédito' && t.tipo !== 'Estorno' && t.tipo !== 'Pagamento').reduce((s, t) => s + t.valor, 0), [rows]);
-  const somaDaniel = useMemo(() => rows.filter(t => t.titular === 'Daniel' && t.tipo !== 'Crédito' && t.tipo !== 'Estorno' && t.tipo !== 'Pagamento').reduce((s, t) => s + t.valor, 0), [rows]);
+  const somaIsabela = useMemo(() => rows.filter(t => t.titular === 'Isabela' && !isCredito(t.tipo)).reduce((s, t) => s + t.valor, 0), [rows]);
+  const somaClaudio = useMemo(() => rows.filter(t => t.titular === 'Claudio' && !isCredito(t.tipo)).reduce((s, t) => s + t.valor, 0), [rows]);
+  const somaDaniel = useMemo(() => rows.filter(t => t.titular === 'Daniel' && !isCredito(t.tipo)).reduce((s, t) => s + t.valor, 0), [rows]);
   const totalConferidos = useMemo(() => rows.filter(t => t.conferido).length, [rows]);
   
   const crossTab = useMemo(() => {
@@ -361,10 +372,19 @@ export default function Index() {
         </header>
 
         <div className="grid grid-cols-4 gap-4">
-          <div className="bg-white rounded-xl border shadow-sm p-4"><p className="text-xs font-bold text-slate-500 uppercase mb-1">Isabela (Líquido)</p><p className="text-2xl font-black text-amber-600">{brl(somaIsabela)}</p></div>
-          <div className="bg-white rounded-xl border shadow-sm p-4"><p className="text-xs font-bold text-slate-500 uppercase mb-1">Claudio (Líquido)</p><p className="text-2xl font-black text-blue-600">{brl(somaClaudio)}</p></div>
+          <div className="bg-white rounded-xl border shadow-sm p-4"><p className="text-xs font-bold text-slate-500 uppercase mb-1">Isabela (Despesas)</p><p className="text-2xl font-black text-amber-600">{brl(somaIsabela)}</p></div>
+          <div className="bg-white rounded-xl border shadow-sm p-4"><p className="text-xs font-bold text-slate-500 uppercase mb-1">Claudio (Despesas)</p><p className="text-2xl font-black text-blue-600">{brl(somaClaudio)}</p></div>
           <div className="bg-white rounded-xl border shadow-sm p-4"><p className="text-xs font-bold text-slate-500 uppercase mb-1">Daniel (Adicional)</p><p className="text-2xl font-black text-teal-600">{brl(somaDaniel)}</p></div>
-          <div className="bg-slate-900 rounded-xl shadow-sm p-4"><p className="text-xs font-bold text-slate-400 uppercase mb-1">Total Fatura</p><p className="text-2xl font-black text-white">{brl(totalFaturaAtiva)}</p></div>
+          <div className="bg-slate-900 rounded-xl shadow-sm p-4">
+            <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">Total Líquido da Fatura</p>
+            <p className="text-2xl font-black text-white">{brl(totalFaturaAtiva)}</p>
+            {activeTab === 'maio' && (
+              <div className="mt-2 pt-2 border-t border-slate-700 space-y-0.5">
+                <p className="text-[10px] text-slate-400 flex justify-between"><span>Despesas</span><span className="tabular-nums text-slate-200">{brl(totalDespesas)}</span></p>
+                <p className="text-[10px] text-slate-400 flex justify-between"><span>Créditos</span><span className="tabular-nums text-green-400">−{brl(totalCreditos)}</span></p>
+              </div>
+            )}
+          </div>
         </div>
 
         {activeTab === 'maio' && mayTransactions.length === 0 ? (
