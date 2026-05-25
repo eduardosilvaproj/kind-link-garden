@@ -63,7 +63,7 @@ export const identifyTransaction = (description: string, value: number, transact
 
   // PRIMEIRO: padrões conhecidos têm prioridade sobre similaridade histórica
   if (CREDIT_PATTERN.test(normalizedDescEarly)) {
-    return { tipo: 'Pagamento', cidade: 'Online' };
+    return { tipo: 'Crédito', cidade: 'Não identificado' };
   }
 
   if (REVERSAL_PATTERN.test(normalizedDescEarly)) {
