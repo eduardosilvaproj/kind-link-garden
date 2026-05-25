@@ -44,6 +44,8 @@ const sumDespesas = (rows: Array<{ tipo: string; valor: number }>) =>
 const sumCreditos = (rows: Array<{ tipo: string; valor: number }>) =>
   rows.filter(r => isCredito(r.tipo)).reduce((s, r) => s + Math.abs(r.valor), 0);
 
+const TOTAL_LIQUIDO_MAIO = 13681.47;
+
 
 export default function Index() {
   const { toast } = useToast();
@@ -121,11 +123,23 @@ export default function Index() {
   const totalDespesas = useMemo(() => sumDespesas(rows), [rows]);
   const totalCreditos = useMemo(() => sumCreditos(rows), [rows]);
   const totalLiquido = totalDespesas - totalCreditos;
-  const totalFaturaAtiva = activeTab === 'abril' ? TOTAL_FATURA : totalLiquido;
+  const isMaio = activeTab === 'maio';
+  const totalFaturaAtiva = isMaio ? TOTAL_LIQUIDO_MAIO : TOTAL_FATURA;
 
-  const somaIsabela = useMemo(() => rows.filter(t => t.titular === 'Isabela' && !isCredito(t.tipo)).reduce((s, t) => s + t.valor, 0), [rows]);
-  const somaClaudio = useMemo(() => rows.filter(t => t.titular === 'Claudio' && !isCredito(t.tipo)).reduce((s, t) => s + t.valor, 0), [rows]);
-  const somaDaniel = useMemo(() => rows.filter(t => t.titular === 'Daniel' && !isCredito(t.tipo)).reduce((s, t) => s + t.valor, 0), [rows]);
+  // Em Maio só contam para o card do responsável os itens distribuídos
+  // MANUALMENTE pelo usuário (com edit explícito de titular). O titular
+  // inferido pelo parser não distribui automaticamente.
+  const sumResp = (resp: string) =>
+    rows
+      .filter(t => (isMaio ? edits[String(t.id)]?.titular !== undefined : true))
+      .filter(t => t.titular === resp && !isCredito(t.tipo))
+      .reduce((s, t) => s + (t.tipo === 'Estorno' ? -Math.abs(t.valor) : t.valor), 0);
+
+  const somaIsabela = useMemo(() => sumResp('Isabela'), [rows, edits, isMaio]);
+  const somaClaudio = useMemo(() => sumResp('Claudio'), [rows, edits, isMaio]);
+  const somaDaniel  = useMemo(() => sumResp('Daniel'),  [rows, edits, isMaio]);
+  const totalDistribuido = somaIsabela + somaClaudio + somaDaniel;
+  const aDistribuir = isMaio ? (TOTAL_LIQUIDO_MAIO - totalDistribuido) : 0;
   const totalConferidos = useMemo(() => rows.filter(t => t.conferido).length, [rows]);
   
   const crossTab = useMemo(() => {
@@ -380,8 +394,8 @@ export default function Index() {
             <p className="text-2xl font-black text-white">{brl(totalFaturaAtiva)}</p>
             {activeTab === 'maio' && (
               <div className="mt-2 pt-2 border-t border-slate-700 space-y-0.5">
-                <p className="text-[10px] text-slate-400 flex justify-between"><span>Despesas</span><span className="tabular-nums text-slate-200">{brl(totalDespesas)}</span></p>
-                <p className="text-[10px] text-slate-400 flex justify-between"><span>Créditos</span><span className="tabular-nums text-green-400">−{brl(totalCreditos)}</span></p>
+                <p className="text-[10px] text-slate-400 flex justify-between"><span>Distribuído</span><span className="tabular-nums text-slate-200">{brl(totalDistribuido)}</span></p>
+                <p className="text-[10px] text-slate-400 flex justify-between"><span>A distribuir</span><span className={cn("tabular-nums font-bold", Math.abs(aDistribuir) < 0.01 ? 'text-green-400' : 'text-amber-400')}>{brl(aDistribuir)}</span></p>
               </div>
             )}
           </div>
