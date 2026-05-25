@@ -158,7 +158,7 @@ export const processLines = (lines: string[], historicalTransactions: Transacao[
 
       transactions.push({
         id: baseId + index++,
-        titular: identified.titular || currentTransaction.titular || currentTitular || 'Isabela',
+        titular: currentTransaction.titular || identified.titular || currentTitular || 'Isabela',
         cartao: currentTransaction.cartao || currentCartao,
         data: currentTransaction.data,
         raw: rawDesc,
