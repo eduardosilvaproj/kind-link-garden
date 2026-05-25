@@ -59,7 +59,30 @@ const getSimilarity = (s1: string, s2: string): number => {
 };
 
 export const identifyTransaction = (description: string, value: number, transactions: Transacao[]): Partial<Transacao> => {
-  if (!transactions || transactions.length === 0) return {};
+  const normalizedDescEarly = normalize(description);
+
+  // PRIMEIRO: padrões conhecidos têm prioridade sobre similaridade histórica
+  if (CREDIT_PATTERN.test(normalizedDescEarly)) {
+    return { tipo: 'Pagamento', cidade: 'Online' };
+  }
+
+  if (REVERSAL_PATTERN.test(normalizedDescEarly)) {
+    return { tipo: 'Estorno', cidade: 'Online' };
+  }
+
+  if (BANK_FEE_PATTERN.test(normalizedDescEarly)) {
+    return { tipo: 'Encargo Bancário', cidade: 'Não identificado' };
+  }
+
+  if (!transactions || transactions.length === 0) {
+    if (normalizedDescEarly.includes('mercadopago')) {
+      return { cidade: 'Online', tipo: 'Serviço Digital', titular: 'Isabela' };
+    }
+    if (normalizedDescEarly.includes('mercadolivre')) {
+      return { cidade: 'Online', tipo: 'Loja', titular: 'Isabela' };
+    }
+    return {};
+  }
 
   let bestMatch: Transacao | null = null;
   let bestScore = 0;
@@ -85,18 +108,6 @@ export const identifyTransaction = (description: string, value: number, transact
   }
 
   const normalizedDesc = normalize(description);
-  
-  if (BANK_FEE_PATTERN.test(normalizedDesc)) {
-    return { tipo: 'Encargo Bancário', cidade: 'Não identificado' };
-  }
-
-  if (CREDIT_PATTERN.test(normalizedDesc)) {
-    return { tipo: 'Pagamento', cidade: 'Online' };
-  }
-
-  if (REVERSAL_PATTERN.test(normalizedDesc)) {
-    return { tipo: 'Estorno', cidade: 'Online' };
-  }
 
   if (normalizedDesc.includes('mercadopago') || normalizedDesc.includes('mercadolivre')) {
     return { cidade: 'Online', tipo: 'Loja', titular: 'Isabela' };
