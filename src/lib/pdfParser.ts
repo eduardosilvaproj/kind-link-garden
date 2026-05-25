@@ -151,18 +151,22 @@ export const processLines = (lines: string[], historicalTransactions: Transacao[
       const rawDesc = currentTransaction.raw.trim();
       const valor = currentTransaction.valor;
       const identified = identifyTransaction(rawDesc, valor, historicalTransactions);
-      
+      const isEstorno = currentTransaction.parcela === 'Estorno' || valor < 0;
+      const tipoFinal = isEstorno
+        ? 'Estorno'
+        : (identified.tipo || 'Loja');
+
       transactions.push({
         id: baseId + index++,
-        titular: currentTransaction.titular || identified.titular || currentTitular,
+        titular: identified.titular || currentTransaction.titular || currentTitular || 'Isabela',
         cartao: currentTransaction.cartao || currentCartao,
         data: currentTransaction.data,
         raw: rawDesc,
         nome: identified.nome || rawDesc,
         parcela: currentTransaction.parcela || '—',
         valor: Math.abs(valor),
-        cidade: identified.cidade || 'Não identificado',
-        tipo: identified.tipo || (valor < 0 || currentTransaction.parcela === 'Estorno' ? 'Estorno' : 'Loja'),
+        cidade: isEstorno ? '—' : (identified.cidade || 'Não identificado'),
+        tipo: tipoFinal,
         destino: identified.destino,
         clienteNome: identified.clienteNome,
         conferido: false
