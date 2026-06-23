@@ -216,14 +216,18 @@ export const processLines = (lines: string[], historicalTransactions: Transacao[
       } else if (isEstorno(line)) {
         currentTransaction.parcela = 'Estorno';
       } else if (isValue(line)) {
-        let valStr = line.replace('R$', '').replace('.', '').replace(',', '.').trim();
+        let valStr = line.replace('R$', '').replace(/\./g, '').replace(',', '.').trim();
         let val = parseFloat(valStr);
-        
+
         // Se já sabemos que é estorno, o valor deve ser negativo
         if (currentTransaction.parcela === 'Estorno') {
           val = -Math.abs(val);
         }
         currentTransaction.valor = val;
+        // O valor é sempre o último campo de uma transação. Fechar
+        // imediatamente evita que linhas de rodapé/cabeçalho que aparecem
+        // entre páginas poluam o raw ou sobrescrevam o valor.
+        flushTransaction();
       } else if (line !== '-') {
         // Ignora apenas o traço isolado que às vezes aparece entre o nome e a parcela
         currentTransaction.raw = (currentTransaction.raw || '') + ' ' + line;

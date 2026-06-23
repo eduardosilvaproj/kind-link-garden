@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { TRANSACOES, TOTAL_FATURA } from '../data/transactions';
 import { MAY_2026_TRANSACOES } from '../data/may2026Transactions';
+import { JUN_2026_TRANSACOES } from '../data/jun2026Transactions';
 import { DEFAULT_CONFIG } from '../data/defaultConfig';
 import { exportToXLSX } from '../lib/exportUtils';
 import { Download, FileText, Filter, Calendar } from 'lucide-react';
@@ -45,6 +46,7 @@ const sumCreditos = (rows: Array<{ tipo: string; valor: number }>) =>
   rows.filter(r => isCredito(r.tipo)).reduce((s, r) => s + Math.abs(r.valor), 0);
 
 const TOTAL_LIQUIDO_MAIO = 13681.47;
+const TOTAL_LIQUIDO_JUNHO = 9803.77;
 
 
 export default function Index() {
@@ -53,6 +55,7 @@ export default function Index() {
 
   const [activeTab, setActiveTab] = useState('abril');
   const [mayTransactions, setMayTransactions] = useState<any[]>(MAY_2026_TRANSACOES);
+  const [junTransactions, setJunTransactions] = useState<any[]>(JUN_2026_TRANSACOES);
   const [filterTitular, setFilterTitular] = useState('Todos');
   const [showPendentes, setShowPendentes] = useState(false);
   const [showPagamentos, setShowPagamentos] = useState(false);
@@ -88,7 +91,9 @@ export default function Index() {
   }, [edits]);
 
   const rows = useMemo(() => {
-    const baseData = activeTab === 'abril' ? historicalTransactions : mayTransactions;
+    const baseData = activeTab === 'abril'
+      ? historicalTransactions
+      : activeTab === 'junho' ? junTransactions : mayTransactions;
     const raw = baseData.map(t => {
       const e = edits[String(t.id)] ?? {};
       return { 
@@ -116,7 +121,7 @@ export default function Index() {
       accumulated += (isNegative ? -Math.abs(t.valor) : t.valor);
       return { ...t, saldoAcumulado: accumulated };
     });
-  }, [edits, activeTab, mayTransactions, historicalTransactions]);
+  }, [edits, activeTab, mayTransactions, junTransactions, historicalTransactions]);
 
 
 
@@ -124,7 +129,8 @@ export default function Index() {
   const totalCreditos = useMemo(() => sumCreditos(rows), [rows]);
   const totalLiquido = totalDespesas - totalCreditos;
   const isMaio = activeTab === 'maio';
-  const totalFaturaAtiva = isMaio ? TOTAL_LIQUIDO_MAIO : TOTAL_FATURA;
+  const isJunho = activeTab === 'junho';
+  const totalFaturaAtiva = isJunho ? TOTAL_LIQUIDO_JUNHO : isMaio ? TOTAL_LIQUIDO_MAIO : TOTAL_FATURA;
 
   // Em Maio só contam para o card do responsável os itens distribuídos
   // MANUALMENTE pelo usuário (com edit explícito de titular). O titular
@@ -144,7 +150,9 @@ export default function Index() {
   
   const crossTab = useMemo(() => {
     const CIDADES = ['Araraquara','Bauru','Ribeirão Preto','São Carlos','Online','Não identificado'];
-    const baseData = activeTab === 'abril' ? TRANSACOES : mayTransactions;
+    const baseData = activeTab === 'abril'
+      ? TRANSACOES
+      : activeTab === 'junho' ? junTransactions : mayTransactions;
     const effective = baseData.map(t => {
       const e = edits[String(t.id)] ?? {};
       return {
@@ -169,7 +177,7 @@ export default function Index() {
       const Daniel  = get('Daniel');
       return { label, Isabela, Claudio, Daniel, total: Isabela + Claudio + Daniel };
     });
-  }, [edits, activeTab, mayTransactions]);
+  }, [edits, activeTab, mayTransactions, junTransactions]);
 
 
   const filtradas = useMemo(() => {
