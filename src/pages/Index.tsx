@@ -96,7 +96,9 @@ export default function Index() {
   const rows = useMemo(() => {
     const baseData = activeTab === 'abril'
       ? historicalTransactions
-      : activeTab === 'junho' ? junTransactions : mayTransactions;
+      : activeTab === 'julho' ? julTransactions
+      : activeTab === 'junho' ? junTransactions
+      : mayTransactions;
     const raw = baseData.map(t => {
       const e = edits[String(t.id)] ?? {};
       return { 
@@ -156,7 +158,9 @@ export default function Index() {
     const CIDADES = ['Araraquara','Bauru','Ribeirão Preto','São Carlos','Online','Não identificado'];
     const baseData = activeTab === 'abril'
       ? TRANSACOES
-      : activeTab === 'junho' ? junTransactions : mayTransactions;
+      : activeTab === 'julho' ? julTransactions
+      : activeTab === 'junho' ? junTransactions
+      : mayTransactions;
     const effective = baseData.map(t => {
       const e = edits[String(t.id)] ?? {};
       return {
