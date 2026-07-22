@@ -11,6 +11,7 @@ export function MonthTabs({ activeTab, onTabChange }: MonthTabsProps) {
     { id: 'abril', label: 'Abril 2026' },
     { id: 'maio', label: 'Maio 2026' },
     { id: 'junho', label: 'Junho 2026' },
+    { id: 'julho', label: 'Julho 2026' },
   ];
 
   return (
