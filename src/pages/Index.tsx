@@ -126,7 +126,7 @@ export default function Index() {
       accumulated += (isNegative ? -Math.abs(t.valor) : t.valor);
       return { ...t, saldoAcumulado: accumulated };
     });
-  }, [edits, activeTab, mayTransactions, junTransactions, historicalTransactions]);
+  }, [edits, activeTab, mayTransactions, junTransactions, julTransactions, historicalTransactions]);
 
 
 
@@ -185,7 +185,7 @@ export default function Index() {
       const Daniel  = get('Daniel');
       return { label, Isabela, Claudio, Daniel, total: Isabela + Claudio + Daniel };
     });
-  }, [edits, activeTab, mayTransactions, junTransactions]);
+  }, [edits, activeTab, mayTransactions, junTransactions, julTransactions]);
 
 
   const filtradas = useMemo(() => {
