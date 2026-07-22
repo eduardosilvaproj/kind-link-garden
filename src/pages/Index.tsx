@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { TRANSACOES, TOTAL_FATURA } from '../data/transactions';
 import { MAY_2026_TRANSACOES } from '../data/may2026Transactions';
 import { JUN_2026_TRANSACOES } from '../data/jun2026Transactions';
+import { JUL_2026_TRANSACOES } from '../data/jul2026Transactions';
 import { DEFAULT_CONFIG } from '../data/defaultConfig';
 import { exportToXLSX } from '../lib/exportUtils';
 import { Download, FileText, Filter, Calendar } from 'lucide-react';
@@ -47,6 +48,7 @@ const sumCreditos = (rows: Array<{ tipo: string; valor: number }>) =>
 
 const TOTAL_LIQUIDO_MAIO = 13681.47;
 const TOTAL_LIQUIDO_JUNHO = 9803.77;
+const TOTAL_LIQUIDO_JULHO = 21897.44;
 
 
 export default function Index() {
@@ -56,6 +58,7 @@ export default function Index() {
   const [activeTab, setActiveTab] = useState('abril');
   const [mayTransactions, setMayTransactions] = useState<any[]>(MAY_2026_TRANSACOES);
   const [junTransactions, setJunTransactions] = useState<any[]>(JUN_2026_TRANSACOES);
+  const [julTransactions, setJulTransactions] = useState<any[]>(JUL_2026_TRANSACOES);
   const [filterTitular, setFilterTitular] = useState('Todos');
   const [showPendentes, setShowPendentes] = useState(false);
   const [showPagamentos, setShowPagamentos] = useState(false);
@@ -130,7 +133,8 @@ export default function Index() {
   const totalLiquido = totalDespesas - totalCreditos;
   const isMaio = activeTab === 'maio';
   const isJunho = activeTab === 'junho';
-  const totalFaturaAtiva = isJunho ? TOTAL_LIQUIDO_JUNHO : isMaio ? TOTAL_LIQUIDO_MAIO : TOTAL_FATURA;
+  const isJulho = activeTab === 'julho';
+  const totalFaturaAtiva = isJulho ? TOTAL_LIQUIDO_JULHO : isJunho ? TOTAL_LIQUIDO_JUNHO : isMaio ? TOTAL_LIQUIDO_MAIO : TOTAL_FATURA;
 
   // Em Maio só contam para o card do responsável os itens distribuídos
   // MANUALMENTE pelo usuário (com edit explícito de titular). O titular
