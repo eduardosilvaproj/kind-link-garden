@@ -219,6 +219,7 @@ export default function Index() {
   }, [rows, filterTitular, showPendentes, showPagamentos, search, sortField, sortDir]);
 
   const exportPDF = () => {
+    const monthLabel = isJulho ? 'Julho 2026' : isJunho ? 'Junho 2026' : isMaio ? 'Maio 2026' : 'Abril 2026';
     const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
     const W = pdf.internal.pageSize.getWidth();   // 297mm
 
