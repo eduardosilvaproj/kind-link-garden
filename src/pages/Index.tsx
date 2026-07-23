@@ -183,7 +183,8 @@ export default function Index() {
       const Isabela = get('Isabela');
       const Claudio = get('Claudio');
       const Daniel  = get('Daniel');
-      return { label, Isabela, Claudio, Daniel, total: Isabela + Claudio + Daniel };
+      const displayLabel = label === 'Não identificado' ? 'Inclusão de pagamento' : label;
+      return { label: displayLabel, Isabela, Claudio, Daniel, total: Isabela + Claudio + Daniel };
     });
   }, [edits, activeTab, mayTransactions, junTransactions, julTransactions]);
 
@@ -300,24 +301,22 @@ export default function Index() {
       },
       didParseCell: (d) => {
         if (d.section === 'body' && d.column.index === 0) {
-          if (d.cell.text[0] === 'Não identificado') d.cell.styles.fillColor = [255, 249, 196];
+          if (d.cell.text[0] === 'Inclusão de pagamento') d.cell.styles.fillColor = [255, 249, 196];
           if (d.cell.text[0] === 'Encargos') d.cell.styles.fillColor = [254, 226, 226];
         }
       },
     });
 
-    // ── Transactions table ──
-    const body = rows
-      .filter(t => t.tipo !== 'Crédito' && t.tipo !== 'Pagamento')
-      .map(t => [
-        String(t.id),
-        t.conferido ? '✓' : '',
-        t.titular,
-        t.nome,
-        t.cidade,
-        t.destino === 'Cliente' && t.clienteNome ? `Cliente — ${t.clienteNome}` : (t.destino || t.tipo),
-        brl(Math.abs(t.valor)),
-      ]);
+    // ── Transactions table (respeita filtros e ordenação da tela) ──
+    const body = filtradas.map(t => [
+      String(t.id),
+      t.conferido ? '✓' : '',
+      t.titular,
+      t.nome,
+      t.cidade,
+      t.destino === 'Cliente' && t.clienteNome ? `Cliente — ${t.clienteNome}` : (t.destino || t.tipo),
+      brl(Math.abs(t.valor)),
+    ]);
 
     autoTable(pdf, {
       startY: (pdf as any).lastAutoTable.finalY + 6,
@@ -516,7 +515,7 @@ export default function Index() {
                   key={row.label}
                   className={
                     row.label === 'Encargos' ? 'border-t bg-red-50' :
-                    row.label === 'Não identificado' && row.total > 0 ? 'border-t bg-amber-50' :
+                    row.label === 'Inclusão de pagamento' && row.total > 0 ? 'border-t bg-amber-50' :
                     'border-t'
                   }
                 >
