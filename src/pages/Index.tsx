@@ -219,6 +219,7 @@ export default function Index() {
   }, [rows, filterTitular, showPendentes, showPagamentos, search, sortField, sortDir]);
 
   const exportPDF = () => {
+    const monthLabel = isJulho ? 'Julho 2026' : isJunho ? 'Junho 2026' : isMaio ? 'Maio 2026' : 'Abril 2026';
     const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
     const W = pdf.internal.pageSize.getWidth();   // 297mm
 
@@ -240,7 +241,7 @@ export default function Index() {
       { label: 'ISABELA (LÍQUIDO)', value: brl(somaIsabela), color: [251, 191, 36] as [number,number,number] },
       { label: 'CLAUDIO (LÍQUIDO)', value: brl(somaClaudio), color: [59, 130, 246] as [number,number,number] },
       { label: 'DANIEL (ADICIONAL)', value: brl(somaDaniel), color: [20, 184, 166] as [number,number,number] },
-      { label: 'TOTAL FATURA', value: brl(TOTAL_FATURA), color: [255, 255, 255] as [number,number,number], dark: true },
+      { label: 'TOTAL FATURA', value: brl(totalFaturaAtiva), color: [255, 255, 255] as [number,number,number], dark: true },
     ];
 
     const cardW = (W - 20) / 4;
@@ -352,7 +353,7 @@ export default function Index() {
           pdf.rect(0, 0, W, 8, 'F');
           pdf.setFontSize(8);
           pdf.setTextColor(255, 255, 255);
-          pdf.text('Classificador de Fatura C6 Bank — Abril 2026', 10, 5.5);
+          pdf.text(`Classificador de Fatura C6 Bank — ${monthLabel}`, 10, 5.5);
         }
         // page number
         pdf.setFontSize(8);
@@ -365,7 +366,7 @@ export default function Index() {
       },
     });
 
-    pdf.save('Fatura_C6_Abril_2026.pdf');
+    pdf.save(`Fatura_C6_${monthLabel.replace(/\s+/g, '_')}.pdf`);
   };
 
   // Helper component for sortable header
