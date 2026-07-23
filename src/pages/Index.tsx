@@ -293,13 +293,15 @@ export default function Index() {
       headStyles: { fillColor: [31, 56, 100], textColor: 255, fontStyle: 'bold' },
       footStyles: { fillColor: [220, 220, 220], fontStyle: 'bold' },
       columnStyles: {
-        0: { cellWidth: 50 },
+        0: { cellWidth: 50, halign: 'left' },
         1: { halign: 'right' },
         2: { halign: 'right' },
         3: { halign: 'right' },
         4: { halign: 'right', fontStyle: 'bold' },
       },
       didParseCell: (d) => {
+        // Força mesmo alinhamento em head/body/foot (autoTable centraliza head por padrão)
+        d.cell.styles.halign = d.column.index === 0 ? 'left' : 'right';
         if (d.section === 'body' && d.column.index === 0) {
           if (d.cell.text[0] === 'Inclusão de pagamento') d.cell.styles.fillColor = [255, 249, 196];
           if (d.cell.text[0] === 'Encargos') d.cell.styles.fillColor = [254, 226, 226];
