@@ -183,7 +183,8 @@ export default function Index() {
       const Isabela = get('Isabela');
       const Claudio = get('Claudio');
       const Daniel  = get('Daniel');
-      return { label, Isabela, Claudio, Daniel, total: Isabela + Claudio + Daniel };
+      const displayLabel = label === 'Não identificado' ? 'Inclusão de pagamento' : label;
+      return { label: displayLabel, Isabela, Claudio, Daniel, total: Isabela + Claudio + Daniel };
     });
   }, [edits, activeTab, mayTransactions, junTransactions, julTransactions]);
 
