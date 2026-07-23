@@ -517,7 +517,7 @@ export default function Index() {
                   key={row.label}
                   className={
                     row.label === 'Encargos' ? 'border-t bg-red-50' :
-                    row.label === 'Não identificado' && row.total > 0 ? 'border-t bg-amber-50' :
+                    row.label === 'Inclusão de pagamento' && row.total > 0 ? 'border-t bg-amber-50' :
                     'border-t'
                   }
                 >
