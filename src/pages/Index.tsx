@@ -301,24 +301,22 @@ export default function Index() {
       },
       didParseCell: (d) => {
         if (d.section === 'body' && d.column.index === 0) {
-          if (d.cell.text[0] === 'Não identificado') d.cell.styles.fillColor = [255, 249, 196];
+          if (d.cell.text[0] === 'Inclusão de pagamento') d.cell.styles.fillColor = [255, 249, 196];
           if (d.cell.text[0] === 'Encargos') d.cell.styles.fillColor = [254, 226, 226];
         }
       },
     });
 
-    // ── Transactions table ──
-    const body = rows
-      .filter(t => t.tipo !== 'Crédito' && t.tipo !== 'Pagamento')
-      .map(t => [
-        String(t.id),
-        t.conferido ? '✓' : '',
-        t.titular,
-        t.nome,
-        t.cidade,
-        t.destino === 'Cliente' && t.clienteNome ? `Cliente — ${t.clienteNome}` : (t.destino || t.tipo),
-        brl(Math.abs(t.valor)),
-      ]);
+    // ── Transactions table (respeita filtros e ordenação da tela) ──
+    const body = filtradas.map(t => [
+      String(t.id),
+      t.conferido ? '✓' : '',
+      t.titular,
+      t.nome,
+      t.cidade,
+      t.destino === 'Cliente' && t.clienteNome ? `Cliente — ${t.clienteNome}` : (t.destino || t.tipo),
+      brl(Math.abs(t.valor)),
+    ]);
 
     autoTable(pdf, {
       startY: (pdf as any).lastAutoTable.finalY + 6,
