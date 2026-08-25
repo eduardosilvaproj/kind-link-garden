@@ -373,7 +373,7 @@ export default function Index() {
           if (label === 'Não identificado') return t.id === pagamentoAtualId;
           return t.cidade === label && t.tipo !== 'Encargo Bancário';
         })
-        .reduce((s, t) => s + t.valor, 0);
+        .reduce((s, t) => s + (label === 'Não identificado' ? Math.abs(t.valor) : t.valor), 0);
       const Isabela = get('Isabela');
       const Claudio = get('Claudio');
       const Daniel  = get('Daniel');
