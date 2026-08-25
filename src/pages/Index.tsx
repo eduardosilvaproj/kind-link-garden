@@ -80,12 +80,14 @@ export default function Index() {
   
   useEffect(() => { localStorage.setItem('fatura_edits_v4', JSON.stringify(edits)); }, [edits]);
   
-  const updateRow = (id: number, patch: Partial<RowEdit>) => { setEdits(prev => { const key = String(id); return { ...prev, [key]: { ...prev[key], ...patch } }; }); };
-  const updateBatch = (ids: number[], patch: Partial<RowEdit>) => { setEdits(prev => { const next = { ...prev }; ids.forEach(id => { const key = String(id); next[key] = { ...next[key], ...patch }; }); return next; }); };
+  const editKey = (tab: string, id: number) => `${tab}:${id}`;
+  const getEdit = (tab: string, id: number) => edits[editKey(tab, id)] ?? edits[String(id)] ?? {};
+  const updateRow = (id: number, patch: Partial<RowEdit>) => { setEdits(prev => { const key = editKey(activeTab, id); return { ...prev, [key]: { ...(prev[key] ?? prev[String(id)]), ...patch } }; }); };
+  const updateBatch = (ids: number[], patch: Partial<RowEdit>) => { setEdits(prev => { const next = { ...prev }; ids.forEach(id => { const key = editKey(activeTab, id); next[key] = { ...(next[key] ?? next[String(id)]), ...patch }; }); return next; }); };
   
   const historicalTransactions = useMemo(() => {
     return TRANSACOES.map(t => {
-      const e = edits[String(t.id)] ?? {};
+      const e = getEdit('abril', t.id);
       return {
         ...t,
         titular: e.titular !== undefined ? e.titular : t.titular,
@@ -106,7 +108,7 @@ export default function Index() {
       : activeTab === 'junho' ? junTransactions
       : mayTransactions;
     const raw = baseData.map(t => {
-      const e = edits[String(t.id)] ?? {};
+       const e = getEdit(activeTab, t.id);
       return { 
         ...t, 
         titular: e.titular !== undefined ? e.titular : t.titular,
@@ -120,7 +122,7 @@ export default function Index() {
     });
 
     const expanded = raw.flatMap(t => {
-      const splits = edits[String(t.id)]?.splits;
+       const splits = getEdit(activeTab, t.id).splits;
       if (!splits || splits.length === 0) return [{ ...t, rowKey: String(t.id), isSplit: false, splitIndex: -1, valorOriginal: t.valor }];
       return splits.map((s, i) => ({
         ...t,
@@ -166,7 +168,7 @@ export default function Index() {
   // inferido pelo parser não distribui automaticamente.
   const sumResp = (resp: string) =>
     rows
-      .filter(t => (isMaio ? edits[String(t.id)]?.titular !== undefined : true))
+       .filter(t => (isMaio ? getEdit(activeTab, t.id).titular !== undefined : true))
       .filter(t => t.titular === resp && !isCredito(t.tipo))
       .reduce((s, t) => s + (t.tipo === 'Estorno' ? -Math.abs(t.valor) : t.valor), 0);
 
@@ -179,8 +181,8 @@ export default function Index() {
 
   const PREV_TAB: Record<string, string> = { maio: 'abril', junho: 'maio', julho: 'junho', agosto: 'julho' };
 
-  const applyEdits = (base: any[]) => base.map(t => {
-    const e = edits[String(t.id)] ?? {};
+  const applyEdits = (base: any[], tab: string) => base.map(t => {
+    const e = getEdit(tab, t.id);
     return {
       ...t,
       titular: e.titular !== undefined ? e.titular : t.titular,
@@ -203,14 +205,17 @@ export default function Index() {
 
   const herdarDoMesAnterior = () => {
     if (!prevTab) return;
-    const matches = findInheritedConfigs(applyEdits(baseForTab(activeTab)), applyEdits(baseForTab(prevTab)));
+    const matches = findInheritedConfigs(applyEdits(baseForTab(activeTab), activeTab), applyEdits(baseForTab(prevTab), prevTab));
     if (matches.length === 0) {
       toast({ title: 'Nada para herdar', description: `Nenhum lançamento de ${activeTab} foi encontrado na fatura de ${prevTab}.` });
       return;
     }
     setEdits(prev => {
       const next = { ...prev };
-      matches.forEach(m => { next[String(m.id)] = { ...next[String(m.id)], ...m.config }; });
+      matches.forEach(m => {
+        const key = editKey(activeTab, m.id);
+        next[key] = { ...(next[key] ?? next[String(m.id)]), ...m.config };
+      });
       return next;
     });
     const parcelas = matches.filter(m => m.motivo === 'parcela').length;
@@ -226,16 +231,17 @@ export default function Index() {
     if (!prevTab) return;
     const original = baseForTab(activeTab).find(x => x.id === row.id);
     if (!original) return;
-    const [m] = findInheritedConfigs(applyEdits([original]), applyEdits(baseForTab(prevTab)));
+    const [m] = findInheritedConfigs(applyEdits([original], activeTab), applyEdits(baseForTab(prevTab), prevTab));
     if (!m) {
       toast({ title: 'Sem correspondência', description: `Não encontrei este lançamento na fatura de ${prevTab}.`, variant: 'destructive' });
       return;
     }
-    const prevEdit = m.sourceId !== undefined ? edits[String(m.sourceId)] : undefined;
+    const prevEdit = m.sourceId !== undefined ? getEdit(prevTab, m.sourceId) : undefined;
+    const targetKey = editKey(activeTab, row.id);
     setEdits(prev => ({
       ...prev,
-      [String(row.id)]: {
-        ...prev[String(row.id)],
+      [targetKey]: {
+        ...(prev[targetKey] ?? prev[String(row.id)]),
         ...m.config,
         ...(prevEdit?.splits?.length ? { splits: prevEdit.splits.map(s => ({ ...s })) } : {}),
       },
@@ -252,7 +258,7 @@ export default function Index() {
   const [splitDraft, setSplitDraft] = useState<Array<{ cidade: string; titular: string; valor: string }>>([]);
 
   const openSplit = (t: any) => {
-    const existing = edits[String(t.id)]?.splits;
+    const existing = getEdit(activeTab, t.id).splits;
     setSplitTargetId(t.id);
     setSplitDraft(
       existing && existing.length > 0
@@ -298,19 +304,21 @@ export default function Index() {
 
   const updateSplitPart = (id: number, index: number, patch: Partial<RowSplit>) => {
     setEdits(prev => {
-      const cur = prev[String(id)];
+      const key = editKey(activeTab, id);
+      const cur = prev[key] ?? prev[String(id)];
       if (!cur?.splits) return prev;
       const splits = cur.splits.map((s, i) => (i === index ? { ...s, ...patch } : s));
-      return { ...prev, [String(id)]: { ...cur, splits } };
+      return { ...prev, [key]: { ...cur, splits } };
     });
   };
 
   const removeSplit = (id: number) => {
     setEdits(prev => {
       const next = { ...prev };
-      const cur = { ...(next[String(id)] ?? {}) };
+      const key = editKey(activeTab, id);
+      const cur = { ...(next[key] ?? next[String(id)] ?? {}) };
       delete cur.splits;
-      next[String(id)] = cur;
+      next[key] = cur;
       return next;
     });
     closeSplit();
@@ -330,7 +338,7 @@ export default function Index() {
       : activeTab === 'junho' ? junTransactions
       : mayTransactions;
     const effective = baseData.flatMap(t => {
-      const e = edits[String(t.id)] ?? {};
+       const e = getEdit(activeTab, t.id);
       const valor = e.valor !== undefined ? e.valor : t.valor;
       if (e.splits && e.splits.length > 0) {
         return e.splits.map(s => ({ id: t.id, titular: s.titular, cidade: s.cidade, tipo: t.tipo, valor: s.valor }));
