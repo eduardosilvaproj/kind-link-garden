@@ -352,21 +352,21 @@ export default function Index() {
       }];
     });
 
-    return [...CIDADES, 'Encargos', 'Inclusão de pagamento'].map(label => {
+    return [...CIDADES, 'Encargos'].map(label => {
       const get = (tit: string) => effective
         .filter(t => {
           if (t.titular !== tit) return false;
-          const isPagamento = t.tipo === 'Crédito' || t.tipo === 'Pagamento';
-          if (label === 'Inclusão de pagamento') return isPagamento;
           if (label === 'Encargos') return t.tipo === 'Encargo Bancário';
-          return t.cidade === label && t.tipo !== 'Encargo Bancário' && !isPagamento;
+          return t.cidade === label && t.tipo !== 'Encargo Bancário';
         })
         .reduce((s, t) => s + t.valor, 0);
       const Isabela = get('Isabela');
       const Claudio = get('Claudio');
       const Daniel  = get('Daniel');
-      return { label, Isabela, Claudio, Daniel, total: Isabela + Claudio + Daniel };
+      const displayLabel = label === 'Não identificado' ? 'Inclusão de pagamento' : label;
+      return { label: displayLabel, Isabela, Claudio, Daniel, total: Isabela + Claudio + Daniel };
     });
+
 
   }, [edits, activeTab, mayTransactions, junTransactions, julTransactions, agoTransactions]);
 
