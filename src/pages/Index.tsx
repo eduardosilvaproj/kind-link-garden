@@ -728,25 +728,104 @@ export default function Index() {
             </thead>
             <tbody>
               {filtradas.map(t => (
-                <tr key={t.id} className={cn('border-b transition-colors', rowBg(t.tipo, t.cidade), t.conferido ? 'border-l-4 border-l-green-600' : '')}>
+                <React.Fragment key={t.rowKey}>
+                <tr className={cn('border-b transition-colors', rowBg(t.tipo, t.cidade), t.conferido ? 'border-l-4 border-l-green-600' : '', t.isSplit ? 'bg-violet-50/60' : '')}>
                   <td className="px-2 py-3 text-center text-[11px] text-slate-400 font-mono">{t.id}</td>
                   <td className="px-2 py-3 text-center"><input type="checkbox" className="w-4 h-4 rounded accent-green-600" checked={!!t.conferido} onChange={e => updateRow(t.id, { conferido: e.target.checked })} /></td>
-                  <td className="px-4 py-3"><Select key={`titular-${t.id}-${t.titular}`} value={t.titular} onValueChange={v => updateRow(t.id, { titular: v })}><SelectTrigger className={cn('w-10 h-8 p-0 rounded-full flex items-center justify-center font-bold text-[10px] border-none shadow-none focus:ring-0', titularBg(t.titular))}><span>{titularInitials(t.titular)}▾</span></SelectTrigger><SelectContent><SelectItem value="Isabela">Isabela</SelectItem><SelectItem value="Claudio">Claudio</SelectItem><SelectItem value="Daniel">Daniel</SelectItem></SelectContent></Select></td>
+                  <td className="px-4 py-3">
+                    <Select
+                      key={`titular-${t.rowKey}-${t.titular}`}
+                      value={t.titular}
+                      onValueChange={v => t.isSplit ? updateSplitPart(t.id, t.splitIndex, { titular: v }) : updateRow(t.id, { titular: v })}
+                    >
+                      <SelectTrigger className={cn('w-10 h-8 p-0 rounded-full flex items-center justify-center font-bold text-[10px] border-none shadow-none focus:ring-0', titularBg(t.titular))}><span>{titularInitials(t.titular)}▾</span></SelectTrigger>
+                      <SelectContent><SelectItem value="Isabela">Isabela</SelectItem><SelectItem value="Claudio">Claudio</SelectItem><SelectItem value="Daniel">Daniel</SelectItem></SelectContent>
+                    </Select>
+                  </td>
                   <td className="px-4 py-3 text-slate-500 font-medium">{t.data}</td>
                   <td className="px-4 py-3">
                     <div className="flex flex-col gap-1">
-                      <Input value={t.nome} onChange={e => updateRow(t.id, { nome: e.target.value })} className="h-7 text-sm border-none shadow-none bg-transparent p-0 px-1 font-bold w-full max-w-md" />
+                      <div className="flex items-center gap-2">
+                        <Input value={t.nome} onChange={e => updateRow(t.id, { nome: e.target.value })} className="h-7 text-sm border-none shadow-none bg-transparent p-0 px-1 font-bold w-full max-w-md" />
+                        {t.isSplit && (
+                          <span className="shrink-0 text-[10px] font-bold uppercase text-violet-700 bg-violet-100 rounded-md px-2 py-0.5">
+                            Divisão {t.splitIndex + 1}/{t.splitCount}
+                          </span>
+                        )}
+                        <button
+                          onClick={() => openSplit(t)}
+                          title="Dividir valor entre cidades"
+                          className="shrink-0 text-slate-400 hover:text-violet-600"
+                        >
+                          <SplitIcon className="w-4 h-4" />
+                        </button>
+                      </div>
                       <div className="flex gap-2 items-center flex-wrap">
-                        <Select key={`cidade-${t.id}-${t.cidade}`} value={t.cidade} onValueChange={v => updateRow(t.id, { cidade: v })}><SelectTrigger className="h-6 text-[11px] bg-white border border-slate-200 rounded-md px-2 w-fit gap-1 text-slate-600"><SelectValue placeholder="Cidade" /></SelectTrigger><SelectContent>{['Araraquara','Bauru','Ribeirão Preto','São Carlos','Online','Não identificado','—'].map(c => (<SelectItem key={c} value={c} className="text-[11px]">{c}</SelectItem>))}</SelectContent></Select>
-                        <Select key={`destino-${t.id}-${t.destino}`} value={t.destino || ''} onValueChange={v => updateRow(t.id, { destino: v })}><SelectTrigger className="h-6 text-[11px] bg-white border border-slate-200 rounded-md px-2 w-fit gap-1 text-slate-600"><span>{t.destino === 'Cliente' && t.clienteNome ? `Cliente — ${t.clienteNome}` : (t.destino || 'Destino')}</span></SelectTrigger><SelectContent><SelectItem value="Loja" className="text-[11px]">Loja</SelectItem><SelectItem value="Depósito" className="text-[11px]">Depósito</SelectItem><SelectItem value="Cliente" className="text-[11px]">Cliente</SelectItem><SelectItem value="Fornecedor" className="text-[11px]">Fornecedor</SelectItem><SelectItem value="Serviço Digital" className="text-[11px]">Serviço Digital</SelectItem><SelectItem value="Encargo Bancário" className="text-[11px]">Encargo Bancário</SelectItem></SelectContent></Select>
+                        <Select key={`cidade-${t.rowKey}-${t.cidade}`} value={t.cidade} onValueChange={v => t.isSplit ? updateSplitPart(t.id, t.splitIndex, { cidade: v }) : updateRow(t.id, { cidade: v })}><SelectTrigger className="h-6 text-[11px] bg-white border border-slate-200 rounded-md px-2 w-fit gap-1 text-slate-600"><SelectValue placeholder="Cidade" /></SelectTrigger><SelectContent>{['Araraquara','Bauru','Ribeirão Preto','São Carlos','Online','Não identificado','—'].map(c => (<SelectItem key={c} value={c} className="text-[11px]">{c}</SelectItem>))}</SelectContent></Select>
+                        <Select key={`destino-${t.rowKey}-${t.destino}`} value={t.destino || ''} onValueChange={v => updateRow(t.id, { destino: v })}><SelectTrigger className="h-6 text-[11px] bg-white border border-slate-200 rounded-md px-2 w-fit gap-1 text-slate-600"><span>{t.destino === 'Cliente' && t.clienteNome ? `Cliente — ${t.clienteNome}` : (t.destino || 'Destino')}</span></SelectTrigger><SelectContent><SelectItem value="Loja" className="text-[11px]">Loja</SelectItem><SelectItem value="Depósito" className="text-[11px]">Depósito</SelectItem><SelectItem value="Cliente" className="text-[11px]">Cliente</SelectItem><SelectItem value="Fornecedor" className="text-[11px]">Fornecedor</SelectItem><SelectItem value="Serviço Digital" className="text-[11px]">Serviço Digital</SelectItem><SelectItem value="Encargo Bancário" className="text-[11px]">Encargo Bancário</SelectItem></SelectContent></Select>
                         {t.destino === 'Cliente' && (<Input placeholder="Nome do cliente" value={t.clienteNome || ''} onChange={e => updateRow(t.id, { clienteNome: e.target.value })} className="h-6 w-36 text-[11px] px-2 border-slate-200" />)}
                         {t.parcela && t.parcela !== '—' && (<span className="h-6 inline-flex items-center text-[11px] font-medium border border-slate-200 text-slate-500 rounded-md px-2">{t.parcela}</span>)}
                       </div>
                     </div>
                   </td>
-                  <td className={cn('px-4 py-3 text-right font-bold tabular-nums text-base', t.tipo === 'Estorno' ? 'text-green-600' : '', t.tipo === 'Crédito' ? 'text-blue-600' : '')}>{brl(t.valor)}</td>
+                  <td className={cn('px-4 py-3 text-right font-bold tabular-nums text-base', t.tipo === 'Estorno' ? 'text-green-600' : '', t.tipo === 'Crédito' ? 'text-blue-600' : '')}>
+                    {brl(t.valor)}
+                    {t.isSplit && <span className="block text-[10px] font-normal text-slate-400">de {brl(t.valorOriginal)}</span>}
+                  </td>
                   <td className="px-4 py-3 text-right font-mono text-xs text-slate-400 bg-slate-50/50">{brl(t.saldoAcumulado)}</td>
                 </tr>
+                {splitTargetId === t.id && t.splitIndex <= 0 && (
+                  <tr className="border-b bg-violet-50">
+                    <td colSpan={7} className="px-6 py-4">
+                      <div className="flex flex-col gap-3">
+                        <p className="text-[11px] font-bold uppercase text-violet-700">
+                          Dividir {t.nome} — valor total {brl(splitTotalOriginal)}
+                        </p>
+                        <div className="flex flex-col gap-2">
+                          {splitDraft.map((d, i) => (
+                            <div key={i} className="flex items-center gap-2">
+                              <Select value={d.cidade} onValueChange={v => setSplitDraft(prev => prev.map((p, idx) => idx === i ? { ...p, cidade: v } : p))}>
+                                <SelectTrigger className="h-8 w-44 bg-white text-[12px]"><SelectValue placeholder="Cidade" /></SelectTrigger>
+                                <SelectContent>{CIDADES_FIXAS.map(c => <SelectItem key={c} value={c} className="text-[12px]">{c}</SelectItem>)}</SelectContent>
+                              </Select>
+                              <Select value={d.titular} onValueChange={v => setSplitDraft(prev => prev.map((p, idx) => idx === i ? { ...p, titular: v } : p))}>
+                                <SelectTrigger className="h-8 w-32 bg-white text-[12px]"><SelectValue placeholder="Titular" /></SelectTrigger>
+                                <SelectContent>{TITULARES_FIXOS.map(c => <SelectItem key={c} value={c} className="text-[12px]">{c}</SelectItem>)}</SelectContent>
+                              </Select>
+                              <Input
+                                value={d.valor}
+                                onChange={e => setSplitDraft(prev => prev.map((p, idx) => idx === i ? { ...p, valor: e.target.value } : p))}
+                                className="h-8 w-28 bg-white text-right text-[12px]"
+                                placeholder="0,00"
+                              />
+                              {splitDraft.length > 2 && (
+                                <button className="text-slate-400 hover:text-red-600" onClick={() => setSplitDraft(prev => prev.filter((_, idx) => idx !== i))}>
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <Button variant="outline" size="sm" onClick={() => setSplitDraft(prev => [...prev, { cidade: 'Araraquara', titular: t.titular, valor: splitDiff > 0 ? splitDiff.toFixed(2) : '0.00' }])}>
+                            + Adicionar cidade
+                          </Button>
+                          <span className={cn('text-[12px] font-bold tabular-nums', Math.abs(splitDiff) < 0.01 ? 'text-green-600' : 'text-amber-600')}>
+                            Soma: {brl(splitDraftTotal)} · Diferença: {brl(splitDiff)}
+                          </span>
+                          <div className="ml-auto flex gap-2">
+                            {edits[String(t.id)]?.splits && (
+                              <Button variant="outline" size="sm" className="text-red-600 border-red-200" onClick={() => removeSplit(t.id)}>Remover divisão</Button>
+                            )}
+                            <Button variant="outline" size="sm" onClick={closeSplit}>Cancelar</Button>
+                            <Button size="sm" onClick={saveSplit}>Salvar divisão</Button>
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                )}
+                </React.Fragment>
               ))}
             </tbody>
           </table>
