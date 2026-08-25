@@ -25,6 +25,7 @@ export type InheritableConfig = {
 
 export type InheritMatch = {
   id: number;
+  sourceId?: number;
   nome: string;
   origem: string;
   motivo: 'parcela' | 'nome';
@@ -79,7 +80,7 @@ export const findInheritedConfigs = (current: Tx[], previous: Tx[]): InheritMatc
     if (source.clienteNome) config.clienteNome = source.clienteNome;
     if (Object.keys(config).length === 0) continue;
 
-    matches.push({ id: t.id, nome: t.nome, origem: source.nome, motivo, config });
+    matches.push({ id: t.id, sourceId: source.id, nome: t.nome, origem: source.nome, motivo, config });
   }
 
   return matches;

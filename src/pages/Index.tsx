@@ -218,6 +218,35 @@ export default function Index() {
     });
   };
 
+  // Herda detalhes (descrição, cidade, destino, cliente, titular e divisões)
+  // apenas para UMA linha, a partir da fatura do mês anterior.
+  const herdarLinha = (row: any) => {
+    if (!prevTab) return;
+    const original = baseForTab(activeTab).find(x => x.id === row.id);
+    if (!original) return;
+    const [m] = findInheritedConfigs(applyEdits([original]), applyEdits(baseForTab(prevTab)));
+    if (!m) {
+      toast({ title: 'Sem correspondência', description: `Não encontrei este lançamento na fatura de ${prevTab}.`, variant: 'destructive' });
+      return;
+    }
+    const prevBase = baseForTab(prevTab).find(x => x.id === m.sourceId);
+    const prevEdit = m.sourceId !== undefined ? edits[String(m.sourceId)] : undefined;
+    setEdits(prev => ({
+      ...prev,
+      [String(row.id)]: {
+        ...prev[String(row.id)],
+        ...m.config,
+        ...(prevEdit?.nome ? { nome: prevEdit.nome } : prevBase?.nome ? { nome: prevBase.nome } : {}),
+        ...(prevEdit?.splits?.length ? { splits: prevEdit.splits.map(s => ({ ...s })) } : {}),
+      },
+    }));
+    toast({
+      title: 'Detalhes herdados',
+      description: `${m.origem} (${prevTab}) → titular, cidade, destino e cliente aplicados${prevEdit?.splits?.length ? ' + divisões' : ''}.`,
+    });
+  };
+
+
   // ---- Divisão de um lançamento entre múltiplas cidades/titulares ----
   const [splitTargetId, setSplitTargetId] = useState<number | null>(null);
   const [splitDraft, setSplitDraft] = useState<Array<{ cidade: string; titular: string; valor: string }>>([]);
@@ -774,6 +803,16 @@ export default function Index() {
                         <Select key={`destino-${t.rowKey}-${t.destino}`} value={t.destino || ''} onValueChange={v => updateRow(t.id, { destino: v })}><SelectTrigger className="h-6 text-[11px] bg-white border border-slate-200 rounded-md px-2 w-fit gap-1 text-slate-600"><span>{t.destino === 'Cliente' && t.clienteNome ? `Cliente — ${t.clienteNome}` : (t.destino || 'Destino')}</span></SelectTrigger><SelectContent><SelectItem value="Loja" className="text-[11px]">Loja</SelectItem><SelectItem value="Depósito" className="text-[11px]">Depósito</SelectItem><SelectItem value="Cliente" className="text-[11px]">Cliente</SelectItem><SelectItem value="Fornecedor" className="text-[11px]">Fornecedor</SelectItem><SelectItem value="Serviço Digital" className="text-[11px]">Serviço Digital</SelectItem><SelectItem value="Encargo Bancário" className="text-[11px]">Encargo Bancário</SelectItem></SelectContent></Select>
                         {t.destino === 'Cliente' && (<Input placeholder="Nome do cliente" value={t.clienteNome || ''} onChange={e => updateRow(t.id, { clienteNome: e.target.value })} className="h-6 w-36 text-[11px] px-2 border-slate-200" />)}
                         {t.parcela && t.parcela !== '—' && (<span className="h-6 inline-flex items-center text-[11px] font-medium border border-slate-200 text-slate-500 rounded-md px-2">{t.parcela}</span>)}
+                        {t.parcela && t.parcela !== '—' && prevTab && !t.isSplit && (
+                          <button
+                            onClick={() => herdarLinha(t)}
+                            title={`Puxar detalhes desta parcela da fatura de ${prevTab}`}
+                            className="h-6 inline-flex items-center gap-1 text-[11px] font-medium border border-indigo-200 text-indigo-600 hover:bg-indigo-50 rounded-md px-2"
+                          >
+                            <RefreshCw className="w-3 h-3" /> {prevTab}
+                          </button>
+                        )}
+
                       </div>
                     </div>
                   </td>
