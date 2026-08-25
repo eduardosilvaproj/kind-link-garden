@@ -504,6 +504,18 @@ export default function Index() {
           }} />
         ) : (
           <>
+          {prevTab && (
+            <div className="flex justify-end mb-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-2 border-blue-200 text-blue-600 hover:bg-blue-50 hover:text-blue-700"
+                onClick={herdarDoMesAnterior}
+              >
+                <RefreshCw className="w-4 h-4" /> Herdar configurações de {prevTab}
+              </Button>
+            </div>
+          )}
           {activeTab === 'maio' && (
             <div className="flex justify-end gap-2 mb-2">
               <Button 
