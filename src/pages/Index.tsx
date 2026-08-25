@@ -341,7 +341,7 @@ export default function Index() {
        const e = getEdit(activeTab, t.id);
       const valor = e.valor !== undefined ? e.valor : t.valor;
       if (e.splits && e.splits.length > 0) {
-        return e.splits.map(s => ({ id: t.id, titular: s.titular, cidade: s.cidade, tipo: t.tipo, valor: s.valor }));
+        return e.splits.map(s => ({ id: t.id, titular: s.titular, cidade: s.cidade, tipo: t.tipo, valor: s.valor, data: t.data }));
       }
       return [{
         id: t.id,
@@ -349,18 +349,28 @@ export default function Index() {
         cidade:  e.cidade  !== undefined ? e.cidade  : t.cidade,
         tipo:    t.tipo,
         valor,
+        data: t.data,
       }];
     });
 
-    // Pagamento da fatura anterior = o primeiro "Inclusao de Pagamento" do ciclo.
-    const primeiroPagamentoId = effective.find(t => t.tipo === 'Crédito' || t.tipo === 'Pagamento')?.id;
+    // Pagamento da fatura atual = o crédito/pagamento cujo data pertence ao mês ativo.
+    const mesSuffix = activeTab === 'agosto' ? ' ago'
+      : activeTab === 'julho' ? ' jul'
+      : activeTab === 'junho' ? ' jun'
+      : activeTab === 'maio' ? ' mai'
+      : activeTab === 'abril' ? ' abr'
+      : '';
+    const pagamentosDoMes = mesSuffix
+      ? effective.filter(t => (t.tipo === 'Crédito' || t.tipo === 'Pagamento') && t.data && t.data.toLowerCase().endsWith(mesSuffix))
+      : effective.filter(t => t.tipo === 'Crédito' || t.tipo === 'Pagamento');
+    const pagamentoAtualId = pagamentosDoMes.slice(-1)[0]?.id;
 
     return [...CIDADES, 'Encargos'].map(label => {
       const get = (tit: string) => effective
         .filter(t => {
           if (t.titular !== tit) return false;
           if (label === 'Encargos') return t.tipo === 'Encargo Bancário';
-          if (label === 'Não identificado') return t.id === primeiroPagamentoId;
+          if (label === 'Não identificado') return t.id === pagamentoAtualId;
           return t.cidade === label && t.tipo !== 'Encargo Bancário';
         })
         .reduce((s, t) => s + t.valor, 0);
