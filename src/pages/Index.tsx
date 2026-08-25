@@ -228,15 +228,19 @@ export default function Index() {
       : activeTab === 'julho' ? julTransactions
       : activeTab === 'junho' ? junTransactions
       : mayTransactions;
-    const effective = baseData.map(t => {
+    const effective = baseData.flatMap(t => {
       const e = edits[String(t.id)] ?? {};
-      return {
+      const valor = e.valor !== undefined ? e.valor : t.valor;
+      if (e.splits && e.splits.length > 0) {
+        return e.splits.map(s => ({ id: t.id, titular: s.titular, cidade: s.cidade, tipo: t.tipo, valor: s.valor }));
+      }
+      return [{
         id: t.id,
         titular: e.titular !== undefined ? e.titular : t.titular,
         cidade:  e.cidade  !== undefined ? e.cidade  : t.cidade,
         tipo:    t.tipo,
-        valor:   t.valor,
-      };
+        valor,
+      }];
     });
 
     return [...CIDADES, 'Encargos'].map(label => {
