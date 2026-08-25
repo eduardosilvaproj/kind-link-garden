@@ -25,7 +25,8 @@ import { useToast } from '@/hooks/use-toast';
 
 
 
-type RowEdit = { titular?: string; cidade?: string; destino?: string; clienteNome?: string; conferido?: boolean; nome?: string; valor?: number; };
+type RowSplit = { cidade: string; titular: string; valor: number };
+type RowEdit = { titular?: string; cidade?: string; destino?: string; clienteNome?: string; conferido?: boolean; nome?: string; valor?: number; splits?: RowSplit[]; };
 const CIDADES_FIXAS = ['Araraquara','Bauru','Ribeirão Preto','São Carlos','Online','Não identificado'];
 const TITULARES_FIXOS = ['Isabela','Claudio','Daniel'];
 const brl = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
