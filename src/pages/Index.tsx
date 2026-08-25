@@ -352,11 +352,15 @@ export default function Index() {
       }];
     });
 
+    // Pagamento da fatura anterior = o primeiro "Inclusao de Pagamento" do ciclo.
+    const primeiroPagamentoId = effective.find(t => t.tipo === 'Crédito' || t.tipo === 'Pagamento')?.id;
+
     return [...CIDADES, 'Encargos'].map(label => {
       const get = (tit: string) => effective
         .filter(t => {
           if (t.titular !== tit) return false;
           if (label === 'Encargos') return t.tipo === 'Encargo Bancário';
+          if (label === 'Não identificado') return t.id === primeiroPagamentoId;
           return t.cidade === label && t.tipo !== 'Encargo Bancário';
         })
         .reduce((s, t) => s + t.valor, 0);
@@ -366,6 +370,7 @@ export default function Index() {
       const displayLabel = label === 'Não identificado' ? 'Inclusão de pagamento' : label;
       return { label: displayLabel, Isabela, Claudio, Daniel, total: Isabela + Claudio + Daniel };
     });
+
 
 
   }, [edits, activeTab, mayTransactions, junTransactions, julTransactions, agoTransactions]);
