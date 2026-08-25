@@ -119,7 +119,23 @@ export default function Index() {
       };
     });
 
-    const sorted = [...raw].sort((a,b) => a.titular.localeCompare(b.titular) || a.id - b.id);
+    const expanded = raw.flatMap(t => {
+      const splits = edits[String(t.id)]?.splits;
+      if (!splits || splits.length === 0) return [{ ...t, rowKey: String(t.id), isSplit: false, splitIndex: -1, valorOriginal: t.valor }];
+      return splits.map((s, i) => ({
+        ...t,
+        titular: s.titular,
+        cidade: s.cidade,
+        valor: s.valor,
+        rowKey: `${t.id}-${i}`,
+        isSplit: true,
+        splitIndex: i,
+        splitCount: splits.length,
+        valorOriginal: t.valor,
+      }));
+    });
+
+    const sorted = [...expanded].sort((a,b) => a.titular.localeCompare(b.titular) || a.id - b.id || a.splitIndex - b.splitIndex);
     let currentTitular = '';
     let accumulated = 0;
     
