@@ -19,6 +19,7 @@ import autoTable from 'jspdf-autotable';
 import { MonthTabs } from '@/components/MonthTabs';
 import { PDFUpload } from '@/components/PDFUpload';
 import { parseC6PDF, identifyTransaction } from '@/lib/pdfParser';
+import { findInheritedConfigs } from '@/lib/inheritConfig';
 import { Trash2, RefreshCw } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -158,6 +159,49 @@ export default function Index() {
   const totalDistribuido = somaIsabela + somaClaudio + somaDaniel;
   const aDistribuir = isMaio ? (TOTAL_LIQUIDO_MAIO - totalDistribuido) : 0;
   const totalConferidos = useMemo(() => rows.filter(t => t.conferido).length, [rows]);
+
+  const PREV_TAB: Record<string, string> = { maio: 'abril', junho: 'maio', julho: 'junho', agosto: 'julho' };
+
+  const applyEdits = (base: any[]) => base.map(t => {
+    const e = edits[String(t.id)] ?? {};
+    return {
+      ...t,
+      titular: e.titular !== undefined ? e.titular : t.titular,
+      cidade: e.cidade !== undefined ? e.cidade : t.cidade,
+      destino: e.destino !== undefined ? e.destino : (t.destino ?? t.tipo),
+      clienteNome: e.clienteNome !== undefined ? e.clienteNome : (t.clienteNome ?? ''),
+    };
+  });
+
+  const baseForTab = (tab: string) =>
+    tab === 'abril' ? TRANSACOES
+    : tab === 'maio' ? mayTransactions
+    : tab === 'junho' ? junTransactions
+    : tab === 'julho' ? julTransactions
+    : agoTransactions;
+
+  const prevTab = PREV_TAB[activeTab];
+
+  const herdarDoMesAnterior = () => {
+    if (!prevTab) return;
+    const matches = findInheritedConfigs(applyEdits(baseForTab(activeTab)), applyEdits(baseForTab(prevTab)));
+    if (matches.length === 0) {
+      toast({ title: 'Nada para herdar', description: `Nenhum lançamento de ${activeTab} foi encontrado na fatura de ${prevTab}.` });
+      return;
+    }
+    setEdits(prev => {
+      const next = { ...prev };
+      matches.forEach(m => { next[String(m.id)] = { ...next[String(m.id)], ...m.config }; });
+      return next;
+    });
+    const parcelas = matches.filter(m => m.motivo === 'parcela').length;
+    toast({
+      title: 'Configurações herdadas',
+      description: `${matches.length} lançamento(s) atualizados a partir de ${prevTab} (${parcelas} parcela(s) em andamento).`,
+    });
+  };
+
+
   
   const crossTab = useMemo(() => {
     const CIDADES = ['Araraquara','Bauru','Ribeirão Preto','São Carlos','Online','Não identificado'];
@@ -460,6 +504,18 @@ export default function Index() {
           }} />
         ) : (
           <>
+          {prevTab && (
+            <div className="flex justify-end mb-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-2 border-blue-200 text-blue-600 hover:bg-blue-50 hover:text-blue-700"
+                onClick={herdarDoMesAnterior}
+              >
+                <RefreshCw className="w-4 h-4" /> Herdar configurações de {prevTab}
+              </Button>
+            </div>
+          )}
           {activeTab === 'maio' && (
             <div className="flex justify-end gap-2 mb-2">
               <Button 
