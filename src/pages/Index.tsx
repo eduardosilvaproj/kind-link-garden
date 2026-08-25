@@ -19,6 +19,7 @@ import autoTable from 'jspdf-autotable';
 import { MonthTabs } from '@/components/MonthTabs';
 import { PDFUpload } from '@/components/PDFUpload';
 import { parseC6PDF, identifyTransaction } from '@/lib/pdfParser';
+import { findInheritedConfigs } from '@/lib/inheritConfig';
 import { Trash2, RefreshCw } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
