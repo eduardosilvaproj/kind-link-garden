@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { TRANSACOES, TOTAL_FATURA } from '../data/transactions';
 import { MAY_2026_TRANSACOES } from '../data/may2026Transactions';
 import { JUN_2026_TRANSACOES } from '../data/jun2026Transactions';
