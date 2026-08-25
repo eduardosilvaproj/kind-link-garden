@@ -26,7 +26,7 @@ import { useToast } from '@/hooks/use-toast';
 
 
 type RowSplit = { cidade: string; titular: string; valor: number };
-type RowEdit = { titular?: string; cidade?: string; destino?: string; clienteNome?: string; conferido?: boolean; nome?: string; valor?: number; splits?: RowSplit[]; };
+  type RowEdit = { titular?: string; cidade?: string; destino?: string; clienteNome?: string; conferido?: boolean; nome?: string; valor?: number; splits?: RowSplit[]; };
 const CIDADES_FIXAS = ['Araraquara','Bauru','Ribeirão Preto','São Carlos','Online','Não identificado'];
 const TITULARES_FIXOS = ['Isabela','Claudio','Daniel'];
 const brl = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -187,6 +187,8 @@ export default function Index() {
       cidade: e.cidade !== undefined ? e.cidade : t.cidade,
       destino: e.destino !== undefined ? e.destino : (t.destino ?? t.tipo),
       clienteNome: e.clienteNome !== undefined ? e.clienteNome : (t.clienteNome ?? ''),
+      nome: e.nome !== undefined ? e.nome : t.nome,
+      valor: e.valor !== undefined ? e.valor : t.valor,
     };
   });
 
@@ -229,14 +231,12 @@ export default function Index() {
       toast({ title: 'Sem correspondência', description: `Não encontrei este lançamento na fatura de ${prevTab}.`, variant: 'destructive' });
       return;
     }
-    const prevBase = baseForTab(prevTab).find(x => x.id === m.sourceId);
     const prevEdit = m.sourceId !== undefined ? edits[String(m.sourceId)] : undefined;
     setEdits(prev => ({
       ...prev,
       [String(row.id)]: {
         ...prev[String(row.id)],
         ...m.config,
-        ...(prevEdit?.nome ? { nome: prevEdit.nome } : prevBase?.nome ? { nome: prevBase.nome } : {}),
         ...(prevEdit?.splits?.length ? { splits: prevEdit.splits.map(s => ({ ...s })) } : {}),
       },
     }));
