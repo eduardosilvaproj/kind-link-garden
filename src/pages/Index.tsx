@@ -3,6 +3,7 @@ import { TRANSACOES, TOTAL_FATURA } from '../data/transactions';
 import { MAY_2026_TRANSACOES } from '../data/may2026Transactions';
 import { JUN_2026_TRANSACOES } from '../data/jun2026Transactions';
 import { JUL_2026_TRANSACOES } from '../data/jul2026Transactions';
+import { AGO_2026_TRANSACOES } from '../data/ago2026Transactions';
 import { DEFAULT_CONFIG } from '../data/defaultConfig';
 import { exportToXLSX } from '../lib/exportUtils';
 import { Download, FileText, Filter, Calendar } from 'lucide-react';
@@ -49,6 +50,7 @@ const sumCreditos = (rows: Array<{ tipo: string; valor: number }>) =>
 const TOTAL_LIQUIDO_MAIO = 13681.47;
 const TOTAL_LIQUIDO_JUNHO = 9803.77;
 const TOTAL_LIQUIDO_JULHO = 21897.44;
+const TOTAL_LIQUIDO_AGOSTO = 3700.18;
 
 
 export default function Index() {
@@ -59,6 +61,7 @@ export default function Index() {
   const [mayTransactions, setMayTransactions] = useState<any[]>(MAY_2026_TRANSACOES);
   const [junTransactions, setJunTransactions] = useState<any[]>(JUN_2026_TRANSACOES);
   const [julTransactions, setJulTransactions] = useState<any[]>(JUL_2026_TRANSACOES);
+  const [agoTransactions, setAgoTransactions] = useState<any[]>(AGO_2026_TRANSACOES);
   const [filterTitular, setFilterTitular] = useState('Todos');
   const [showPendentes, setShowPendentes] = useState(false);
   const [showPagamentos, setShowPagamentos] = useState(false);
@@ -96,6 +99,7 @@ export default function Index() {
   const rows = useMemo(() => {
     const baseData = activeTab === 'abril'
       ? historicalTransactions
+      : activeTab === 'agosto' ? agoTransactions
       : activeTab === 'julho' ? julTransactions
       : activeTab === 'junho' ? junTransactions
       : mayTransactions;
@@ -126,7 +130,7 @@ export default function Index() {
       accumulated += (isNegative ? -Math.abs(t.valor) : t.valor);
       return { ...t, saldoAcumulado: accumulated };
     });
-  }, [edits, activeTab, mayTransactions, junTransactions, julTransactions, historicalTransactions]);
+  }, [edits, activeTab, mayTransactions, junTransactions, julTransactions, agoTransactions, historicalTransactions]);
 
 
 
@@ -136,7 +140,8 @@ export default function Index() {
   const isMaio = activeTab === 'maio';
   const isJunho = activeTab === 'junho';
   const isJulho = activeTab === 'julho';
-  const totalFaturaAtiva = isJulho ? TOTAL_LIQUIDO_JULHO : isJunho ? TOTAL_LIQUIDO_JUNHO : isMaio ? TOTAL_LIQUIDO_MAIO : TOTAL_FATURA;
+  const isAgosto = activeTab === 'agosto';
+  const totalFaturaAtiva = isAgosto ? TOTAL_LIQUIDO_AGOSTO : isJulho ? TOTAL_LIQUIDO_JULHO : isJunho ? TOTAL_LIQUIDO_JUNHO : isMaio ? TOTAL_LIQUIDO_MAIO : TOTAL_FATURA;
 
   // Em Maio só contam para o card do responsável os itens distribuídos
   // MANUALMENTE pelo usuário (com edit explícito de titular). O titular
@@ -158,6 +163,7 @@ export default function Index() {
     const CIDADES = ['Araraquara','Bauru','Ribeirão Preto','São Carlos','Online','Não identificado'];
     const baseData = activeTab === 'abril'
       ? TRANSACOES
+      : activeTab === 'agosto' ? agoTransactions
       : activeTab === 'julho' ? julTransactions
       : activeTab === 'junho' ? junTransactions
       : mayTransactions;
@@ -186,7 +192,7 @@ export default function Index() {
       const displayLabel = label === 'Não identificado' ? 'Inclusão de pagamento' : label;
       return { label: displayLabel, Isabela, Claudio, Daniel, total: Isabela + Claudio + Daniel };
     });
-  }, [edits, activeTab, mayTransactions, junTransactions, julTransactions]);
+  }, [edits, activeTab, mayTransactions, junTransactions, julTransactions, agoTransactions]);
 
 
   const filtradas = useMemo(() => {
@@ -220,7 +226,7 @@ export default function Index() {
   }, [rows, filterTitular, showPendentes, showPagamentos, search, sortField, sortDir]);
 
   const exportPDF = () => {
-    const monthLabel = isJulho ? 'Julho 2026' : isJunho ? 'Junho 2026' : isMaio ? 'Maio 2026' : 'Abril 2026';
+    const monthLabel = isAgosto ? 'Agosto 2026' : isJulho ? 'Julho 2026' : isJunho ? 'Junho 2026' : isMaio ? 'Maio 2026' : 'Abril 2026';
     const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
     const W = pdf.internal.pageSize.getWidth();   // 297mm
 
