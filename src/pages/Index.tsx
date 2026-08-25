@@ -267,6 +267,15 @@ export default function Index() {
     closeSplit();
   };
 
+  const updateSplitPart = (id: number, index: number, patch: Partial<RowSplit>) => {
+    setEdits(prev => {
+      const cur = prev[String(id)];
+      if (!cur?.splits) return prev;
+      const splits = cur.splits.map((s, i) => (i === index ? { ...s, ...patch } : s));
+      return { ...prev, [String(id)]: { ...cur, splits } };
+    });
+  };
+
   const removeSplit = (id: number) => {
     setEdits(prev => {
       const next = { ...prev };
