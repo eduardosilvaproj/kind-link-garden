@@ -870,7 +870,7 @@ export default function Index() {
                             Soma: {brl(splitDraftTotal)} · Diferença: {brl(splitDiff)}
                           </span>
                           <div className="ml-auto flex gap-2">
-                            {edits[String(t.id)]?.splits && (
+                            {getEdit(activeTab, t.id).splits && (
                               <Button variant="outline" size="sm" className="text-red-600 border-red-200" onClick={() => removeSplit(t.id)}>Remover divisão</Button>
                             )}
                             <Button variant="outline" size="sm" onClick={closeSplit}>Cancelar</Button>
