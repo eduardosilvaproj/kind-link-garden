@@ -218,6 +218,69 @@ export default function Index() {
     });
   };
 
+  // ---- Divisão de um lançamento entre múltiplas cidades/titulares ----
+  const [splitTargetId, setSplitTargetId] = useState<number | null>(null);
+  const [splitDraft, setSplitDraft] = useState<Array<{ cidade: string; titular: string; valor: string }>>([]);
+
+  const openSplit = (t: any) => {
+    const existing = edits[String(t.id)]?.splits;
+    setSplitTargetId(t.id);
+    setSplitDraft(
+      existing && existing.length > 0
+        ? existing.map(s => ({ cidade: s.cidade, titular: s.titular, valor: s.valor.toFixed(2) }))
+        : [
+            { cidade: t.cidade, titular: t.titular, valor: (t.valorOriginal ?? t.valor).toFixed(2) },
+            { cidade: 'Araraquara', titular: t.titular, valor: '0.00' },
+          ]
+    );
+  };
+
+  const closeSplit = () => { setSplitTargetId(null); setSplitDraft([]); };
+
+  const splitTargetRow = useMemo(
+    () => rows.find(r => r.id === splitTargetId),
+    [rows, splitTargetId]
+  );
+  const splitTotalOriginal = splitTargetRow ? (splitTargetRow.valorOriginal ?? splitTargetRow.valor) : 0;
+  const splitDraftTotal = splitDraft.reduce((s, d) => s + (parseFloat(String(d.valor).replace(',', '.')) || 0), 0);
+  const splitDiff = splitTotalOriginal - splitDraftTotal;
+
+  const saveSplit = () => {
+    if (splitTargetId === null) return;
+    if (Math.abs(splitDiff) > 0.01) {
+      toast({
+        title: 'Valores não fecham',
+        description: `A soma das partes (${brl(splitDraftTotal)}) precisa ser igual ao valor do lançamento (${brl(splitTotalOriginal)}).`,
+        variant: 'destructive',
+      });
+      return;
+    }
+    const splits: RowSplit[] = splitDraft
+      .map(d => ({ cidade: d.cidade, titular: d.titular, valor: parseFloat(String(d.valor).replace(',', '.')) || 0 }))
+      .filter(s => Math.abs(s.valor) > 0.001);
+    if (splits.length < 2) {
+      toast({ title: 'Divisão inválida', description: 'Informe pelo menos duas partes com valor.', variant: 'destructive' });
+      return;
+    }
+    updateRow(splitTargetId, { splits });
+    toast({ title: 'Lançamento dividido', description: `${splits.length} partes criadas.` });
+    closeSplit();
+  };
+
+  const removeSplit = (id: number) => {
+    setEdits(prev => {
+      const next = { ...prev };
+      const cur = { ...(next[String(id)] ?? {}) };
+      delete cur.splits;
+      next[String(id)] = cur;
+      return next;
+    });
+    closeSplit();
+    toast({ title: 'Divisão removida' });
+  };
+
+
+
 
   
   const crossTab = useMemo(() => {
