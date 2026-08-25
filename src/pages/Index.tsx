@@ -218,6 +218,35 @@ export default function Index() {
     });
   };
 
+  // Herda detalhes (descrição, cidade, destino, cliente, titular e divisões)
+  // apenas para UMA linha, a partir da fatura do mês anterior.
+  const herdarLinha = (row: any) => {
+    if (!prevTab) return;
+    const original = baseForTab(activeTab).find(x => x.id === row.id);
+    if (!original) return;
+    const [m] = findInheritedConfigs(applyEdits([original]), applyEdits(baseForTab(prevTab)));
+    if (!m) {
+      toast({ title: 'Sem correspondência', description: `Não encontrei este lançamento na fatura de ${prevTab}.`, variant: 'destructive' });
+      return;
+    }
+    const prevBase = baseForTab(prevTab).find(x => x.id === m.sourceId);
+    const prevEdit = m.sourceId !== undefined ? edits[String(m.sourceId)] : undefined;
+    setEdits(prev => ({
+      ...prev,
+      [String(row.id)]: {
+        ...prev[String(row.id)],
+        ...m.config,
+        ...(prevEdit?.nome ? { nome: prevEdit.nome } : prevBase?.nome ? { nome: prevBase.nome } : {}),
+        ...(prevEdit?.splits?.length ? { splits: prevEdit.splits.map(s => ({ ...s })) } : {}),
+      },
+    }));
+    toast({
+      title: 'Detalhes herdados',
+      description: `${m.origem} (${prevTab}) → titular, cidade, destino e cliente aplicados${prevEdit?.splits?.length ? ' + divisões' : ''}.`,
+    });
+  };
+
+
   // ---- Divisão de um lançamento entre múltiplas cidades/titulares ----
   const [splitTargetId, setSplitTargetId] = useState<number | null>(null);
   const [splitDraft, setSplitDraft] = useState<Array<{ cidade: string; titular: string; valor: string }>>([]);
