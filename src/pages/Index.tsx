@@ -4,6 +4,7 @@ import { MAY_2026_TRANSACOES } from '../data/may2026Transactions';
 import { JUN_2026_TRANSACOES } from '../data/jun2026Transactions';
 import { JUL_2026_TRANSACOES } from '../data/jul2026Transactions';
 import { AGO_2026_TRANSACOES } from '../data/ago2026Transactions';
+import { SET_2026_TRANSACOES } from '../data/set2026Transactions';
 import { DEFAULT_CONFIG } from '../data/defaultConfig';
 import { exportToXLSX } from '../lib/exportUtils';
 import { Download, FileText, Filter, Calendar } from 'lucide-react';
@@ -53,6 +54,7 @@ const TOTAL_LIQUIDO_MAIO = 13681.47;
 const TOTAL_LIQUIDO_JUNHO = 9803.77;
 const TOTAL_LIQUIDO_JULHO = 21897.44;
 const TOTAL_LIQUIDO_AGOSTO = 3700.18;
+const TOTAL_LIQUIDO_SETEMBRO = 4492.19;
 
 
 export default function Index() {
@@ -64,6 +66,7 @@ export default function Index() {
   const [junTransactions, setJunTransactions] = useState<any[]>(JUN_2026_TRANSACOES);
   const [julTransactions, setJulTransactions] = useState<any[]>(JUL_2026_TRANSACOES);
   const [agoTransactions, setAgoTransactions] = useState<any[]>(AGO_2026_TRANSACOES);
+  const [setTransactions] = useState<any[]>(SET_2026_TRANSACOES);
   const [filterTitular, setFilterTitular] = useState('Todos');
   const [showPendentes, setShowPendentes] = useState(false);
   const [showPagamentos, setShowPagamentos] = useState(false);
@@ -103,6 +106,7 @@ export default function Index() {
   const rows = useMemo(() => {
     const baseData = activeTab === 'abril'
       ? historicalTransactions
+      : activeTab === 'setembro' ? setTransactions
       : activeTab === 'agosto' ? agoTransactions
       : activeTab === 'julho' ? julTransactions
       : activeTab === 'junho' ? junTransactions
@@ -150,7 +154,7 @@ export default function Index() {
       accumulated += (isNegative ? -Math.abs(t.valor) : t.valor);
       return { ...t, saldoAcumulado: accumulated };
     });
-  }, [edits, activeTab, mayTransactions, junTransactions, julTransactions, agoTransactions, historicalTransactions]);
+  }, [edits, activeTab, mayTransactions, junTransactions, julTransactions, agoTransactions, setTransactions, historicalTransactions]);
 
 
 
@@ -161,7 +165,7 @@ export default function Index() {
   const isJunho = activeTab === 'junho';
   const isJulho = activeTab === 'julho';
   const isAgosto = activeTab === 'agosto';
-  const totalFaturaAtiva = isAgosto ? TOTAL_LIQUIDO_AGOSTO : isJulho ? TOTAL_LIQUIDO_JULHO : isJunho ? TOTAL_LIQUIDO_JUNHO : isMaio ? TOTAL_LIQUIDO_MAIO : TOTAL_FATURA;
+  const totalFaturaAtiva = activeTab === 'setembro' ? TOTAL_LIQUIDO_SETEMBRO : isAgosto ? TOTAL_LIQUIDO_AGOSTO : isJulho ? TOTAL_LIQUIDO_JULHO : isJunho ? TOTAL_LIQUIDO_JUNHO : isMaio ? TOTAL_LIQUIDO_MAIO : TOTAL_FATURA;
 
   // Em Maio só contam para o card do responsável os itens distribuídos
   // MANUALMENTE pelo usuário (com edit explícito de titular). O titular
@@ -179,7 +183,7 @@ export default function Index() {
   const aDistribuir = isMaio ? (TOTAL_LIQUIDO_MAIO - totalDistribuido) : 0;
   const totalConferidos = useMemo(() => rows.filter(t => t.conferido).length, [rows]);
 
-  const PREV_TAB: Record<string, string> = { maio: 'abril', junho: 'maio', julho: 'junho', agosto: 'julho' };
+  const PREV_TAB: Record<string, string> = { maio: 'abril', junho: 'maio', julho: 'junho', agosto: 'julho', setembro: 'agosto' };
 
   const applyEdits = (base: any[], tab: string) => base.map(t => {
     const e = getEdit(tab, t.id);
@@ -199,6 +203,7 @@ export default function Index() {
     : tab === 'maio' ? mayTransactions
     : tab === 'junho' ? junTransactions
     : tab === 'julho' ? julTransactions
+    : tab === 'setembro' ? setTransactions
     : agoTransactions;
 
   const prevTab = PREV_TAB[activeTab];
@@ -333,6 +338,7 @@ export default function Index() {
     const CIDADES = ['Araraquara','Bauru','Ribeirão Preto','São Carlos','Online','Não identificado'];
     const baseData = activeTab === 'abril'
       ? TRANSACOES
+      : activeTab === 'setembro' ? setTransactions
       : activeTab === 'agosto' ? agoTransactions
       : activeTab === 'julho' ? julTransactions
       : activeTab === 'junho' ? junTransactions
@@ -354,7 +360,8 @@ export default function Index() {
     });
 
     // Pagamento da fatura atual = o crédito/pagamento cujo data pertence ao mês ativo.
-    const mesSuffix = activeTab === 'agosto' ? ' ago'
+    const mesSuffix = activeTab === 'setembro' ? ' set'
+      : activeTab === 'agosto' ? ' ago'
       : activeTab === 'julho' ? ' jul'
       : activeTab === 'junho' ? ' jun'
       : activeTab === 'maio' ? ' mai'
@@ -383,7 +390,7 @@ export default function Index() {
 
 
 
-  }, [edits, activeTab, mayTransactions, junTransactions, julTransactions, agoTransactions]);
+  }, [edits, activeTab, mayTransactions, junTransactions, julTransactions, agoTransactions, setTransactions]);
 
 
   const filtradas = useMemo(() => {
